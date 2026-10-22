@@ -45,20 +45,29 @@ Keep deterministic call sequencing, safe bounded retry, output collection and di
 
 Use executable tests, compilation, schema validation, static analysis, file/API checks and deterministic assertions whenever they can answer the question. Model assessment is reserved for judgment code cannot settle. For that remainder, use a claim-by-claim factual checklist (expected property, artifact/source, evidence, pass/fail/unknown) or a controlled blind A/B comparison; do not use vague 1–5 quality scores as acceptance. Never promote a model's confidence or prose into a mechanical check result.
 
-### 3.5 Owner-controlled P0–P3 priorities
+### 3.5 Google Issue Tracker P0–P4: exact upstream rubric
 
-Every active work item, ticket, bug or actionable review finding needs exactly one **owner-approved** P0–P3 priority. Use Google's published P0–P3 impact/workaround definitions as the reference, adapted for the owner's Codex/GitHub workflow; Google also documents P4, which Rill does not import.
+Use **Google Issue Tracker's published common P0–P4 definitions**, including P2 as its documented default, without substituting a Rill-specific severity rubric. [Google source](https://developers.google.com/issue-tracker/concepts/issues). Google states that individual teams may use different criteria; Rill deliberately selects this published common rubric unchanged.
 
-- **P0 — Critical:** essential workflow completely unavailable, no viable workaround, or immediate risk to critical work. Surface immediately; act only with authorization.
-- **P1 — High:** material core capability blocked; no reasonable workaround or only an impractical partial one. Do before lower-priority tasks.
-- **P2 — Medium:** bounded impact with a reasonable workaround; defer unless the owner selects it.
-- **P3 — Low:** cosmetic or nonblocking improvement; defer or close unless the owner selects it.
+| Priority | Google's published meaning                                                                                                                                                                                                                                                               |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **P0**   | Act immediately with as many resources as needed. Full outage or critical product function unavailable to everyone, with no known workaround.                                                                                                                                            |
+| **P1**   | Act quickly. Significant impact to a large share of users; workaround, if any, is partial or excessively painful. A core organizational function is affected or another team is fundamentally impeded.                                                                                   |
+| **P2**   | Address within a reasonable timescale. A would-be P0/P1 with a reasonable workaround, important impact to many users in a core function, or blocking another team without a reasonable workaround. Important for first-use and installation issues. **Google's default priority is P2.** |
+| **P3**   | Address when possible. Relevant to core functions or other teams but not blocking progress, or a reasonable workaround exists.                                                                                                                                                           |
+| **P4**   | Address eventually. Not relevant to core functions or other teams, or only affects presentation, attractiveness or pleasantness.                                                                                                                                                         |
 
-**Only the owner classifies or changes priority.** Agents may collect observable impact and workaround facts and carry the owner-assigned value across Issue/PR/work items; they must never infer, raise, lower or default a priority. Without one confirmed value, an item stays untriaged and dependent implementation stops. Reuse the recorded owner decision instead of repeatedly asking.
+**Priority authority:** The owner decides whether an issue fits Google's published criteria and authorizes any priority change. An Agent can gather observed impact/workaround evidence, read and validate the recorded priority, report discrepancies, and execute already authorized work. An Agent must not infer, assign, raise, lower or automatically default an issue's priority. A missing/conflicting GitHub priority remains untriaged for owner decision. Google's P2 default is a fact about **Google Issue Tracker**, not permission for the Agent to fill in an absent GitHub value.
 
-For the personal GitHub repository, record authorized priorities as exactly one native label: `priority:P0`, `priority:P1`, `priority:P2` or `priority:P3`. An active child ticket or actionable finding requires its own recorded priority, not automatic inheritance from a parent. Labels are storage, not enforcement. Organization-only native Issue priority fields may replace labels if the actual repository becomes eligible and the owner approves. Applicable mandatory quality/security checks remain required even on authorized lower-priority work.
+Store owner-authorized priority on the native GitHub Issue record. The personal repository may use native labels `priority:P0` through `priority:P4` where labels are the supported issue metadata; use a native typed priority field only if genuinely available. No duplicated prioritization database or custom classifier. Do not invent a new project-specific rule that all P2/P3 work must be declined: authorization and actual task value remain the owner's decisions. Applicable quality/security controls are independent of priority.
 
-### 3.6 Source authority
+### 3.6 Locked implementation language and native tools
+
+Rill's first-party executable source language is **TypeScript 7.0.2 only**, on **Node.js 24 LTS** with **pnpm 12.14.0**. No first-party Python, JavaScript or Shell implementation. Shell can invoke pre-existing commands; packages and native tools may themselves be implemented in any language. Codex App configuration and skills remain official native formats rather than being rewritten as TypeScript.
+
+For every actual code or documentation change, use the single locked [engineering feedback loop](engineering-loop.md): `.editorconfig` baseline; Biome 2.6.2 as the sole TS/JSON/Markdown formatter and applicable linter; markdownlint 0.42.0 as supplementary Markdown rules; TS7 compiler diagnostics; Vitest 5 + V8 coverage for tests; Ajv 8 for JSON Schema; and the native Just/Gitleaks/Lychee/Lizard/Trivy/Knip/Tokei gates. Command contracts, versions, fixes and observable failure behavior live in native project configuration and the linked loop, not an Agent's independent tool selection.
+
+### 3.7 Source authority
 
 OpenAI governs claims about Codex, GitHub governs GitHub semantics, and each language/tool maintainer governs its APIs. Anthropic's `claude.dev` is an official first-party engineering publication for methods and comparison, not a Codex API specification. Do not import another vendor's interface as a Codex capability.
 
