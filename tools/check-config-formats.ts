@@ -1,28 +1,40 @@
-import { existsSync, globSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { globSync, readFileSync } from "node:fs";
+import { relative, resolve, sep } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { parseDocument } from "yaml";
 
 const root = process.cwd();
 const tomlFile = ".codex/config.toml";
-const yamlFiles = globSync(".agents/**/*.yaml").sort();
-const files = [tomlFile, ...yamlFiles];
+const yamlGlob = ".agents/**/*.yaml";
+const yamlFiles = globSync(yamlGlob).sort();
+const args = process.argv.slice(2);
+const explicitFiles = args.length > 0;
+const files = explicitFiles
+  ? args.map((file) => relative(root, resolve(root, file)).split(sep).join("/"))
+  : [tomlFile, ...yamlFiles];
 const diagnostics: string[] = [];
 
-if (!existsSync(resolve(root, tomlFile))) {
+if (!explicitFiles && !files.includes(tomlFile)) {
   diagnostics.push(`${tomlFile}: required project Codex config file was not found`);
 }
 
-if (yamlFiles.length === 0) {
-  diagnostics.push(".agents/**/*.yaml: no agent configuration files were found");
+if (!explicitFiles && yamlFiles.length === 0) {
+  diagnostics.push(`${yamlGlob}: no agent configuration files were found`);
 }
 
 for (const file of files) {
-  if (!existsSync(resolve(root, file))) {
+  if (explicitFiles && file !== tomlFile && !/^\.agents\/.+\.yaml$/.test(file)) {
+    diagnostics.push(`${file}: unsupported config syntax path`);
     continue;
   }
 
-  const source = readFileSync(resolve(root, file), "utf8");
+  let source: string;
+  try {
+    source = readFileSync(resolve(root, file), "utf8");
+  } catch (error) {
+    diagnostics.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
+    continue;
+  }
 
   if (file === tomlFile) {
     try {
@@ -52,5 +64,11 @@ if (diagnostics.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log(`config syntax: ${files.length} files passed (1 TOML, ${yamlFiles.length} YAML)`);
+  const tomlCount = files.filter((file) => file === tomlFile).length;
+  const yamlCount = files.length - tomlCount;
+  const scope = explicitFiles ? "selected " : "";
+  const noun = files.length === 1 ? "file" : "files";
+  console.log(
+    `config syntax: ${files.length} ${scope}${noun} passed (${tomlCount} TOML, ${yamlCount} YAML)`,
+  );
 }

@@ -27,8 +27,8 @@ function withCopiedConfigFiles(run: (directory: string) => void): void {
   }
 }
 
-function runCli(directory: string) {
-  return spawnSync(process.execPath, [cli], { cwd: directory, encoding: "utf8" });
+function runCli(directory: string, files: string[] = []) {
+  return spawnSync(process.execPath, [cli, ...files], { cwd: directory, encoding: "utf8" });
 }
 
 test("accepts the current project TOML and YAML syntax in an isolated copy", () => {
@@ -63,5 +63,53 @@ test("reports malformed YAML with its file path and parser diagnostic", () => {
     expect(result.stderr).toContain(".agents/skills/development-workflow/agents/openai.yaml:");
     expect(result.stderr).toContain("Flow sequence");
     expect(result.stdout).toBe("");
+  });
+});
+
+test("explicit-file mode validates only the selected config file", () => {
+  withCopiedConfigFiles((directory) => {
+    const toml = ".codex/config.toml";
+    const yaml = ".agents/skills/development-workflow/agents/openai.yaml";
+    writeFileSync(join(directory, yaml), "malformed: [\n");
+
+    const result = runCli(directory, [toml]);
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("config syntax: 1 selected file passed (1 TOML, 0 YAML)");
+    expect(result.stderr).toBe("");
+  });
+});
+
+test("explicit-file mode accepts a valid YAML file while the unselected TOML is malformed", () => {
+  withCopiedConfigFiles((directory) => {
+    const toml = ".codex/config.toml";
+    const yaml = ".agents/skills/development-workflow/agents/openai.yaml";
+    writeFileSync(join(directory, toml), "[agents\nenabled = true\n");
+
+    const result = runCli(directory, [yaml]);
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("config syntax: 1 selected file passed (0 TOML, 1 YAML)");
+    expect(result.stderr).toBe("");
+  });
+});
+
+test("explicit-file mode rejects malformed TOML and YAML with their paths", () => {
+  withCopiedConfigFiles((directory) => {
+    const toml = ".codex/config.toml";
+    const yaml = ".agents/skills/development-workflow/agents/openai.yaml";
+    writeFileSync(join(directory, toml), "[agents\nenabled = true\n");
+    writeFileSync(join(directory, yaml), "malformed: [\n");
+
+    const tomlResult = runCli(directory, [toml]);
+    expect(tomlResult.error).toBeUndefined();
+    expect(tomlResult.status).toBe(1);
+    expect(tomlResult.stderr).toContain(".codex/config.toml: Invalid TOML document");
+
+    const yamlResult = runCli(directory, [yaml]);
+    expect(yamlResult.error).toBeUndefined();
+    expect(yamlResult.status).toBe(1);
+    expect(yamlResult.stderr).toContain(`${yaml}:`);
+    expect(yamlResult.stderr).toContain("Flow sequence");
   });
 });
