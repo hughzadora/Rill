@@ -7,6 +7,9 @@ import { expect, test } from "vitest";
 
 const cli = fileURLToPath(new URL("../tools/check-config-formats.ts", import.meta.url));
 const tomlSource = fileURLToPath(new URL("../.codex/config.toml", import.meta.url));
+const skillSource = fileURLToPath(
+  new URL("../.agents/skills/development-workflow/SKILL.md", import.meta.url),
+);
 const yamlSource = fileURLToPath(
   new URL("../.agents/skills/development-workflow/agents/openai.yaml", import.meta.url),
 );
@@ -14,12 +17,15 @@ const yamlSource = fileURLToPath(
 function withCopiedConfigFiles(run: (directory: string) => void): void {
   const directory = mkdtempSync(join(tmpdir(), "rill-config-formats-"));
   const toml = join(directory, ".codex/config.toml");
+  const skill = join(directory, ".agents/skills/development-workflow/SKILL.md");
   const yaml = join(directory, ".agents/skills/development-workflow/agents/openai.yaml");
 
   try {
     mkdirSync(join(directory, ".codex"), { recursive: true });
-    mkdirSync(join(directory, ".agents/skills/development-workflow/agents"), { recursive: true });
+    mkdirSync(join(directory, ".agents/skills/development-workflow"), { recursive: true });
     copyFileSync(tomlSource, toml);
+    copyFileSync(skillSource, skill);
+    mkdirSync(join(directory, ".agents/skills/development-workflow/agents"), { recursive: true });
     copyFileSync(yamlSource, yaml);
     run(directory);
   } finally {
@@ -41,13 +47,24 @@ test("accepts the current project TOML and YAML syntax in an isolated copy", () 
   });
 });
 
-test("requires at least one YAML config while allowing zero role TOML files", () => {
+test("accepts required project TOML and SKILL.md when optional YAML metadata is absent", () => {
   withCopiedConfigFiles((directory) => {
     const yaml = join(directory, ".agents/skills/development-workflow/agents/openai.yaml");
     rmSync(yaml);
     const result = runCli(directory);
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("config syntax: 1 file passed (1 TOML, 0 YAML)");
+    expect(result.stderr).toBe("");
+  });
+});
+
+test("requires the project TOML when discovering config files", () => {
+  withCopiedConfigFiles((directory) => {
+    rmSync(join(directory, ".codex/config.toml"));
+    const result = runCli(directory);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(".agents/**/*.yaml: no agent configuration files were found");
+    expect(result.stderr).toContain(".codex/config.toml:");
     expect(result.stdout).toBe("");
   });
 });
@@ -142,6 +159,25 @@ test("explicit-file mode rejects malformed TOML and YAML with their paths", () =
     expect(yamlResult.status).toBe(1);
     expect(yamlResult.stderr).toContain(`${yaml}:`);
     expect(yamlResult.stderr).toContain("Flow sequence");
+  });
+});
+
+test("explicit-file mode reports missing supported TOML and YAML paths", () => {
+  withCopiedConfigFiles((directory) => {
+    const missingYaml = ".agents/skills/missing/agents/openai.yaml";
+    const yamlResult = runCli(directory, [missingYaml]);
+    expect(yamlResult.error).toBeUndefined();
+    expect(yamlResult.status).toBe(1);
+    expect(yamlResult.stderr).toContain(`${missingYaml}:`);
+    expect(yamlResult.stdout).toBe("");
+
+    const missingToml = ".codex/config.toml";
+    rmSync(join(directory, missingToml));
+    const tomlResult = runCli(directory, [missingToml]);
+    expect(tomlResult.error).toBeUndefined();
+    expect(tomlResult.status).toBe(1);
+    expect(tomlResult.stderr).toContain(`${missingToml}:`);
+    expect(tomlResult.stdout).toBe("");
   });
 });
 

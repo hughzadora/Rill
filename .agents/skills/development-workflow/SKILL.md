@@ -47,7 +47,7 @@ Confirm implementation has stopped, run relevant deterministic checks and create
 
 ## 4. Review independently and correct findings
 
-Spawn a distinct `reviewer` that did not author the candidate. Supply base and candidate SHAs, approved acceptance, relevant standards and check evidence. For a small increment, one reviewer covers Standards and Spec. Require separate verdicts, actionable findings with location/impact/evidence and unverified acceptance. Unavailable checks are not passes.
+Spawn a distinct `reviewer` that did not author the candidate. Supply base and candidate SHAs, approved acceptance, relevant standards and check evidence. For a small increment, one reviewer covers Standards and Spec. Require separate verdicts, actionable findings with location/impact/evidence and unverified acceptance. For disputed or preserved behavior, require the expected outcome and its governing source in the review handoff; verify both against current policy and applicable upstream contract before accepting preservation as a correct regression fix. Unavailable checks are not passes.
 
 Fix substantive findings through the responsible worker, create a new candidate and rerun affected checks. Ask the independent reviewer to inspect the changed revision or necessary delta. Do not carry a verdict onto unreviewed substantive changes or present agent review as third-party human approval.
 

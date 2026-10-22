@@ -20,10 +20,6 @@ if (!explicitFiles && !files.includes(tomlFile)) {
   diagnostics.push(`${tomlFile}: required project Codex config file was not found`);
 }
 
-if (!explicitFiles && yamlFiles.length === 0) {
-  diagnostics.push(`${yamlGlob}: no agent configuration files were found`);
-}
-
 for (const file of files) {
   if (
     explicitFiles &&
