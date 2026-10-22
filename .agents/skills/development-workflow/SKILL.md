@@ -59,6 +59,6 @@ For workflow/configuration acceptance, use a fresh ordinary task without telling
 
 Distinguish native enforced controls, behavioral instructions, locally observed execution and unavailable surfaces. A role's read-only assignment is not a separate sandbox; permissions remain the parent's. Native CLI evidence does not establish macOS App UI behavior or account allowance.
 
-At an observed allowance warning, stop optional expansion and reserve review/gate capacity. On exhaustion, stop model work without retry storms or a paid fallback. Leave branch/SHA, completed checks, blockers and the exact next action in the existing Issue/PR and native session, without a parallel task database.
+Read native account-window telemetry when exposed, through the host usage surface or `account/rateLimits/read`; do not infer remaining allowance from token counts or elapsed time. At an observed allowance warning, stop optional expansion and reserve review/gate capacity. On exhaustion, stop model work without retry storms or a paid fallback. Leave branch/SHA, completed checks, blockers and the exact next action in the existing Issue/PR and native session, without a parallel task database.
 
 The primary reports to the owner in Simplified Chinese using `### Result`, `### Evidence` and `### Next`. Keep project artifacts in English. State incomplete review or blocked delivery explicitly.
