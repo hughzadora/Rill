@@ -1,0 +1,42 @@
+{
+  "name": "rill",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@12.14.0",
+  "scripts": {
+    "check": "just check",
+    "check:format": "just fmt-check",
+    "check:biome": "biome ci .",
+    "check:markdown": "node tools/check-markdown.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:report": "vitest run --reporter=default --reporter=json --outputFile.json=coverage/vitest.json",
+    "fix": "just fmt",
+    "audit": "pnpm audit --audit-level=moderate",
+    "check:push": "just gate",
+    "check:staged": "lint-staged --fail-on-changes",
+    "prepare": "husky",
+    "check:metrics": "node tools/check-metrics.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.2",
+    "@types/markdown-it": "14.2.0",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "ajv": "8.20.0",
+    "husky": "9.1.7",
+    "knip": "6.42.1",
+    "lint-staged": "17.6.0",
+    "markdownlint": "0.42.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,jsonc,css,md}": "biome ci --no-errors-on-unmatched"
+  }
+}
