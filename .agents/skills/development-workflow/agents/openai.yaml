@@ -1,0 +1,7 @@
+interface:
+  display_name: "Rill Development Workflow"
+  short_description: "Design, implement, and review Rill changes with native agents"
+  default_prompt: "Use $development-workflow to deliver the requested Rill change."
+
+policy:
+  allow_implicit_invocation: true
