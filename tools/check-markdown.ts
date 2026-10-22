@@ -1,9 +1,16 @@
 import { globSync } from "node:fs";
 import { lint, readConfig } from "markdownlint/sync";
 
-const files = globSync("**/*.md", {
-  exclude: ["**/.git/**", "**/coverage/**", "**/node_modules/**", "docs/tool-for-quality-gate.md"],
-}).sort();
+const excluded = [
+  "**/.git/**",
+  "**/coverage/**",
+  "**/node_modules/**",
+  "docs/tool-for-quality-gate.md",
+];
+const files = ["**/*.md", ".agents/**/*.md", ".codex/**/*.md"]
+  .flatMap((pattern) => globSync(pattern, { exclude: excluded }))
+  .filter((file, index, allFiles) => allFiles.indexOf(file) === index)
+  .sort();
 
 if (files.length === 0) {
   throw new Error("No project Markdown documents found");

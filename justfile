@@ -13,6 +13,9 @@ fmt-check:
 markdown:
     pnpm run check:markdown
 
+config-formats:
+    pnpm run check:config-formats
+
 types:
     pnpm run typecheck
 
@@ -32,11 +35,11 @@ complexity:
     lizard -l typescript -C 15 -w -i 0 .
 
 links:
-    lychee --offline --no-progress --include-fragments=anchor-only README.md AGENTS.md rill-rebuild-plan.md "docs/**/*.md"
+    lychee --offline --no-progress --include-fragments=anchor-only README.md AGENTS.md rill-rebuild-plan.md "docs/**/*.md" ".agents/**/*.md"
 
 # Online remote links are flaky/subject to third-party status and are informational.
 links-online:
-    lychee --no-progress --max-retries 1 --timeout 10 README.md AGENTS.md rill-rebuild-plan.md "docs/**/*.md"
+    lychee --no-progress --max-retries 1 --timeout 10 README.md AGENTS.md rill-rebuild-plan.md "docs/**/*.md" ".agents/**/*.md"
 
 secrets-staged:
     gitleaks git --staged --redact=100 --no-banner .
@@ -66,10 +69,10 @@ precommit:
     just secrets-staged
 
 # Dev loop: deterministic tests and structural checks.
-check: fmt-check markdown types unit unused loc complexity links
+check: fmt-check markdown config-formats types unit unused loc complexity links
 
 # Native pre-push quality gate: behavior, coverage, security, Git history.
-gate: fmt-check markdown types coverage unused loc complexity links secrets-history security audit
+gate: fmt-check markdown config-formats types coverage unused loc complexity links secrets-history security audit
 
 # Installed versions; failure to find a tool is a blocker, not a silent skip.
 doctor:
