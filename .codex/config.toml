@@ -1,0 +1,4 @@
+# Project-scoped native limit; effective loading requires a trusted Codex project.
+# This caps open spawned threads, excluding the primary, and inherits model settings.
+[agents]
+max_concurrent_threads_per_session = 2
