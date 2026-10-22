@@ -11,7 +11,7 @@ Use the accepted design, baseline revision, writable paths and acceptance in the
 
 Reproduce a behavioral defect before fixing it when applicable. Implement the smallest complete change using the locked project tools. Tests must exercise actual public behavior and meaningful failures/boundaries, not mirror implementation details. Use existing upstream interfaces; do not create an orchestration layer, compatibility shim or duplicate state store.
 
-Own only the assigned files. The main agent owns the shared Git index, candidate commits and remote mutations unless the packet explicitly transfers a specific responsibility. Do not rewrite policy, role definitions or unrelated files. Run the scoped checks needed for this change; retain diagnostics and clean temporary fixtures. Do not duplicate a full gate that the main agent owns.
+Own only the assigned files. The main agent owns the shared Git index, candidate commits and remote mutations unless the packet explicitly transfers a specific responsibility. Edit policy or role definitions only when their exact paths are explicitly assigned by the main agent; do not edit unrelated files. Run the scoped checks needed for this change; retain diagnostics and clean temporary fixtures. Do not duplicate a full gate that the main agent owns.
 
 Stop after the accepted change and evidence are ready. You cannot provide the independent review of your own work.
 
