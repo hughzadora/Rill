@@ -4,6 +4,8 @@ Second distillation. Research and local observation date: **2026-10-21**.
 
 Scope: the engineering capabilities needed by the [current rebuild plan](../../rill-rebuild-plan.md) and [Codex capability map](../capability-map.md). The [kernel](../policy.md) is the sole policy authority. This document supplies revisable evidence; it neither defines additional policy nor activates the remaining implementation.
 
+Current owner baseline: the [kernel](../policy.md) now specifies part-time non-developer ownership, GitHub Free/private repositories, native choices, real bounded multi-agent work and allowance-aware execution. Historical capability descriptions below do not require paid protection/rulesets or a human review team. See [current platform boundaries](engineering-policy-sources.md#owner-context-and-platform-boundaries).
+
 ## Reading the evidence
 
 **Published capability** means the named upstream owner documents the interface. **Local observation** means the specific metadata or command below was actually read. **Behavioral verification** requires exercising the relevant path in the selected App mode. These are different levels of evidence.

@@ -14,6 +14,14 @@ State captured: **2026-10-22**, local branch `chatgpt/rill-native-foundation-202
 
 **Priority source:** Google's documented P0–P4 definitions and P2 default **exactly as published**. Only the owner authorizes a priority attached to a real GitHub Issue; the Agent may gather facts and read/validate labels but may not assign, infer or default. Google's P2 default is not a license to tag unknown GitHub work. Local technical phases below express **dependencies and acceptance**, not issue priorities.
 
+### Owner-specific operating baseline
+
+Apply kernel sections 2.1-2.7 throughout this plan: part-time owner without development experience; exceptionally low tolerance for routine coordination and maintenance; GitHub Free, predominantly private repositories; paid upgrades declined; native choices only for essential missing information or high-risk authorization. Every idea receives requirements review, audit, cleaning, distillation and proportionate alternative exploration before entering the spec. Confirmed decisions are preserved; pollution and model guesses are not promoted.
+
+Use short vertical slices: audit/distill -> implement/test -> separate-agent review -> deliver/recover. The phases below are dependencies and evidence categories, **not sequential owner-approval meetings**. Existing authorization carries across ordinary reversible work. No human team, remote CI/CD, private-repository branch protection or ruleset is a required dependency. Local checks and native reviewer results provide inspectable evidence, not unavailable server enforcement.
+
+Real native multi-agent execution is required for substantive review, with a primary and at most two active delegated agents by default. Budget the whole team within the reported five-hour allowance, keep a single writer per shared file/index scope, and preserve capacity for gates, review, correction and handoff. Use standard roles and upstream repository conventions, not invented names or a custom scheduler. Product UI quality, recoverability and future maintenance are acceptance dimensions; future ideas do not enlarge current scope automatically.
+
 ## 2. Architecture — direct native boundaries
 
 | Layer                   | Upstream owner                  | Rill artifact or interface                                                                         | Never build                                                                |
@@ -51,13 +59,13 @@ The installed tools and exact accepted commands are defined in [engineering-loop
 
 Phases are **implementation sequence** and contain no Agent-selected P0/P1 severity. Remote writes, global configuration changes and owner-specific product decisions remain subject to their normal authorization boundary.
 
-### F0 — Fix one project authority and facts
+### Phase 0 — Fix one project authority and facts
 
 **State: VERIFIED LOCALLY.** Inputs are the owner-confirmed kernel, Rill capability map and first-party source research, not any former project architecture. Preserve a single `docs/policy.md` as authority; `AGENTS.md` must link it and route to the current map/plan/gates. No duplicate policy JSON/YAML.
 
-**Acceptance:** all internal relative links resolve; published references are attributed to their vendor; conflicts with official Codex/GitHub are deleted or recorded as unsupported, never papered over. Real App instruction discovery remains an F3 acceptance, not assumed here.
+**Acceptance:** all internal relative links resolve; published references are attributed to their vendor; conflicts with official Codex/GitHub are deleted or recorded as unsupported, never papered over. Real App instruction discovery remains a Phase 3 acceptance, not assumed here.
 
-### F1 — Lock native runtime and tools
+### Phase 1 — Lock native runtime and tools
 
 **State: VERIFIED LOCALLY.** Use TypeScript 7.0.2, Node24, pnpm 12.14; project-local exact npm devDependencies and reproducible lockfile; `.editorconfig`, `biome.json`, `tsconfig.json`, `vitest.config.ts`, native `justfile`, Husky and lint-staged. Host already contains the six external executables (see `just doctor`); no global installation or personal configuration was performed by this phase.
 
@@ -65,7 +73,7 @@ Phases are **implementation sequence** and contain no Agent-selected P0/P1 sever
 
 **Failure:** missing or changed tool is reported as blocked. Do not install a new language, shims or compatibility scripts to make a fabricated green check.
 
-### F2 — Deliver all mechanical quality gates with real failures
+### Phase 2 — Deliver all mechanical quality gates with real failures
 
 **State: VERIFIED LOCALLY FOR CURRENT REPO.** `just check` and `just gate` execute the matrix in §3, including the requested **Gitleaks, Lychee, Lizard, Trivy, Just and Knip**, plus TypeScript/Vitest/Ajv/Biome/Markdownlint/Tokei/pnpm audit.
 
@@ -75,58 +83,58 @@ Phases are **implementation sequence** and contain no Agent-selected P0/P1 sever
 
 **Not complete:** meaningful production behavior tests (there is no real `src/` yet); DB freshness guarantee; actual Codex App hook/tool invocation; any real GitHub remote branch restriction.
 
-### F3 — Verify Codex App as the real host, not merely its CLI
+### Phase 3 — Validate native Codex interaction, subagents and budget controls
 
-**State: NOT YET VERIFIED. Dependency: F0–F2.** Open `/Users/hugh/Projects/rill` as the official App's primary project folder. In a real Codex project thread, demonstrate `AGENTS.md` discovery, kernel precedence, supported config path, available Matt Pocock skills, selected native tools, permission prompts, and local Git state visibility. Respect exact App feature/version boundaries.
+**State: NOT YET VERIFIED IN THE APP. Dependency: Phases 0-2.** Select the Rill primary project and read the kernel through `AGENTS.md`. Use built-in `worker`/`explorer` roles and a standard reviewer role supported by official Codex. The published native configuration surface is `[agents]` with `enabled` and `max_concurrent_threads_per_session`; use project configuration only where the current host supports it. Target two concurrent delegated threads, without silently modifying global settings or upgrading models. A declared cap or read-only instruction is not proof of enforcement.
 
-**Acceptance:** one real App thread can read kernel/map/plan, route a representative task to its matching Matt skill, execute `just doctor` / `just check`, see an actual failure and correction, and report the same inspected file/SHA. Record observed missing capabilities as gaps, not locally reimplemented substitutes.
+**Acceptance:** demonstrate an actual native selection prompt for an otherwise non-derivable choice, without a prose fallback or fabricated UI. On a bounded real task, observe distinct native thread IDs, scope/revision assignments, worker output and separate review results. At least one reviewer must inspect the candidate independently of its author, with reproducible findings rather than simulated test results. Read the available native usage/reset indicator without assuming a particular plan or remaining allowance; record unavailable telemetry honestly. Return a compact digest and a raw-evidence reference, not all child transcripts.
 
-**Stop:** missing App functionality requires a reduced requirement or explicit owner decision. No unapproved user-level Codex configuration; notably OTel cannot be silently set via project config.
+**Failure:** hold only capabilities dependent on unavailable native UI/delegation or protected permissions; continue safe independent work. Do not imitate independent review in the main conversation, create a custom host, upgrade the subscription or move to paid API billing. This policy/document update alone does not satisfy these runtime checks.
 
-### F4 — Establish the native GitHub delivery contract
+### Phase 4 — Deliver through GitHub Free private-repository objects
 
-**State: NOT YET VERIFIED; REQUIRES REMOTE AUTHORIZATION. Dependency: F0, F3.** Select one real owner-approved requirement and create or reuse a **native GitHub Issue** containing authority, scope, acceptance, non-goals and links to current upstream evidence. Use native parent/sub-issues and blocking dependencies for actual relationships; `priority:P0`–`priority:P4` only after the owner supplies its classification. No inferred severity or synthetic task database.
+**State: NOT YET VERIFIED; EXISTING REMOTE AUTHORIZATION MUST COVER THE ACTION. Dependency: Phase 0 and relevant Phase 3 capabilities.** Use ordinary private-repository Issues, real relationships, branches, commits and PRs. Read back the correct repository, Issue/spec and candidate SHA. Apply owner-assigned Google P0-P4 priority only when available; an untriaged backlog item is not permission to invent priority or interrupt every already-approved engineering subtask.
 
-**Acceptance:** Issue URL/ID and repository identity read back; parent/sub and blocked-by direction verified through supported GitHub/CLI/API fields; a candidate branch and PR have the right base/head commit; Issue↔PR relationship and actual review/check objects resolve to the delivered SHA. Owner or supported authorized review is distinguished from a model's local `/review` analysis.
+**Acceptance:** a real Issue/PR records the distilled outcome, acceptance, exact tested candidate and separate native-agent review evidence. Native Issue relations and PR linkage are read back rather than inferred from body text. Keep local `just gate` and review outcomes attached to the revision through existing authorized GitHub objects. A reviewer operating under the same account is not a third-party human approval; no artificial approval identity is created.
 
-**Stop:** no Issue metadata write, PR publication, merge, labels or protections are performed without authorization. Never equate a textual Issue link with an actual native relation.
+**Not applicable to this baseline:** private-repository branch protection, rulesets, required human review teams and mandatory remote CI/CD. They are not unfinished deliverables, upgrade requests or justifications for a substitute enforcement service. A local hook can be bypassed; document that limit. Reuse task-scoped remote authorization, ask only when the intended action exceeds it, and do not publish or merge merely because this plan exists.
 
-### F5 — Prove the task's implementation and test behavior
+### Phase 5 — Prove the task's implementation and test behavior
 
-**State: NOT YET VERIFIED; DEPENDS ON REAL TASK FROM F4.** Agent investigates only unresolved factual/design questions, creates a single spec on the authorized GitHub Issue, selects the simplest native Codex implementation path and writes TypeScript source only when a real consumer exists. Matt `research`, `domain-modeling`, `prototype`, `tdd`, `diagnosing-bugs` and `code-review` are methods where appropriate, not mandatory ceremony.
+**State: NOT YET VERIFIED; DEPENDS ON A REAL TASK FROM PHASE 4.** Agent first reviews/audits and distills the raw input under kernel section 2.2, resolves factual/design questions with tools, creates a single spec on the authorized GitHub Issue, and then selects the simplest native Codex implementation path. Write TypeScript source only when a real consumer exists. Matt `research`, `domain-modeling`, `prototype`, `tdd`, `diagnosing-bugs` and `code-review` are methods where appropriate, not mandatory ceremony.
 
-**Acceptance:** a real failing behavior test first; minimal TypeScript implementation; negative/boundary cases; no first-party Python/Shell glue; `just gate` green at the changed SHA with non-empty meaningful coverage; unchanged source on second `just fmt`; Knip and CCN/LOC rules apply to actual added files; manual semantic review confirms the Issue's observable acceptance independently of mechanical tools.
+**Acceptance:** a real failing behavior test first; minimal TypeScript implementation; negative/boundary cases; no first-party Python/Shell glue; `just gate` green at the changed SHA with non-empty meaningful coverage; unchanged source on second `just fmt`; Knip and CCN/LOC rules apply to actual added files; a separate native reviewer thread confirms the Issue's observable acceptance independently of the implementing thread and mechanical tools. For user-facing work, inspect the rendered flow, accessibility, feedback and recovery; test maintainability and keep future extension boundaries minimal.
 
 **Stop:** no passing test suite is enough if the task spec cannot be exercised. A zero-production-code test pass is **foundation only**, not product delivery.
 
-### F6 — Review, diagnose and resume under interruptions
+### Phase 6 — Review, diagnose and resume under interruptions
 
-**State: NOT YET VERIFIED. Dependency: F3–F5.** In official Codex App + native Git/GitHub, repeat two edits, two check runs, and a review of the **same candidate revision**. Validate bad configuration, unavailable CLI, wrong working directory, cached/failed network scan, partially staged work and mid-task interruption. Carry only a bounded result digest into the model; keep full raw evidence available through tool logs/native artifacts and commit/Issue/PR state.
+**State: NOT YET VERIFIED. Dependency: Phases 3-5.** In official Codex App + native Git/GitHub, repeat two edits, two check runs, and a review of the **same candidate revision**. Validate bad configuration, unavailable CLI, wrong working directory, cached/failed network scan, partially staged work and mid-task interruption. Carry only a bounded result digest into the model; keep full raw evidence available through tool logs/native artifacts and commit/Issue/PR state.
 
-**Acceptance:** interrupted work resumes from real Git/Issue/PR state without owner retyping; mechanical retries occur only for proven safe transient/idempotent commands; ambiguous writes are not blindly retried; reviewer checks actual changed files and tested HEAD rather than outdated snapshots. Compare representative tool transcript cost to digest cost before claiming savings.
+**Acceptance:** interrupted work resumes from real Git/Issue/PR state without owner retyping; mechanical retries occur only for proven safe transient/idempotent commands; ambiguous writes are not blindly retried; reviewer checks actual changed files and tested HEAD rather than outdated snapshots. Use observable allowance, elapsed time, review findings and avoided rework for comparison; a smaller digest alone does not prove a billing saving. Stop discretionary scope before the review/handoff reserve is consumed, avoid repeated polling/research, and report unknown usage rather than inventing a quota balance.
 
 **Stop:** if the native host cannot provide a guaranteed boundary, revise the requirement under the kernel; do not build an independent Rill harness or checkpoint server.
 
-### F7 — Owner macOS end-to-end delivery and maintenance
+### Phase 7 — Owner macOS end-to-end delivery and maintenance
 
-**State: NOT YET VERIFIED. Dependency: F0–F6.** Owner performs only authorization/product judgment while Codex performs a real Issue-driven development task through tests, native Git PR/review and recovery. A complete delivered result references correct upstream source, Issue/PR/commit IDs and true check outcomes.
+**State: NOT YET VERIFIED. Dependency: Phases 0-6.** Owner performs only authorization/product judgment while Codex performs a real Issue-driven development task through tests, native Git PR/review and recovery. A complete delivered result references correct upstream source, Issue/PR/commit IDs and true check outcomes.
 
-**Acceptance:** one realistic workflow succeeds on the owner's macOS; deliberate regression is stopped by the correct native tool; non-mechanical design/review is justified by inspectable facts; no repeated owner-assisted routine formatting or manual Agent tool reminders; all required remote checks/reviews are visibly attached to the delivered SHA. Documentation describes only commands actually verified.
+**Acceptance:** one realistic workflow succeeds on the owner's macOS; deliberate regression is stopped by the correct native tool; non-mechanical design/review is justified by inspectable facts; no repeated owner-assisted routine formatting or manual Agent tool reminders; local gate evidence and separate native-agent review results reference the delivered SHA in authorized native GitHub records; no unavailable paid server restriction is required. Documentation describes only commands actually verified.
 
 **Not part of foundation:** mandatory browser E2E before a browser UI exists, network contract fixtures before an HTTP interface exists, mutation testing without real production code/tests, dashboard infrastructure without multi-suite reporting, or custom multi-Agent orchestration. Use official Playwright, MSW/Zod, Stryker or Allure **only when their corresponding observed need arises**.
 
 ## 5. Responsibilities, acceptance evidence and resumption
 
-- **Owner:** product scope, issue priority, permission-sensitive configuration, remote publication/merge and changes to the kernel. These authorizations do not transfer mechanical file repair onto the owner.
-- **Agent:** source-grounded reasoning, reproductions, spec/implementation/design judgment, rigorous review, interpreting tool failures and selecting the **already locked** native execution entry. Never self-assign priority or turn “unknown” into “passed.”
+- **Owner:** initial intent and exceptional material/high-risk authorization through native controls. Existing task permissions carry through ordinary execution; no routine team review, command coordination, repeated approvals or payment/upgrade requests.
+- **Agent:** audit/clean/distill input; investigate facts; decide routine engineering within scope; coordinate real native worker/reviewer threads; monitor observable budget; preserve product quality, repository hygiene and maintainability. Never self-assign priority, impersonate another agent or turn unknown into passed.
 - **Tools:** actual file changes, formatting, type diagnostics, tests, schema, security, unused code, links, LOC/complexity and Git/GitHub readback. Their exit status and diagnosed inputs are the evidence; all check commands are fail-closed on nonzero.
 
 - **Record format:** one decision-relevant digest containing exact command/input scope, exit status, relevant failing rule, changed file list, HEAD/PR SHA, and raw-log pointer. Native Issues/PR/commits carry durable execution state **after authorization**. No parallel orchestration-state file.
 - **Reproduction:** run `just doctor` → `pnpm install --frozen-lockfile` → `just check` → `just gate`; explicitly distinguish read-only checks from `just fmt`; Trivy and pnpm audit can require network, and remote URL probing remains a separate optional diagnostic.
-- **Current local evidence:** F0–F2 have actually run in the terminal with positive and negative fixtures. F3–F7 remain **open acceptance**, and no amount of new policy Markdown converts those into completed work.
+- **Current local evidence:** Phases 0-2 have actually run in the terminal with positive and negative fixtures. Phases 3-7 remain **open acceptance**, and policy text is not runtime verification. Review/choice/budget contracts in this update remain unverified until exercised in official Codex.
 
 ## 6. Definition of done for Rill
 
-A Rill release is done only when **F3–F7 acceptance** is observed on the official App, a real owner-authorized Issue/PR and the owner's macOS, with nonempty behavior tests tied to the spec and `just gate` current for the same SHA. A passing local toolchain without production work is **foundation delivery**, not completed Rill.
+A Rill release is done only when **Phases 3-7 acceptance** is observed on the official App, a real owner-authorized Issue/PR and the owner's macOS, with nonempty behavior tests tied to the spec and `just gate` current for the same SHA. A passing local toolchain without production work is **foundation delivery**, not completed Rill.
 
 No remote push/PR/merge or owner-global setting change is authorized by this document. Do not close an Issue on a model claim, a local green check, a link to a PR, or a stale prior review. For further official details use [OpenAI Codex](https://learn.chatgpt.com/docs/projects?surface=app), [GitHub native issue relations](https://cli.github.com/manual/gh_issue_edit), [Biome Markdown](https://biomejs.dev/internals/changelog/version/2-6-2/), [Just](https://just.systems/man/en/) and the [source register](docs/rebuild/foundation-inputs.md).

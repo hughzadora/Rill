@@ -1,6 +1,6 @@
 # Rill kernel
 
-Status: Active owner decision, confirmed on 2026-10-21. This is the project's sole authoritative policy entry point.
+Status: Active owner decisions, initially confirmed on 2026-10-21; owner context and operating constraints updated on 2026-10-22. This is the project's sole authoritative policy entry point.
 
 ## 1. Highest priority: upstream and native development only
 
@@ -24,6 +24,60 @@ When the native capability cannot meet a stated requirement, revise, simplify or
 ## 2. Delivery objective, subordinate to section 1
 
 Deliver the owner's own macOS development workflow using Codex and GitHub: tools perform mechanical operations; agents clarify requirements, judge structure and logic, diagnose, implement and review. The owner decides product tradeoffs and authorization, without performing routine formatting repairs, re-entering state or reminding agents to invoke configured tools.
+
+### 2.1 Owner context and priorities
+
+The owner develops part-time alongside non-engineering work, has no software-development experience, and cannot provide full-time engineering coordination or maintenance. The intended division of work is approximately 99.99% Agent/tool execution; this is an owner expectation, not measured automation coverage. Limited experience does not lower the required code standard, repository cleanliness, naming consistency or product quality.
+
+Within section 1 and non-negotiable correctness, security, privacy and reliability, optimize first for **development agility and budget**, then usable, coherent product design and human interaction, low maintenance burden and incremental extensibility. The owner considers design and interaction important to market viability; aesthetic quality is an acceptance concern, not proof of market demand. The current Rill scope is, by the owner's description, less than 10% of the broader vision. Future ideas are candidates for later small increments, not authorization to prebuild speculative systems.
+
+Use **GitHub Free with predominantly private repositories** as the operating baseline. Paid subscriptions, plan upgrades, credits, API billing and additional services are **declined by default**. Branch protection/rulesets for private repositories are unavailable under this baseline; they are not pending acceptance work or reasons to demand an upgrade. Use native local checks and actual separate-agent review, record evidence in ordinary GitHub objects when authorized, and disclose that local checks are bypassable rather than claiming server enforcement. Current upstream eligibility and usage limits are documented in [owner-context evidence](rebuild/engineering-policy-sources.md#owner-context-and-platform-boundaries).
+
+### 2.2 Requirements review and pollution control
+
+**Every incoming idea first receives review and audit, not automatic adoption.** Treat the owner's spontaneous input as valuable but potentially incomplete, contradictory or unstructured. Treat the Agent's own suggestions with the same scrutiny. The owner explicitly calls unfiltered idea accumulation **pollution**; model hallucinations can compound that pollution. Preserve this risk description without treating the owner as the problem.
+
+Before promoting input into a requirement: identify the intended outcome and user; separate facts, explicit decisions, preferences, assumptions and unsupported claims; clean repetition and contradictions; distill the smallest useful requirement; briefly brainstorm native alternatives including simplification or doing nothing; audit product value, design, security, cost, maintenance and scope impacts against current evidence. Use Matt's grilling methods for assumption testing, **not** its default repeated interview. Make review proportional: a small clear request needs a short check, not a new planning project.
+
+Promote only evidence-supported, authorized requirements with observable acceptance. Retain only the distilled decision and necessary provenance in the authoritative spec/Issue; keep raw ideation and discarded alternatives out of persistent Agent instructions and implementation scope. Briefly disclose material omissions, deferrals or reinterpretations. Explicit owner decisions remain authoritative within the kernel: review is neither silent veto nor permission to add new requirements. Unsupported product tradeoffs go through section 2.3; routine engineering choices stay with the Agent.
+
+### 2.3 Owner interaction and authority
+
+The owner participates in initial intent and exceptional high-risk authorization, not routine research, commands, test planning, formatting, repository coordination, review meetings or repeated sign-offs. An approved outcome authorizes routine, reversible engineering within its scope and existing host permissions. Reuse existing authorizations; do not turn each internal phase or ticket into another owner approval. Payment, upgrades, destructive actions, sensitive credentials, production access and actions outside the approved scope retain their protected authorization boundaries.
+
+When essential information or a material choice cannot be derived from tools, approved decisions or current artifacts, use **Codex's native structured selection control only**: short decision title, concrete choices and consequences, a recommendation, and an optional other/freeform choice where supported. No prose questionnaires, multi-round Q&A, numbered text pretending to be a selector, or asking the owner to infer a decision from a long report. For protected operations, use the platform's native permission/approval control; a product choice is not permission escalation. Payment/upgrade remains rejected unless explicitly authorized for that action.
+
+If the current host does not expose the required native control, report that capability as unavailable, hold only the dependent decision/action and continue safe independent work. Do not fabricate a control, write a custom replacement, silently choose a high-risk answer or make the owner perform engineering work. Normal progress and delivery messages are concise results, evidence and genuine blockers, not a reading-comprehension assignment.
+
+### 2.4 Agile solo development using upstream engineering practices
+
+Keep established upstream conventions, small testable increments, separation of implementation and review, reproducible checks and recoverable delivery. Remove organizational overhead: team meetings, committees, multiple human approvals, mandatory remote CI/CD and repeated multi-party coordination. Native multi-agent execution supplies bounded engineering roles; it must not recreate an enterprise bureaucracy. The Agent owns sequencing, delegation, integration, diagnosis and handoff.
+
+**Rill is the brand, not a source of new engineering vocabulary.** Use the owning platform's filenames, API names and ecosystem conventions for naming and repository structure; prefer ordinary names such as `src`, `tests`, `docs`, `worker` and `reviewer`. Avoid invented role brands, framework layers and duplicated standard concepts. Use plain domain-specific identifiers only where the product actually needs them. Keep generated files, temporary outputs, obsolete configs, unused dependencies and duplicate authorities out of the maintained repository; preserve unrelated owner changes and source material. No repository-wide renaming solely for stylistic novelty.
+
+### 2.5 Native multi-agent execution
+
+Multi-agent execution is a core Rill delivery capability, not optional role-play. The owner reports repeated practical benefit from real separate agents over one conversation pretending to be several reviewers; preserve that experience as owner evidence, not a fabricated benchmark. Use official Codex spawning, agent threads and native workspace isolation where needed. The primary integrates decisions; workers implement bounded changes; a **separate reviewer thread** evaluates the same candidate's spec conformance, correctness, tests, security and maintainability. An author is not its own sole reviewer. Automated tests still run in tools; agents cannot simulate their results.
+
+Operational baseline: one primary and **at most two active delegated agents**, one writer per shared file/index scope, and no recursive delegation by default. Use one independent reviewer across the relevant review axes for a small change; split Standards/Spec or other specialist investigations only when genuinely independent, justified by risk and inside the budget. These are project execution rules until verified in the native host, not claims of hard sandbox enforcement. Never expand concurrent agents just to create an appearance of teamwork.
+
+Every delegation identifies the bounded question, authorized write scope or read-only task, candidate revision, necessary evidence, expected result and stopping condition. Send distilled relevant context instead of the full raw conversation. Require distinct native thread/run identities and evidence-bearing results before reporting separate-agent review. Shared models/permissions do not create third-party organizational independence; that limitation does not justify replacing real threads with main-context impersonation. Recheck substantive fixes against the changed revision; stop circular debate and return to reproduction/evidence. If delegation is unavailable or budget cannot cover it, label independent review unavailable/incomplete and do not claim the review passed.
+
+### 2.6 Five-hour allowance and spending discipline
+
+Treat the owner's reported **five-hour usage window** as a real planning constraint: avoid exhausting it in roughly 30 minutes and losing the remaining 4.5 hours of productive access. This is the owner's failure scenario, not a measured run or a universal ChatGPT plan rule. Account-specific limits, remaining usage and reset times come from the native usage surface when available; report unknown values honestly. Never equate context tokens or elapsed minutes with exact quota or billing.
+
+Before discretionary model work, use deterministic tools for extraction, checks, schema validation and diagnostics. Read targeted files/diffs; reuse still-valid primary-source findings and test evidence for the unchanged candidate/config/tool inputs; return compact failure/result digests with raw-evidence references. Re-run checks when relevant inputs change and keep mandatory delivery gates. Avoid duplicate research, full-log replay, repeated summaries, unnecessary model deliberation and polling that starts new model turns. Prefer on-demand references over ever-growing always-loaded instructions.
+
+Budget primary and subagent work together. Use the least costly supported model/effort inside the already approved settings that can meet the task's acceptance; never silently upgrade models, effort, speed tier, plan or billing mode. Reserve capacity for independent review, correction, required gates and a recoverable handoff before expanding scope. Limit delegation breadth and output rather than discarding meaningful independent review. At an observed allowance warning, reduce optional scope, close completed threads and preserve a tested small increment with the exact next action; at exhaustion, stop model-dependent work without a retry storm, paid fallback or promise of automatic later resumption.
+
+Judge efficiency by accepted increments per available allowance, useful independent findings, avoided rework, owner interruptions and maintenance cost. Use native usage measurements when exposed; otherwise label estimates and missing instrumentation. No unmeasured percentage savings or guarantee of uninterrupted five-hour operation.
+
+### 2.7 Product design, maintenance and extensibility
+
+User-facing acceptance includes coherent visual hierarchy, familiar interaction patterns, accessibility, keyboard/focus behavior, clear status, empty/loading/error states, recovery and user control. Inspect actual rendered behavior with supported tools when a UI exists; code quality alone does not establish a usable product. Aesthetic conclusions are judgments, and market success remains unproven without product evidence.
+
+Prefer mature maintained upstream tools, small understandable modules, meaningful automated regression tests, actionable diagnostics, minimal deployment dependencies and documented native recovery. Expose failures before release to reduce the owner's future maintenance load; testing is an investment in sustainable part-time ownership, not a substitute for product acceptance. Preserve clear boundaries for later features without speculative plugin systems, future-proof frameworks, compatibility debt or including every idea in the current release.
 
 ## 3. Engineering execution contract (owner supplement, subordinate to section 1)
 
@@ -59,6 +113,8 @@ Use **Google Issue Tracker's published common P0–P4 definitions**, including P
 
 **Priority authority:** The owner decides whether an issue fits Google's published criteria and authorizes any priority change. An Agent can gather observed impact/workaround evidence, read and validate the recorded priority, report discrepancies, and execute already authorized work. An Agent must not infer, assign, raise, lower or automatically default an issue's priority. A missing/conflicting GitHub priority remains untriaged for owner decision. Google's P2 default is a fact about **Google Issue Tracker**, not permission for the Agent to fill in an absent GitHub value.
 
+Priority classification must not become a routine owner questionnaire. Keep a new backlog item untriaged when no approved value exists; already-authorized engineering within the current task can proceed without inventing a priority. Escalate only a real scheduling/product conflict through the native selection control.
+
 Store owner-authorized priority on the native GitHub Issue record. The personal repository may use native labels `priority:P0` through `priority:P4` where labels are the supported issue metadata; use a native typed priority field only if genuinely available. No duplicated prioritization database or custom classifier. Do not invent a new project-specific rule that all P2/P3 work must be declined: authorization and actual task value remain the owner's decisions. Applicable quality/security controls are independent of priority.
 
 ### 3.6 Locked implementation language and native tools
@@ -73,6 +129,6 @@ OpenAI governs claims about Codex, GitHub governs GitHub semantics, and each lan
 
 ## 4. Authority and supporting evidence
 
-The owner confirmed the native-first principle on 2026-10-21 and supplied the complementary engineering contract in section 3 on 2026-10-22. The owner explicitly placed upstream/native precedence above the delivery objective. This decision supersedes earlier project clauses permitting custom adaptation to retain conflicting requirements. It does not by itself approve the remaining rebuild implementation or external operations.
+The owner confirmed the native-first principle on 2026-10-21 and supplied the complementary engineering contract in section 3 on 2026-10-22. The owner explicitly placed upstream/native precedence above the delivery objective and added the section 2 operating context on 2026-10-22. That context customizes execution without relaxing section 1 or replacing deterministic quality gates. This decision supersedes earlier project clauses permitting custom adaptation to retain conflicting requirements. It does not by itself approve the remaining rebuild implementation or external operations.
 
 The [capability map](capability-map.md) connects native Codex capabilities with Matt Pocock skills. [Upstream engineering facts](rebuild/foundation-inputs.md) provide the supporting evidence. Both are revisable inputs, not additional policy authorities.

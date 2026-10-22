@@ -1,6 +1,6 @@
 # Rill
 
-Owner-operated macOS development workflow centered on official Codex, its native capability map, Matt Pocock skills, and GitHub.
+Owner-operated macOS development workflow centered on official Codex, its native capability map, Matt Pocock skills, and GitHub. Designed for a part-time owner without development experience: audited and distilled requirements, native choice-only information requests, real bounded multi-agent execution, GitHub Free/private delivery and budget-aware small increments. The kernel defines the authority and runtime verification boundaries.
 - [Kernel — sole active policy](docs/policy.md)
 - [Codex capability map](docs/capability-map.md)
 - [Upstream engineering facts](docs/rebuild/foundation-inputs.md)
