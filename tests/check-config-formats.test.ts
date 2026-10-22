@@ -41,6 +41,17 @@ test("accepts the current project TOML and YAML syntax in an isolated copy", () 
   });
 });
 
+test("requires at least one YAML config while allowing zero role TOML files", () => {
+  withCopiedConfigFiles((directory) => {
+    const yaml = join(directory, ".agents/skills/development-workflow/agents/openai.yaml");
+    rmSync(yaml);
+    const result = runCli(directory);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(".agents/**/*.yaml: no agent configuration files were found");
+    expect(result.stdout).toBe("");
+  });
+});
+
 test("reports malformed TOML with its file path and parser diagnostic", () => {
   withCopiedConfigFiles((directory) => {
     writeFileSync(join(directory, ".codex/config.toml"), "[agents\nenabled = true\n");
@@ -63,6 +74,26 @@ test("reports malformed YAML with its file path and parser diagnostic", () => {
     expect(result.stderr).toContain(".agents/skills/development-workflow/agents/openai.yaml:");
     expect(result.stderr).toContain("Flow sequence");
     expect(result.stdout).toBe("");
+  });
+});
+
+test("discovers and validates direct role TOML files while allowing zero roles", () => {
+  withCopiedConfigFiles((directory) => {
+    const emptyResult = runCli(directory);
+    expect(emptyResult.status, emptyResult.stderr).toBe(0);
+    expect(emptyResult.stdout).toContain("config syntax: 2 files passed (1 TOML, 1 YAML)");
+
+    mkdirSync(join(directory, ".codex/agents"), { recursive: true });
+    writeFileSync(join(directory, ".codex/agents/worker.toml"), "model = 'test'\n");
+    const validResult = runCli(directory);
+    expect(validResult.status, validResult.stderr).toBe(0);
+    expect(validResult.stdout).toContain("config syntax: 3 files passed (2 TOML, 1 YAML)");
+
+    writeFileSync(join(directory, ".codex/agents/worker.toml"), "[model\n");
+    const malformedResult = runCli(directory);
+    expect(malformedResult.status).toBe(1);
+    expect(malformedResult.stderr).toContain(".codex/agents/worker.toml: Invalid TOML document");
+    expect(malformedResult.stdout).toBe("");
   });
 });
 
@@ -111,5 +142,26 @@ test("explicit-file mode rejects malformed TOML and YAML with their paths", () =
     expect(yamlResult.status).toBe(1);
     expect(yamlResult.stderr).toContain(`${yaml}:`);
     expect(yamlResult.stderr).toContain("Flow sequence");
+  });
+});
+
+test("explicit role TOML selection accepts normalized paths and rejects other TOML scopes", () => {
+  withCopiedConfigFiles((directory) => {
+    mkdirSync(join(directory, ".codex/agents"), { recursive: true });
+    const role = join(directory, ".codex/agents/worker.toml");
+    writeFileSync(role, "model = 'test'\n");
+
+    const selected = runCli(directory, ["./.codex/agents/worker.toml"]);
+    expect(selected.status, selected.stderr).toBe(0);
+    expect(selected.stdout).toContain("config syntax: 1 selected file passed (1 TOML, 0 YAML)");
+
+    const nested = join(directory, ".codex/agents/nested/worker.toml");
+    mkdirSync(join(directory, ".codex/agents/nested"), { recursive: true });
+    writeFileSync(nested, "model = 'test'\n");
+    const rejected = runCli(directory, [nested]);
+    expect(rejected.status).toBe(1);
+    expect(rejected.stderr).toContain(
+      ".codex/agents/nested/worker.toml: unsupported config syntax path",
+    );
   });
 });

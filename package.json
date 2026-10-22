@@ -42,6 +42,7 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,jsonc,css,md}": "biome ci --no-errors-on-unmatched",
     ".codex/config.toml": "node tools/check-config-formats.ts",
+    ".codex/agents/*.toml": "node tools/check-config-formats.ts",
     ".agents/**/*.yaml": "node tools/check-config-formats.ts"
   }
 }

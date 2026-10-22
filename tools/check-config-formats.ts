@@ -5,13 +5,15 @@ import { parseDocument } from "yaml";
 
 const root = process.cwd();
 const tomlFile = ".codex/config.toml";
+const roleTomlGlob = ".codex/agents/*.toml";
 const yamlGlob = ".agents/**/*.yaml";
+const roleTomlFiles = globSync(roleTomlGlob).sort();
 const yamlFiles = globSync(yamlGlob).sort();
 const args = process.argv.slice(2);
 const explicitFiles = args.length > 0;
 const files = explicitFiles
   ? args.map((file) => relative(root, resolve(root, file)).split(sep).join("/"))
-  : [tomlFile, ...yamlFiles];
+  : [tomlFile, ...roleTomlFiles, ...yamlFiles];
 const diagnostics: string[] = [];
 
 if (!explicitFiles && !files.includes(tomlFile)) {
@@ -23,7 +25,12 @@ if (!explicitFiles && yamlFiles.length === 0) {
 }
 
 for (const file of files) {
-  if (explicitFiles && file !== tomlFile && !/^\.agents\/.+\.yaml$/.test(file)) {
+  if (
+    explicitFiles &&
+    file !== tomlFile &&
+    !/^\.codex\/agents\/[^/]+\.toml$/.test(file) &&
+    !/^\.agents\/.+\.yaml$/.test(file)
+  ) {
     diagnostics.push(`${file}: unsupported config syntax path`);
     continue;
   }
@@ -36,7 +43,7 @@ for (const file of files) {
     continue;
   }
 
-  if (file === tomlFile) {
+  if (file === tomlFile || /^\.codex\/agents\/[^/]+\.toml$/.test(file)) {
     try {
       parseToml(source);
     } catch (error) {
@@ -64,7 +71,9 @@ if (diagnostics.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  const tomlCount = files.filter((file) => file === tomlFile).length;
+  const tomlCount = files.filter(
+    (file) => file === tomlFile || /^\.codex\/agents\/[^/]+\.toml$/.test(file),
+  ).length;
   const yamlCount = files.length - tomlCount;
   const scope = explicitFiles ? "selected " : "";
   const noun = files.length === 1 ? "file" : "files";
