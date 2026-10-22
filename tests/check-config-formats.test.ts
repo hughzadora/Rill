@@ -67,16 +67,31 @@ test("discovers multiple differently named direct role TOML files", () => {
 
 test("reports malformed discovered TOML and YAML with their paths", () => {
   withTemporaryDirectory((directory) => {
+    const roleConfig = ".codex/agents/bad-role.toml";
+    const yamlConfig = ".agents/nested/bad-yaml.yaml";
     writeFile(directory, ".codex/config.toml", "enabled = true\n");
-    writeFile(directory, ".codex/agents/bad-role.toml", "[model\n");
-    writeFile(directory, ".agents/nested/bad-yaml.yaml", "name: [\n");
+    writeFile(directory, roleConfig, "[model\n");
+    writeFile(directory, yamlConfig, "name: [\n");
 
     const result = runCli(directory);
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(".codex/agents/bad-role.toml: Invalid TOML document");
-    expect(result.stderr).toContain(".agents/nested/bad-yaml.yaml:");
+    expect(result.stderr).toContain(`${roleConfig}: Invalid TOML document`);
+    expect(result.stderr).toContain(`${yamlConfig}:`);
     expect(result.stderr).toContain("Flow sequence");
+    expect(result.stdout).toBe("");
+  });
+});
+
+test("reports malformed required project TOML with its path during discovery", () => {
+  withTemporaryDirectory((directory) => {
+    const projectConfig = ".codex/config.toml";
+    writeFile(directory, projectConfig, "[model\n");
+
+    const result = runCli(directory);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`${projectConfig}: Invalid TOML document`);
     expect(result.stdout).toBe("");
   });
 });
@@ -105,10 +120,12 @@ test("explicit-file mode reports missing supported TOML and YAML paths", () => {
 
 test("explicit-file mode rejects unsupported config scopes", () => {
   withTemporaryDirectory((directory) => {
-    writeFile(directory, ".agents/not-yaml.yml", "name: test\n");
-    writeFile(directory, ".codex/agents/nested/role.toml", "model = 'test'\n");
+    const unsupportedYaml = ".agents/not-yaml.yml";
+    const nestedRoleConfig = ".codex/agents/nested/role.toml";
+    writeFile(directory, unsupportedYaml, "name: test\n");
+    writeFile(directory, nestedRoleConfig, "model = 'test'\n");
 
-    for (const unsupported of [".agents/not-yaml.yml", ".codex/agents/nested/role.toml"]) {
+    for (const unsupported of [unsupportedYaml, nestedRoleConfig]) {
       const result = runCli(directory, [unsupported]);
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(1);
@@ -120,10 +137,11 @@ test("explicit-file mode rejects unsupported config scopes", () => {
 
 test("explicit-file mode accepts selected valid TOML while ignoring malformed unselected YAML", () => {
   withTemporaryDirectory((directory) => {
-    writeFile(directory, ".codex/config.toml", "enabled = true\n");
+    const projectConfig = ".codex/config.toml";
+    writeFile(directory, projectConfig, "enabled = true\n");
     writeFile(directory, ".agents/bad.yaml", "name: [\n");
 
-    const result = runCli(directory, [".codex/config.toml"]);
+    const result = runCli(directory, [projectConfig]);
     expect(result.error).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toBe("config syntax: 1 selected file passed (1 TOML, 0 YAML)\n");
@@ -133,10 +151,11 @@ test("explicit-file mode accepts selected valid TOML while ignoring malformed un
 
 test("explicit-file mode accepts selected valid YAML while ignoring malformed unselected TOML", () => {
   withTemporaryDirectory((directory) => {
+    const yamlConfig = ".agents/arbitrary-name.yaml";
     writeFile(directory, ".codex/config.toml", "[model\n");
-    writeFile(directory, ".agents/arbitrary-name.yaml", "name: valid\n");
+    writeFile(directory, yamlConfig, "name: valid\n");
 
-    const result = runCli(directory, [".agents/arbitrary-name.yaml"]);
+    const result = runCli(directory, [yamlConfig]);
     expect(result.error).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toBe("config syntax: 1 selected file passed (0 TOML, 1 YAML)\n");
@@ -144,21 +163,36 @@ test("explicit-file mode accepts selected valid YAML while ignoring malformed un
   });
 });
 
+test("explicit-file mode accepts a normalized direct role TOML path", () => {
+  withTemporaryDirectory((directory) => {
+    const roleFile = ".codex/agents/local-worker.toml";
+    writeFile(directory, roleFile, "model = 'test'\n");
+
+    const result = runCli(directory, [`./${roleFile}`]);
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe("config syntax: 1 selected file passed (1 TOML, 0 YAML)\n");
+    expect(result.stderr).toBe("");
+  });
+});
+
 test("explicit-file mode reports malformed TOML and YAML with their paths", () => {
   withTemporaryDirectory((directory) => {
-    writeFile(directory, ".codex/config.toml", "[model\n");
-    writeFile(directory, ".agents/bad.yaml", "name: [\n");
+    const projectConfig = ".codex/config.toml";
+    const yamlConfig = ".agents/bad.yaml";
+    writeFile(directory, projectConfig, "[model\n");
+    writeFile(directory, yamlConfig, "name: [\n");
 
-    const tomlResult = runCli(directory, [".codex/config.toml"]);
+    const tomlResult = runCli(directory, [projectConfig]);
     expect(tomlResult.error).toBeUndefined();
     expect(tomlResult.status).toBe(1);
-    expect(tomlResult.stderr).toContain(".codex/config.toml: Invalid TOML document");
+    expect(tomlResult.stderr).toContain(`${projectConfig}: Invalid TOML document`);
     expect(tomlResult.stdout).toBe("");
 
-    const yamlResult = runCli(directory, [".agents/bad.yaml"]);
+    const yamlResult = runCli(directory, [yamlConfig]);
     expect(yamlResult.error).toBeUndefined();
     expect(yamlResult.status).toBe(1);
-    expect(yamlResult.stderr).toContain(".agents/bad.yaml:");
+    expect(yamlResult.stderr).toContain(`${yamlConfig}:`);
     expect(yamlResult.stderr).toContain("Flow sequence");
     expect(yamlResult.stdout).toBe("");
   });
