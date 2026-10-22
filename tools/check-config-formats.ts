@@ -16,10 +16,6 @@ const files = explicitFiles
   : [tomlFile, ...roleTomlFiles, ...yamlFiles];
 const diagnostics: string[] = [];
 
-if (!explicitFiles && !files.includes(tomlFile)) {
-  diagnostics.push(`${tomlFile}: required project Codex config file was not found`);
-}
-
 for (const file of files) {
   if (
     explicitFiles &&

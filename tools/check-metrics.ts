@@ -67,7 +67,6 @@ if (import.meta.main) {
   process.exitCode = checkMetrics(
     execFileSync("tokei", ["--files", "--output", "json", "."], {
       encoding: "utf8",
-      maxBuffer: 16 * 1024 * 1024,
     }),
   );
 }
