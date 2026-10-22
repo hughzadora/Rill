@@ -1,5 +1,7 @@
-# Project-scoped native limit; effective loading requires a trusted Codex project.
-# This caps open spawned threads, excluding the primary, and inherits model settings.
+# Project-scoped native delegation; keep parent model and permissions user-selected.
+# Role files in agents/ override these defaults with explicit model and effort settings.
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"
