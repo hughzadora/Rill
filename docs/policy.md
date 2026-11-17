@@ -4,8 +4,10 @@ Owner decisions govern scope. The approved design is [#17](https://github.com/hu
 
 ## Entry and ownership
 
-Apply the shared [personal policy](../skills/rill-workflow/references/personal-policy.md).
-The full project workflow applies to repositories with an explicit `.rill/project.json` enrollment. Existing projects retain effective tools and structure; resolve evidenced conflicts within the authorized change. Shared personal policy remains applicable outside enrolled projects.
+Apply the shared [personal policy](../skills/rill-preferences/references/personal-policy.md).
+Rill owns the owner's preferences and their verified integration with native controls. Installed Matt Pocock skills own the engineering methods, as recorded in [#10](https://github.com/hughzadora/Rill/issues/10). Raw ideas pass through Superpowers brainstorming, Matt grill-with-docs methods (grilling and domain-modeling), and writing-for-agents to distill an implementable agent-facing specification. Load the actual relevant skills; respect explicit-only wrapper invocation rules.
+
+Project control integration applies to repositories with explicit `.rill/project.json` enrollment. Existing projects retain effective tools and structure; resolve evidenced conflicts within the authorized change. Shared personal interaction policy remains applicable outside enrolled projects.
 
 GitHub issues own approved scope, decisions, task details, and repair history. Local recovery material is a cache of synchronized records plus an outbox of unsynchronized facts. Keep unique outbox records until publication and readback succeed. Repository source, actual runtime observations, and current-version checks establish implementation state; a task summary cannot override them.
 
@@ -19,7 +21,11 @@ Use one task branch/worktree and one batch PR. Preserve unrelated changes. Merge
 
 ## Repair and recovery
 
-Read the workflow's repair and recovery steps when the corresponding trigger applies. Keep failed attempts across compaction, new chats, hypothesis changes, and agent handoffs. Native hooks provide bounded checks and context loading; their presence does not prove trust, execution, complete coverage, or semantic correctness.
+Use the installed diagnosis method for repairs and the owner's repair limits in personal policy. Keep failed attempts across compaction, new chats, hypothesis changes, and agent handoffs.
+
+Design native hooks and MCP integration together for lifecycle preconditions, task/evidence access, actual results, recovery, and completion checks. Hooks trigger or guard supported events; MCP supplies structured tool access and results. Codex supplies execution, native permissions, approvals, and sessions. Verify each event, tool, result, and failure behavior at its actual boundary. Command hooks remain suitable for local deterministic checks; direct shell remains suitable for local work.
+
+Current control status is incomplete: task synchronization works, but this project has no registered Rill lifecycle controls or MCP control integration yet. Preference/skill discovery and successful standalone tools do not establish whole-process enforcement. Keep this gap open until actual lifecycle tests establish it.
 
 Use direct local shell/Git/build/test tools for local work and direct supported interfaces for external services. Reuse maintained native capabilities before adding an adapter. Each new adapter needs a demonstrated gap and an actual consumer; keep Codex responsible for sessions, permissions, approvals, and scheduling.
 
