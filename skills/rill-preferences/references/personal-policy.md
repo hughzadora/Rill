@@ -6,4 +6,6 @@ Keep this agreement and approved task constraints available across compaction an
 
 In enrolled projects, establish the complete agreed design before implementing slices. Preserve the approved scope; record owner decisions before dependent changes. Use the delivery stages, human checkpoints, engineering defaults, and test timing confirmed in Rill #16 as owner preferences on top of the selected Matt Pocock methods.
 
+Latest owner CI timing: commits and small feature increments run lint only. Before the batch PR, run local full-spec CI once, covering the complete approved acceptance. After it passes, rerun only checks justified by a new failure, substantive change, or unresolved risk; routine edits and pushes do not start another full suite.
+
 For the same original bug, retain failed attempts across chats, compaction, hypotheses, and agent handoffs. Two consecutive failed repair rounds require re-diagnosis and new discriminating evidence before another repair. Stop repeated diagnostics that yield no new information. Independent review/fix is capped at three rounds before reconsidering the approach. Unverified results remain unverified.

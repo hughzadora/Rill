@@ -1,13 +1,23 @@
 default:
     @just --list
 
-check:
-    pnpm check
+lint:
+    pnpm exec biome check .
+
+typecheck:
+    pnpm exec tsc --noEmit
+
+check: lint typecheck
 
 test:
+    rm -f .cache/ci/vitest.json
     pnpm test
+    node tools/check-test-report.ts .cache/ci/vitest.json
 
-gate: check test
+[parallel]
+full-spec-ci: lint typecheck test
+
+gate: full-spec-ci
 
 task-sync issue_url:
     node tools/task-context.ts sync {{quote(issue_url)}}

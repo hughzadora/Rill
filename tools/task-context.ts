@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
@@ -26,7 +26,7 @@ export interface TaskRecord {
   taskUrl: string;
   kind: "requirement" | "correction" | "attempt" | "diagnosis" | "checkpoint";
   createdAt: string;
-  revision: string;
+  revision: string | null;
   source: { threadId: string; itemId?: string };
   payload: Record<string, unknown>;
 }
@@ -58,6 +58,35 @@ export interface ProjectContext {
   root: string;
   repository: string;
   recoveryRoot: string;
+}
+
+export function repositoryRevision(root: string) {
+  const head = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (head.error) throw head.error;
+  if (head.status === 0)
+    return {
+      revision: head.stdout.trim(),
+      revisionState: "committed" as const,
+    };
+  const symbolic = spawnSync("git", ["symbolic-ref", "-q", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (symbolic.status !== 0)
+    throw new Error(head.stderr || "Cannot resolve repository HEAD");
+  const reference = spawnSync(
+    "git",
+    ["show-ref", "--verify", "--quiet", symbolic.stdout.trim()],
+    { cwd: root, encoding: "utf8" },
+  );
+  if (reference.status !== 1)
+    throw new Error(
+      reference.stderr || "Cannot verify unborn repository state",
+    );
+  return { revision: null, revisionState: "unborn" as const };
 }
 
 const ajv = new Ajv({ allErrors: true });

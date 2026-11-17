@@ -29,7 +29,10 @@
       ]
     },
     "createdAt": { "type": "string", "format": "date-time" },
-    "revision": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "revision": {
+      "type": ["string", "null"],
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,

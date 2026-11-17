@@ -15,7 +15,7 @@ GitHub issues own approved scope, decisions, task details, and repair history. L
 
 Before implementation, establish the complete approved scope, acceptance, principal success/failure/recovery paths, interfaces, responsibilities, and implementation slices. Relate each slice to that design. A scope reduction requires an explicit owner decision.
 
-Follow the eight stages and human checkpoints in #16. During initial implementation run existing regressions and applicable static/integration checks; add necessary unit regressions and explanatory comments during cleanup. Finish the whole batch with its required suite, build, independent review, and human acceptance. Keep author implementation and independent review distinct. A review belongs to the exact candidate it inspected.
+Follow the eight stages and human checkpoints in #16, with the owner's latest CI timing in personal policy taking precedence. Add necessary regression protection during cleanup. Finish the whole batch with local full-spec CI, independent review, and human acceptance before the PR. Keep author implementation and independent review distinct. A review belongs to the exact candidate it inspected.
 
 Use one task branch/worktree and one batch PR. Preserve unrelated changes. Merge and publish within actual project authorization; verify outcomes before cleanup or closing tasks.
 
@@ -25,7 +25,7 @@ Use the installed diagnosis method for repairs and the owner's repair limits in 
 
 Design native hooks and MCP integration together for lifecycle preconditions, task/evidence access, actual results, recovery, and completion checks. Hooks trigger or guard supported events; MCP supplies structured tool access and results. Codex supplies execution, native permissions, approvals, and sessions. Verify each event, tool, result, and failure behavior at its actual boundary. Command hooks remain suitable for local deterministic checks; direct shell remains suitable for local work.
 
-Current control status is incomplete: task synchronization works, but this project has no registered Rill lifecycle controls or MCP control integration yet. Preference/skill discovery and successful standalone tools do not establish whole-process enforcement. Keep this gap open until actual lifecycle tests establish it.
+Read current control coverage and native execution evidence in the active task. Preference/skill discovery, registered configuration, and successful standalone tools each establish only their observed scope. Keep unverified lifecycle conditions open until their actual integration tests pass.
 
 Use direct local shell/Git/build/test tools for local work and direct supported interfaces for external services. Reuse maintained native capabilities before adding an adapter. Each new adapter needs a demonstrated gap and an actual consumer; keep Codex responsible for sessions, permissions, approvals, and scheduling.
 
