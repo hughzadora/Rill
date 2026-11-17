@@ -1,0 +1,26 @@
+{
+  "name": "rill-workflow-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": "24.22.3"
+  },
+  "scripts": {
+    "check": "biome check . && tsc --noEmit",
+    "test": "vitest run",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/node": "24.19.2",
+    "husky": "9.1.7",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
