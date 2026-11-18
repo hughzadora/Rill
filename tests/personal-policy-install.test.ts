@@ -127,6 +127,32 @@ test("dangling AGENTS symlinks fail safely unless metadata migration is explicit
   }
 });
 
+test("explicit dangling-link migration refuses a link whose target now exists", () => {
+  const root = mkdtempSync(
+    join(tmpdir(), "rill-policy-restored-before-start-"),
+  );
+  try {
+    const home = join(root, "codex"),
+      backups = join(root, "backups"),
+      entry = join(home, "AGENTS.md"),
+      ownerTarget = join(root, "owner.md");
+    mkdirSync(home);
+    writeFileSync(ownerTarget, "Restored owner instructions.\n");
+    symlinkSync(ownerTarget, entry);
+
+    expect(() =>
+      installPersonalPolicy(home, backups, { migrateBrokenLink: true }),
+    ).toThrow("Expected broken AGENTS.md symlink");
+    expect(lstatSync(entry).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(entry)).toBe(ownerTarget);
+    expect(readFileSync(ownerTarget, "utf8")).toBe(
+      "Restored owner instructions.\n",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("migration preserves a symlink target restored before unlink", () => {
   const root = mkdtempSync(join(tmpdir(), "rill-policy-restored-link-"));
   try {

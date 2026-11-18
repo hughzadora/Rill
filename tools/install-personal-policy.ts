@@ -40,6 +40,10 @@ export function installPersonalPolicy(
       try {
         target = realpathSync(entry);
         before = readFileSync(target, "utf8");
+        if (options.migrateBrokenLink)
+          throw new Error(
+            "Expected broken AGENTS.md symlink for explicit migration",
+          );
       } catch (error) {
         if (!isMissing(error)) throw error;
         target = entry;
