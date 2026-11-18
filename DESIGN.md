@@ -2,51 +2,138 @@
 
 ## Direction
 
-Keep Rill small at the system boundary: shared personal preferences and project adapters use Codex's native hooks, MCP tools, configuration, sessions, permissions, and interaction. GitHub remains the source for approved decisions and task execution; local recovery material protects work that has not synchronized yet. Matt Pocock skills provide engineering methods. Rill does not replace either system with its own workflow engine or session service.
+Rill owns the owner's shared development standard, explicit project enrollment, task continuity, evidence records, and verified native integration. Codex remains responsible for sessions, models, permissions, approvals, delegation and scheduling. GitHub remains authoritative for approved decisions and task execution; local recovery material protects work not yet synchronized. Installed Matt Pocock skills supply engineering methods.
 
-The owner-confirmed visual review is [DESIGN.html](DESIGN.html), a dated view associated with the design in [issue #17](https://github.com/hughzadora/Rill/issues/17). The view is not a second specification and does not certify implementation. The complete decision source is #17; delivery evidence and remaining work are maintained in [issue #18](https://github.com/hughzadora/Rill/issues/18).
+The owner-confirmed visual review is [DESIGN.html](DESIGN.html), a dated view associated with [issue #17](https://github.com/hughzadora/Rill/issues/17). It covers the prior design only. The complete decision source is #17; current delivery evidence and open gates remain in [issue #18](https://github.com/hughzadora/Rill/issues/18). This proposal is for the overall-design checkpoint and is neither technical approval nor implementation evidence.
 
-## Confirmed flows
+## Confirmed behavior
 
-### Enter a project
+### Enter, resume and leave a project
 
-An owner explicitly enrolls a new or existing Git checkout. Enrollment resolves the GitHub repository and authorized publisher, preserves current project tools and configuration, and enables the Rill native plugin entry. The owner binds the current GitHub issue through task synchronization. Conflicting repository or publisher identity is surfaced for reconciliation. Native installation and trust are host actions; enrollment alone does not grant trust.
+An owner explicitly enrolls a Git checkout. Enrollment resolves the GitHub repository and authorized publisher, preserves effective project tools and configuration, and enables the native project entry. The owner binds a GitHub issue through task synchronization. Conflicting repository or publisher identity is surfaced for reconciliation. Installation and trust are host actions; enrollment alone does not grant trust.
 
-### Start or resume a task
+At supported startup and resume events, Rill identifies the enrolled checkout and bound issue, supplies shared preferences and task context, and checks actual Git state, task snapshot, pending records and available native history. It reports reconciled, pending, missing and unknown information, then continues only authorized work whose requirements are available. History-page coverage shows what was read, not that every meaning was interpreted.
 
-At supported startup/resume events, Rill identifies the enrolled checkout and bound issue, then supplies shared preferences and a task summary. Recovery checks actual Git state and reads the task snapshot, pending records, and available native history. It presents what is reconciled, pending, missing, or unknown, then continues only work whose requirements are available. History-page coverage is evidence of what was read, not proof that all semantics were interpreted.
+Task facts are durably added to a local outbox before publication. When online, Rill checks the authoritative GitHub task, publishes the pending fact and reads it back. The fact remains pending until readback confirms publication. Scope conflicts are surfaced. Offline work may continue within prior authorization and known requirements; delivery remains unconfirmed until synchronization succeeds.
 
-### Record and synchronize a new fact
+Leaving requires pending facts to be published and read back. Rill disables the project entry and retains recovery cache, publisher authority and shared personal policy. Native configuration reload and actual cessation of hook invocation are separate host behaviors.
 
-Task facts are durably added to a local outbox before publication. When online, Rill checks the authoritative GitHub task, publishes the pending fact, and reads it back. The fact remains pending until readback confirms publication. A remote scope conflict is surfaced rather than silently replacing either version. Offline work can continue only within prior authorization and known requirements; delivery remains unconfirmed until synchronization succeeds.
+### Diagnose, repair and complete
 
-### Diagnose and repair
+A failure and expected behavior are recorded against the current candidate. Checks retain command, output and exit status; diagnosis links evidence to the failure; interpretation records the reason and proposed repair. Two consecutive failed repair rounds require fresh discriminating evidence. Repeated diagnosis without new evidence stops. Successful checks bind to the candidate and do not erase prior failures.
 
-The original failure and expected behavior are recorded against the current candidate. Checks retain command, output and exit status; diagnosis links evidence to the failure; interpretation records the reason and proposed repair. Two consecutive failed repair rounds require fresh discriminating evidence. Repeated diagnosis without new evidence stops. A successful check binds to its candidate and does not erase earlier failures. Relevant related behavior remains part of the repair proof.
+Acceptance compares current content with approved scope, actual full-spec evidence, independent review and owner decision. A mismatch or later-discovered requirement invalidates affected acceptance while retaining the earlier pass in history. Local audit cannot create GitHub authorization, merge protection or human acceptance.
 
-### Complete or retract delivery evidence
+### Human checkpoints and delivery
 
-Acceptance checks compare the current candidate with the approved scope, actual full-spec evidence, independent review, and owner decision. A mismatch or later-discovered missing requirement invalidates affected acceptance; the earlier pass stays in history while the affected criterion returns to incomplete or unknown. A local audit cannot create GitHub authorization, merge protection, or human acceptance.
+Use native input for consequential decisions that facts cannot establish, and native approvals for execution approval. The owner checkpoints from #16 cover requirements and consequential trade-offs, prototype and overall design review, user trial and final acceptance. Routine authorized work proceeds without asking again for known decisions.
 
-### Leave a project
+The approved sequence remains requirements, quick prototype, HTML design, implementation, integration and user testing, cleanup, second verification plus human check, and one batch PR. Small tasks may combine stages while preserving their completion criteria. Scope reduction requires an owner decision.
 
-Leaving requires pending facts to be published and read back. Rill disables the project plugin entry and retains recovery cache, publisher authority, and shared personal policy. Native configuration reload and the actual cessation of hook invocation are checked as separate host behaviors.
-
-## Interaction and human checkpoints
-
-Use host-native selection/input for owner decisions that cannot be established from available facts; use host-native approvals for execution approval. The owner checkpoints from #16 apply: requirements and consequential trade-offs, review of the prototype/overall design, and user trial/final acceptance. The owner may explicitly choose evidence review where that checkpoint permits it. Routine authorized work proceeds without repeatedly asking for known decisions.
-
-The approved design sequence follows #16: requirements, quick prototype, HTML design, implementation, integration and user testing, cleanup, second verification plus human check, then one batch PR. Small tasks may combine stages while preserving their completion criteria. Any scope reduction requires an owner decision.
-
-## Rationale and limits
-
-- GitHub authority and a local outbox separate approved decisions from offline facts, preventing cache freshness from being mistaken for remote truth.
-- Native mechanisms keep sessions, permissions, prompts, and scheduling with the host instead of duplicating them in Rill.
-- Actual command outputs, behavior checks, and candidate identity are required because documents or status labels cannot prove execution.
-- Hook and MCP paths are complementary: hooks act at declared lifecycle/tool boundaries; MCP gives structured task and evidence operations. Neither alone proves the combined native package works.
-
-The remaining negative recovery cases, combined native package trial, full-spec CI, independent review, owner acceptance, and PR are tracked in #18. Current design documents must not be read as evidence that these gates have passed.
-
-## Implementation versus acceptance
+### Implementation versus acceptance
 
 At inspected revision `5ca5ab1`, the working tree also contains uncommitted recovery changes: startup refresh, explicit persisted recovery gaps, and allowing independent diagnostics while guarding supported dependent edits. These follow the intended flow above; their remaining negative-case checks and combined native execution are unverified. The existing manual/automatic compaction observations and repair-guard probe recorded in #18 concern their actual earlier versions and paths. The HTML view, this behavior description and content hashes are not evidence that this working tree has passed those scenarios.
+
+## Proposed end-to-end design: one standard, configured once
+
+### Goal and current feasibility evidence
+
+The approved product direction is one centrally maintained, SemVer-versioned development standard for multiple explicitly enrolled projects. After a one-time user setup and one explicit enrollment per project, future development sessions should load the applicable rules and execute the configured pipeline without per-task model, agent or stage prompts. Pure questions and simple requests requiring no project-source work may be answered directly. Source investigation or implementation must use actual native delegation to a fresh-context Luna worker/explorer; the Sol coordinator integrates evidence and configured Sol reviewers perform the independent batch review. The current Sol low setting is preserved. No automatic Astra selection or effort increase is authorized.
+
+The 2026-11-18 native baseline is bounded evidence, not a candidate certification:
+
+- One clean app-server session completed an ordinary source question using `gpt-6.1-sol` at low effort. Its mode was `explicitRequestOnly`; the completed history contained 7 items (4 direct command executions), with zero exact collaboration or subagent activity items.
+- The only reported instruction source was this project's `AGENTS.md`. The probe recorded `existsSync=false` for `/home/hugh/.codex/AGENTS.md`; that does not distinguish a missing file from a broken link. Full instruction-file hashes and contemporaneous worktree/candidate identity were not captured.
+- The probe concluded that project enrollment does not install shared user-level policy. Native role files and a concurrency cap of two configure availability/defaults; they did not demonstrate automatic dispatch.
+- Installed native package `0.1.2` and source candidate `0.1.3` were distinct. The observation is not bound to a candidate and does not certify either version. A separate Sol low probe review completed, but also does not establish candidate acceptance.
+- The server reported ten ignored unrecognized settings, with three `trusted_content_hash` settings named and seven collapsed. Two plugin icon path warnings were also reported. These messages do not establish hook behavior or broader Rill failures.
+
+The reviewed summary preserves the original summary and corrects its broad regex interpretation of agent messages as collaboration. Current hashes identify reviewed files, not contemporaneous execution receipts. Do not extend these observations beyond the stated session and fields, or infer that native automatic dispatch is impossible from this baseline.
+
+### One-time setup and project contract
+
+User setup installs a short native user-level router, the configured role/model defaults, and the selected immutable version of the shared standard. It verifies which instruction sources were actually loaded, the active coordinator model/effort, configured roles, native tool availability and shared-standard version. The router resolves project context and current task from the host and authoritative GitHub record, then routes source work through the fixed pipeline. The user-level source is maintained and versioned by Rill; projects do not receive copies of the shared method or workflow text.
+
+Project enrollment happens once for an explicitly selected repository. It verifies user setup and actual native configuration layers, resolves the exact standard pin, digest and supported tools, then records only project facts: repository identity, exact SemVer and artifact digest, actual tool bindings, explicit exceptions and project entry/task facts. It preserves effective native configuration, structures, local changes and symlinks. Missing user setup, unsupported standard, unknown tool binding or mismatched version leaves enrollment incomplete and visible; it does not ask the owner to repeat decisions already recorded. Existing schema-1 enrollment requires an explicit migration plan; it is never silently assigned the latest release.
+
+An enrolled project contributes its product requirements, architecture, design, glossary, tools and exceptions. The shared standard contributes personal preferences, stage/checkpoint policy, CI and repair rules, and native adapters. Agents resolve the shared standard with project facts without copying shared process templates into project product documents.
+
+### Fixed pipeline and dispatch behavior
+
+Every new task/session resolves approved scope, authoritative issue, actual Git/worktree state, outstanding evidence and the next authorized work. It continues from the authoritative task and recovery record rather than restarting stages or asking again for recorded decisions. Native Goal creation is available only on explicit user request and is not a per-task prerequisite; routine continuity must not create or rebuild a Goal.
+
+For work that reads or changes project source, the native Sol coordinator creates a bounded, fresh-context Luna delegation with the task, owned scope, source references, required checks and completion condition. The worker returns changes or findings plus exact evidence. The coordinator integrates them and avoids repeating the same investigation. A configured Sol reviewer independently reviews the completed batch and current evidence. Delegation is serial and respects the configured concurrency cap of two; workers do not recursively delegate. Coordinator and review role/model defaults are resolved from actual host state and recorded, not assumed from configuration text. Model unavailability or overrides are exposed; there is no silent substitution or automatic effort escalation.
+
+The pipeline applies #16's requirements, prototype, overall HTML design, implementation, integration/user testing, cleanup, final verification/human check and batch PR stages according to task scope and risk. Matt Pocock methods guide the applicable work. Owner checkpoints remain human decisions. A focused investigation, read-only code fact-finding task or small change still gets genuine worker delegation but does not claim irrelevant prototype, UI or CI stages were executed. Pure no-source questions remain direct. Check the project command composition without repeatedly running full suites; commit hooks run lint only, development checks follow behavioral risk, and local full-spec CI runs once on the final batch candidate before independent review, owner acceptance and the single PR.
+
+### Native controls, receipts and limits
+
+The design is native-first: user/project instruction and role configuration establish defaults; actual native delegation performs worker/reviewer work; hooks guard only supported event/tool boundaries; MCP exposes structured project/task/evidence operations and results. Each real delegation produces a receipt on the existing task/MCP evidence path bound to parent and child task identity, resolved model/role, bounded scope, candidate, returned result and command/evidence references. Delivery checks consume those receipts and current candidate identity. A receipt is evidence of declared and observed invocation fields, not semantic correctness by itself.
+
+Use supported native hooks and delivery guards for required current evidence at their actual boundaries. These guards do not spawn agents and cannot universally classify arbitrary shell commands or guarantee that semantic choices were correct. `SubagentStart`/`SubagentStop` and `max_depth` are candidate controls only; blocking and recursion behavior must be probed before the design freezes. Native automatic-delegation features that silently raise effort are not the default because that change is unauthorized. If supported native routes cannot produce the required observed behavior, return the exact gap, evidence and operating cost for an owner decision. Do not treat added instructions or configured role files as a successful automatic-use result.
+
+A supported native Stop/continuation mechanism or pre-tool guard could be tested as a way to require current dispatch/stage evidence before completion and let the host continue a turn for internal correction without another owner prompt. This is an unverified candidate, not a design dependency yet. Confirm from official host documentation and native tests whether it can block completion and continue the same turn rather than halt the session, its response schema and re-entry flags, and its loop bounds before selecting it. Preserve the existing constraint against stop/compaction dead loops. If those behaviors are unsupported, report the gap and native-first alternatives for owner decision.
+
+No custom scheduler, workflow DSL, session service, parallel task database or approval UI is proposed. Codex retains session lifecycle, actual dispatch, permissions, approvals and scheduling. Rill adds no native adapter without an evidenced gap and an actual consumer.
+
+### Versioned standard and compatibility
+
+Rill maintains one source for personal preferences, development stages, human checkpoints, CI timing, repair limits and their native adapters. Stable rule IDs connect human-readable policy to deterministic guards. Matt Pocock methods stay in their installed skills and are not copied into Rill.
+
+A release manifest identifies exact SemVer, immutable artifact digest and Git revision, supported project schema, rule IDs, policy entry, runtime compatibility, native hook/MCP definitions and required tool capabilities. Use the existing native package/marketplace path, not a second package manager. A digest detects changed bytes but does not prove publisher provenance or trust. A release is immutable; SemVer does not replace behavioral verification or authorize an upgrade.
+
+The compatibility surface includes project schema, stable rule/exception IDs, CLI/MCP contracts, managed-adapter contract and observable guard behavior. Use SemVer 2.0.0: after 1.0, breaking changes increment major, compatible additions minor and compatible fixes patch; prereleases are explicit and build metadata does not affect precedence. During 0.x, a new minor is proposed for breaking public changes and explicit migration is still required. Align standard and plugin artifact versions. A runtime may support multiple frozen standard releases only with explicit compatibility entries and behavior checks. Native install configuration inspected locally has no version selector, so a project pin alone cannot claim per-project runtime isolation. If any enrolled project loses support, block runtime activation until a compatible plan is approved. Separate plugin identities remain a fallback only if native experiments disprove the recommended single-runtime boundary.
+
+Installed `0.1.2` is legacy, not a certified version of the proposed format. `0.1.3` is source candidate distinct from that install. `0.2.0-rc.1` is a proposed first new-format candidate only; no version is published, installed or accepted by this design.
+
+### Project tools and exceptions
+
+Migrate explicitly to schema 2 with repository identity, exact standard version/digest, capability-to-command bindings and explicit exceptions. Credentials and absolute machine paths stay outside tracked declarations. Bind capabilities to actual executable argument arrays and repository-relative working directories; record discovered tool versions. Never evaluate declarations as shell. Validate actual Just/package/hook graphs where supported. Record inapplicable checks and unknown semantics honestly rather than inventing passing commands. Keep existing Just, Husky, Biome, TypeScript and project tools; replacing them is a separate decision.
+
+Each exception names a stable rule ID, reason, bounded replacement or inapplicability, owner decision source and review trigger/version. Exceptions do not grant external permissions. Major upgrades, removed rules or exception-contract changes require reconciliation; wildcard exemptions and silently ignored unknown IDs are invalid. A small managed adapter may connect an existing lint recipe to a commit hook or expose the batch check entry. Record its generated bytes and owning release. Preserve scripts, hook chains, shebangs, modes and unrelated content. Conflicting or unrecognized integration blocks the plan; do not replace an entire Justfile, package manifest, `AGENTS.md` or hooks directory.
+
+### Version resolution, task evidence and recovery
+
+For each supported project operation, resolve the enrolled root and pin, verify the artifact digest and runtime support, then expose effective version and exception/tool-binding digests in hook context and MCP results. The shared router resolves this release rather than embedding all releases in user instructions. Missing or unsupported versions stop dependent activation while permitting independent diagnosis; never fall back silently to latest or another worktree's declaration.
+
+Recovery checkpoints, command/delegation receipts and delivery evidence bind standard artifact, effective exceptions and tool bindings, runtime, task and Git candidate identity. Upgrade or rollback preserves old records as history and rechecks affected acceptance against the effective version; previous acceptance cannot certify changed policy or wiring. Existing task sync/outbox remains the record path. Unknown compatibility or coverage stays unknown.
+
+### Multi-project rollout, upgrade and rollback
+
+The local operation contract is `inventory -> plan -> apply -> verify -> report`. Native registered-project output is one discovery input alongside explicit roots; expand real Git worktrees and report coverage. Trust paths are hints, not enrollment. Do not inspect private Codex databases or create a parallel registry. Classify each root as enrolled, legacy, disabled, unenrolled, missing/inaccessible, non-Git or unsupported; resolve canonical root, repository, Git common directory, branch/revision and status. Deduplicate aliases while retaining distinct worktree configuration. Unenrolled projects are discovery candidates, never write targets without a named owner selection.
+
+A reviewed plan binds exact targets, source/target release digest, runtime/native configuration layers, local paths/bytes/modes and managed-block hashes, tool bindings, exceptions, Git state, expected diffs, conflicts, checks and rollback prerequisites. Include shared user-level effects and every enrolled project affected. Show actual diffs before apply. Local plans are disposable execution/recovery material; GitHub records scope, decisions and summarized outcomes.
+
+Before each write, compare plan inputs again. Changed targets, managed content, exceptions, config, tools or standard invalidate the affected plan. Prepare backups and after-bytes first and write targets serially using existing atomic-write helpers and byte/mode comparisons. Preserve symlinks unless their explicit target is in the approved plan. A lightweight lock/journal may serialize operations and retain before/after state; multi-file and multi-project changes are not atomic.
+
+Preflight every enrolled project before shared runtime/router changes and verify the actual native install, trust and reload sequence. Never auto-trust hooks. A failed or unverified shared change stops dependent project activation. A project failure stops later targets and records completed, failed and pending targets. On interruption, inspect journal and actual state; resume or rollback only through a fresh compatible plan, never blindly retry an unknown outcome.
+
+Drift compares pinned release, expected managed bytes, actual configuration and observed execution. Report Rill-owned block changes separately from valid project bindings/exceptions and unrelated edits. Compare with last applied bytes; a changed managed block is local work to reconcile, not authorization to replace it.
+
+Rollback is a reviewed reverse plan. Restore only when actual bytes/modes still equal the operation's applied after-state; later edits conflict. Reverse only changes owned by the operation. A global runtime rollback considers every current enrollment and availability/trust of the previous runtime. Preserve Git work, credentials, task/outbox evidence and failure records. Reload and verify native behavior: configuration restoration alone does not prove loaded behavior was reversed. Keep applied-but-unverified and rollback-conflict states open.
+
+### Verification, evidence and acceptance matrix
+
+Each result records project/root, exact standard SemVer/digest, exception and tool-binding digests, source revision/worktree, native installed and loaded version, environment, command, exit/signal and uncovered items. Separate declaration, native discovery, trust, loaded version, execution and acceptance. A pin or file hash cannot prove execution. Any affected version, runtime, exception, adapter or candidate change invalidates evidence; uncertain impact gets the full check under personal CI policy.
+
+Use two isolated copies of real, different repositories (Rill and commercial-kitchen-b2b) plus a new-project fixture for a genuine batch pilot. Keep originals untouched. Exercise dirty managed/unmanaged files, different tools, version mismatch, schema-1 migration, unsupported runtime, explicit exception, stale plan, partial failure, interruption and rollback conflict. Run actual mapped checks and native integration; injected failures validate failure handling only. subscription remains excluded while its unrelated changes exist unless a later named plan includes it.
+
+The native baseline was one app-server session and one enrolled repository. It cannot demonstrate desktop session entry, future-session behavior or two-project behavior. Test the actual target desktop/session surface separately from app-server observations. The machine inventory reported no two already-enrolled real repositories; isolated trial success will not claim original-project adoption. After trials, present a named production plan with current diffs and conflicts; only the owner's selected targets are written. Report exclusions and unavailable projects explicitly.
+
+All criteria below remain open in #18 until observed against the current candidate. The one clean-session observation does not meet automatic-use acceptance; the multi-project pilot has not run, and none of the new wiring is implemented. Existing ENTRY through PR gates also remain governed by #18.
+
+| #18 criterion                                                                       | Required observable acceptance                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| STANDARD                                                                            | One immutable SemVer source/release; exact project pin, digest, schema, tools and exceptions resolve correctly.                                                                                                                                                                             |
+| AUTOMATIC                                                                           | Clean, ordinary new sessions on the actual target desktop/session surface load user and project rules without delegation/model/stage hints; app-server evidence is reported separately. Later sessions after the same one-time setup do so again. Pure no-source asks remain direct.        |
+| HANDOFF                                                                             | Source tasks show actual Sol coordinator and fresh-context Luna worker/explorer metadata, bounded task, returned evidence and configured Sol independent review, with no silent substitution.                                                                                               |
+| PIPELINE                                                                            | Task resumes at next authorized stage; applicable #16 steps/checkpoints are completed with real evidence and irrelevant stages are not falsely claimed.                                                                                                                                     |
+| ROLLOUT                                                                             | Inventory reports coverage; reviewed plan/application handles at least two different isolated projects, preserving project differences and local changes; each result reports actual behavior.                                                                                              |
+| UPGRADE                                                                             | Supported/missing versions, drift, stale plan, partial failure, interruption and compare-before-write rollback have observed outcomes.                                                                                                                                                      |
+| ENTRY, DESIGN, RESTORE, RECOVERY, REPAIR, COMPLETION, CI, NATIVE, PILOT, REVIEW, PR | Retain all original #18 definitions and evidence requirements. Recovery negative cases, combined native package execution, final-candidate full-spec CI, independent whole-batch review, owner acceptance and single PR remain pending unless #18 records valid current-candidate evidence. |
+
+### Decision and implementation order
+
+This document is the complete proposed architecture for the owner's native overall-design checkpoint. After that approval, first probe native entry loading, source-task automatic dispatch, delegation receipts, completion blocking/continuation and re-entry, `SubagentStart`/`SubagentStop`, recursion/max-depth behavior, model overrides and actual user/project inheritance. Use clean top-level sessions and capture candidate hashes/status plus complete instruction-source hashes contemporaneously. Then write the detailed implementation plan and begin implementation in slices: (1) immutable release and schema migration; (2) read-only inventory/drift/plan; (3) guarded serial apply and recoverable rollback; (4) version resolution, router and project adapters; (5) multi-project/native pilot combined with original recovery/repair acceptance; (6) final local full-spec, one independent review, owner acceptance and one batch PR.
+
+If the native probe cannot meet automatic-use acceptance through supported routes, return exact evidence, gap and operating-cost alternatives for owner decision before freezing technical wiring. Approval of this design or an isolated pilot does not approve production enrollment, hook trust, publication, merge or release. Preserve every prior open #18 gate; do not mistake a prototype, clean document, hash, declared role, passing proxy or isolated copy for accepted product behavior.
