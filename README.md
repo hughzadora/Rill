@@ -16,7 +16,7 @@ From a target Git checkout, run `node /path/to/Rill/tools/project-enrollment.ts 
 
 Run `node /path/to/Rill/tools/project-enrollment.ts leave` to disable the project entry after pending facts are published and read back. Recovery data and publisher configuration remain available; native plugin configuration takes effect on reload. Codex can resolve linked-worktree project configuration from the primary checkout: the enrollment marker independently makes unenrolled hook calls return without task processing. Native hook invocation, task processing and merge protection are separate guarantees.
 
-`node tools/install-personal-policy.ts` installs the short shared entry into the native user `AGENTS.md`, preserving its symlink and all content outside the managed Rill block. Originals are backed up under `~/.local/state/rill/install-backups/`; it leaves native hook trust unchanged.
+`node tools/install-personal-policy.ts` installs the short shared entry into the native user `AGENTS.md`, preserving a working symlink and all content outside the managed Rill block. A dangling symlink fails safely by default. After reviewing its target, explicitly migrate one with `node tools/install-personal-policy.ts --migrate-broken-link`; the installer backs up the link metadata and replaces only the link with a regular Rill entry, without creating its old target. Originals and symlink metadata are backed up under `~/.local/state/rill/install-backups/`; the installer leaves native hook trust unchanged.
 
 ## Setup and native startup
 

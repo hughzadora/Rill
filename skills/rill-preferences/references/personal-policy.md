@@ -6,6 +6,14 @@ Keep this agreement and approved task constraints available across compaction an
 
 In enrolled projects, establish the complete agreed design before implementing slices. Preserve the approved scope; record owner decisions before dependent changes. Use the delivery stages, human checkpoints, engineering defaults, and test timing confirmed in Rill #16 as owner preferences on top of the selected Matt Pocock methods.
 
+## Native workflow reuse
+
+Start one fresh bounded worker context for each source-bearing workflow. Keep that worker and its context for same-domain increments. Before assigning work, the coordinator checks the native roster and exact thread binding: continue a running worker; follow up its idle, interrupted, or completed thread. Absence from a roster is not proof that a worker is unavailable; inspect the binding and native thread state. Use a new worker only for independent scope, a required specialty the bound worker lacks, invalid context, or no suitable existing binding, and record the reason. Only the coordinator dispatches; keep the native concurrency cap and configured role models.
+
+At a workflow handoff, record one checkpoint in the existing bound task with a stable workflow ID, parent and worker thread IDs, owned scope, source checkpoint revision, verified source paths and hashes, completed evidence, and exact next action. Continue from that checkpoint and the native binding; checkpoint metadata alone does not establish that a thread is still available. Do not create a workflow registry or scheduler.
+
+Treat the current session's user-level AGENTS text as native-loaded context. Reuse it within the workflow while its recorded source hash is unchanged. Read a pointed policy or project source only when its trigger applies and it has not been read in this context; refresh it when its revision or hash changes. Source facts that can change outside GitHub or the repository still require current verification. Do not reread unchanged source files or raw logs just to start another increment.
+
 CI policy:
 
 - Commit hooks run lint only. Development increments select checks by behavioral risk, not changed line count: text/format-only changes use lint; behavior changes and bug repairs run targeted checks that demonstrate the changed behavior.

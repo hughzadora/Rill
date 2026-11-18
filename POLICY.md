@@ -17,7 +17,7 @@ Machine records use the GitHub numeric publisher IDs configured in `.rill/author
 
 ## Delegation
 
-Use the native defaults and role definitions in `.codex/`, adopted from the owner's commercial-kitchen-b2b configuration. Hand off implementation serially with fresh context, a bounded goal, owned files, source references, required checks and a completion condition. Choose one read-only review role for the batch's risk. Avoid full-history forks, recursive delegation, repeated investigation by the coordinator and worker, and per-step review churn. Model availability and existing-session overrides must be verified; configuration alone does not hot-switch the current chat or impose a token budget.
+Use the native defaults and role definitions in `.codex/`, adopted from the owner's commercial-kitchen-b2b configuration. Start one fresh worker context per source-bearing workflow, with a bounded goal, owned files, source references, required checks and a completion condition. Reuse its native worker/thread for same-domain increments after the coordinator verifies current availability; continue a running thread or follow up the same idle, interrupted or completed thread. A missing roster entry alone is not evidence of unavailability. Dispatch another worker only for independent work, a missing specialty, invalid context or no suitable binding, recording why. Only the coordinator dispatches, within the native cap of two; workers never spawn children. Keep one read-only review role for the completed batch. Preserve configured role models and effort; configuration alone does not establish active-session identity or override state.
 
 ## Design and delivery
 
