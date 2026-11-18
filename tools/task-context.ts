@@ -40,6 +40,7 @@ interface Issue {
 }
 
 interface Comment {
+  user?: { id: number; login?: string } | null;
   id: number;
   body: string | null;
   updated_at: string;
@@ -401,12 +402,54 @@ export function pendingRecords(
     );
 }
 
-export function taskRecords(context: ProjectContext): TaskRecord[] {
+const validateAuthority = ajv.compile<{
+  schemaVersion: 1;
+  githubUserIds: number[];
+}>({
+  type: "object",
+  additionalProperties: false,
+  required: ["schemaVersion", "githubUserIds"],
+  properties: {
+    schemaVersion: { const: 1 },
+    githubUserIds: {
+      type: "array",
+      minItems: 1,
+      uniqueItems: true,
+      items: { type: "integer", minimum: 1 },
+    },
+  },
+});
+
+export function trustedPublisherIds(context: ProjectContext): number[] {
+  const value: unknown = JSON.parse(
+    readFileSync(join(context.root, ".rill/authority.json"), "utf8"),
+  );
+  if (!validateAuthority(value))
+    throw new Error("Invalid project record-publisher authority");
+  return value.githubUserIds;
+}
+
+function trustedComment(comment: Comment, publishers: number[]) {
+  if (!comment.user || !Number.isSafeInteger(comment.user.id))
+    throw new Error(
+      "Machine record author is unavailable; recover GitHub source metadata before dependent work",
+    );
+  return publishers.includes(comment.user.id);
+}
+
+export function taskRecordView(context: ProjectContext) {
   const snapshot = cachedTask(context);
   const pending = pendingRecords(context);
   const records = new Map<string, TaskRecord>();
+  const ignoredCommentIds: number[] = [];
+  let publishers: number[] | undefined;
   for (const comment of snapshot.comments) {
     if (!comment.body?.startsWith("<!-- rill-record:v1:")) continue;
+    publishers ??= trustedPublisherIds(context);
+    if (!trustedComment(comment, publishers)) {
+      ignoredCommentIds.push(comment.id);
+      continue;
+    }
     const match =
       /^<!-- rill-record:v1:([^ ]+) -->\n\n```json\n([\s\S]+)\n```$/.exec(
         comment.body,
@@ -431,10 +474,18 @@ export function taskRecords(context: ProjectContext): TaskRecord[] {
       throw new Error("Pending record conflicts with authoritative task");
     records.set(record.id, record);
   }
-  return [...records.values()].sort(
-    (a, b) =>
-      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
-  );
+  return {
+    records: [...records.values()].sort(
+      (a, b) =>
+        a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    ),
+    ignoredCommentIds,
+    trustedPublisherIds: publishers ?? [],
+  };
+}
+
+export function taskRecords(context: ProjectContext): TaskRecord[] {
+  return taskRecordView(context).records;
 }
 
 // Public fact entry preserves observations; actual execution records come from the runner.
@@ -482,6 +533,18 @@ export async function publishRecords(context: ProjectContext) {
     const taskUrl = activeTask(context);
     const identity = taskIdentity(taskUrl, context.repository);
     const previous = cachedTask(context);
+    const publishers = trustedPublisherIds(context);
+    const principal = await ghJson("user");
+    if (
+      !principal ||
+      typeof principal !== "object" ||
+      !("id" in principal) ||
+      typeof principal.id !== "number" ||
+      !publishers.includes(principal.id)
+    )
+      throw new Error(
+        "Current GitHub identity is not a configured record publisher; retain the outbox and reconcile authorization",
+      );
     let current = await remoteTask(context, taskUrl);
     if (
       current.issue.body !== previous.issue.body ||
@@ -495,8 +558,9 @@ export async function publishRecords(context: ProjectContext) {
     for (const record of records) {
       const body = recordBody(record);
       const marker = `<!-- rill-record:v1:${record.id} -->`;
-      const matches = current.comments.filter((comment) =>
-        comment.body?.includes(marker),
+      const matches = current.comments.filter(
+        (comment) =>
+          comment.body?.includes(marker) && trustedComment(comment, publishers),
       );
       if (matches.length > 1 || (matches[0] && matches[0].body !== body))
         throw new Error(
@@ -505,15 +569,18 @@ export async function publishRecords(context: ProjectContext) {
       let comment: unknown = matches[0];
       if (!comment)
         comment = await ghJson(`${identity.endpoint}/comments`, [], { body });
-      if (!validateComment(comment))
-        throw new Error("Invalid publish response; keep the local outbox");
+      if (!validateComment(comment) || !trustedComment(comment, publishers))
+        throw new Error(
+          "Invalid or untrusted publish response; keep the local outbox",
+        );
       const confirmed = await ghJson(
         `repos/${context.repository}/issues/comments/${comment.id}`,
       );
       if (
         !validateComment(confirmed) ||
         confirmed.id !== comment.id ||
-        confirmed.body !== body
+        confirmed.body !== body ||
+        !trustedComment(confirmed, publishers)
       )
         throw new Error("Publication readback mismatch; keep the local outbox");
       current = {

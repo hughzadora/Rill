@@ -28,11 +28,16 @@ export function fixtureProject() {
     join(root, ".rill/project.json"),
     JSON.stringify({ schemaVersion: 1, repository: "example/project" }),
   );
+  writeFileSync(
+    join(root, ".rill/authority.json"),
+    JSON.stringify({ schemaVersion: 1, githubUserIds: [1] }),
+  );
   const gh = fileURLToPath(new URL("../fixtures/gh.ts", import.meta.url));
   chmodSync(gh, 0o755);
   symlinkSync(gh, join(bin, "gh"));
   const statePath = join(directory, "remote.json");
   const state = {
+    principal: { id: 1, login: "example" },
     offline: false,
     failAfterPost: false,
     mismatchReadback: false,

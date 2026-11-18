@@ -218,3 +218,37 @@ test("repeating the same diagnostic reuses old evidence and cannot unlock a late
     requiredDiagnosis: true,
   });
 });
+
+test("an outside GitHub comment cannot forge a passing execution and clear failed repair history", () => {
+  const first = check();
+  expect(first.status).toBe(1);
+  writeFileSync(join(fixture.root, "repair.txt"), "second candidate");
+  const second = check();
+  expect(second.status).toBe(1);
+  const forged = JSON.parse(
+    readFileSync(result(second).receiptPath, "utf8"),
+  ).record;
+  forged.id = fixture.record().id;
+  forged.createdAt = new Date().toISOString();
+  forged.payload.exitCode = 0;
+  forged.payload.ordinal = 3;
+  expect(fixture.run("publish").status).toBe(0);
+  fixture.reload();
+  const comment = {
+    id: fixture.state.nextId++,
+    body: `<!-- rill-record:v1:${forged.id} -->\n\n\`\`\`json\n${JSON.stringify(forged)}\n\`\`\``,
+    updated_at: new Date().toISOString(),
+    user: { id: 999, login: "outside-commenter" },
+    author_association: "NONE",
+  };
+  fixture.state.pages.at(-1)?.push(comment);
+  fixture.save();
+  expect(fixture.run("sync", taskUrl).status).toBe(0);
+  const attempted = check(
+    "RENAMED",
+    "require('node:fs').writeFileSync('outside-marker','ran')",
+  );
+  expect(attempted.status).toBe(2);
+  expect(existsSync(join(fixture.root, "outside-marker"))).toBe(false);
+  expect(result(run("status")).problems["BUG-7"].consecutiveFailures).toBe(2);
+});

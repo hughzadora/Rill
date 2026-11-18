@@ -3,6 +3,7 @@ import {
   cachedTask,
   pendingRecords,
   projectContext,
+  taskRecordView,
 } from "../tools/task-context.ts";
 import { fixtureProject, taskUrl } from "./helpers/project.ts";
 
@@ -120,5 +121,52 @@ describe("actual task CLI and test-owned GitHub transport", () => {
         .status,
     ).toBe(1);
     expect(pending()).toHaveLength(0);
+  });
+  test("an unconfigured authenticated publisher cannot post facts or remove the outbox", () => {
+    sync();
+    const record = enqueue();
+    fixture.state.principal.id = 999;
+    fixture.state.principal.login = "different-account";
+    fixture.save();
+    const posted = fixture.run("publish");
+    expect(posted.status).toBe(1);
+    expect(posted.stderr).toContain("not a configured record publisher");
+    fixture.reload();
+    expect(fixture.state.posts).toBe(0);
+    expect(pending().map((r) => r.id)).toEqual([record.id]);
+  });
+
+  test("outside marker preclaims are ignored before idempotent publication checks", () => {
+    sync();
+    const record = enqueue();
+    const comment = {
+      id: fixture.state.nextId++,
+      body: `<!-- rill-record:v1:${record.id} -->\n\nconflicting outside claim`,
+      updated_at: new Date().toISOString(),
+      user: { id: 999, login: "outside" },
+    };
+    fixture.state.pages.at(-1)?.push(comment);
+    fixture.save();
+    const posted = fixture.run("publish");
+    expect(posted.status, posted.stderr).toBe(0);
+    fixture.reload();
+    expect(fixture.state.posts).toBe(1);
+    const view = taskRecordView(projectContext(fixture.root));
+    expect(view.ignoredCommentIds).toContain(comment.id);
+    expect(view.records).toContainEqual(record);
+    expect(pending()).toEqual([]);
+  });
+
+  test("missing remote author metadata stays unknown instead of becoming trusted", () => {
+    sync();
+    enqueue();
+    expect(fixture.run("publish").status).toBe(0);
+    fixture.reload();
+    Object.assign(fixture.state.pages.at(-1)?.at(-1) ?? {}, { user: null });
+    fixture.save();
+    sync();
+    expect(() => taskRecordView(projectContext(fixture.root))).toThrow(
+      "author is unavailable",
+    );
   });
 });

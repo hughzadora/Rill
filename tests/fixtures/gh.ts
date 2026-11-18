@@ -17,6 +17,8 @@ if (args.includes("--method")) {
     id: state.nextId++,
     body: JSON.parse(input).body,
     updated_at: new Date().toISOString(),
+    user: state.principal ?? { id: 1, login: "example" },
+    author_association: "OWNER",
   };
   state.pages.at(-1).push(comment);
   state.posts++;
@@ -28,6 +30,8 @@ if (args.includes("--method")) {
   }
   writeFileSync(file, JSON.stringify(state));
   console.log(JSON.stringify(comment));
+} else if (endpoint === "user") {
+  console.log(JSON.stringify(state.principal ?? { id: 1, login: "example" }));
 } else if (endpoint.includes("/issues/comments/")) {
   const comment = state.pages
     .flat()

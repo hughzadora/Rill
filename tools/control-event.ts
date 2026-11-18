@@ -9,7 +9,7 @@ import {
   pendingRecords,
   projectContext,
   repositoryRevision,
-  taskRecords,
+  taskRecordView,
 } from "./task-context.ts";
 
 export type { ControlEvent } from "./control-input.ts";
@@ -33,7 +33,8 @@ export function taskStatus(cwd: string) {
   const context = projectContext(cwd);
   const snapshot = cachedTask(context);
   const pending = pendingRecords(context);
-  const records = taskRecords(context);
+  const recordView = taskRecordView(context);
+  const records = recordView.records;
   const revision = repositoryRevision(context.root);
   const changes = execFileSync("git", ["status", "--porcelain"], {
     cwd: context.root,
@@ -48,6 +49,10 @@ export function taskStatus(cwd: string) {
     remoteUpdatedAt: snapshot.issue.updated_at,
     taskBody: snapshot.issue.body,
     records,
+    recordProvenance: {
+      ignoredCommentIds: recordView.ignoredCommentIds,
+      trustedPublisherIds: recordView.trustedPublisherIds,
+    },
     repair: repairState(context),
     pendingIds: pending.map((record) => record.id),
     ...revision,
