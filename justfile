@@ -51,3 +51,18 @@ stage-plugin destination:
     cp package.json pnpm-lock.yaml .mcp.json "$target/"
     cp .codex-plugin/plugin.json "$target/.codex-plugin/"
     pnpm --dir "$target" install --prod --offline --frozen-lockfile --ignore-scripts --node-linker=hoisted
+
+[positional-arguments]
+repair-check problem_key hypothesis +command:
+    node tools/repair-evidence.ts check "$@"
+
+[positional-arguments]
+repair-diagnose problem_key +command:
+    node tools/repair-evidence.ts diagnose "$@"
+
+[positional-arguments]
+repair-interpret problem_key evidence_id explanation:
+    node tools/repair-evidence.ts interpret "$@"
+
+repair-status:
+    node tools/repair-evidence.ts status

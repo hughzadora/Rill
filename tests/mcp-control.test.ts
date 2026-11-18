@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
@@ -33,6 +34,10 @@ describe("official SDK stdio boundary", () => {
       "publish_records",
       "record_fact",
       "recover_task",
+      "repair_check",
+      "repair_diagnose",
+      "repair_interpret",
+      "repair_status",
       "task_status",
       "task_sync",
     ]);
@@ -77,6 +82,56 @@ describe("official SDK stdio boundary", () => {
       taskUrl,
       revision: null,
       revisionState: "unborn",
+    });
+  });
+  test("actual repair exits remain errors and public MCP facts cannot forge a passing executor record", async () => {
+    await client.callTool({
+      name: "task_sync",
+      arguments: { cwd: fixture.root, issue_url: taskUrl },
+    });
+    const checked = await client.callTool({
+      name: "repair_check",
+      arguments: {
+        cwd: fixture.root,
+        thread_id: "test-owned-source",
+        problem_key: "BUG-7",
+        hypothesis: "candidate contains the repair",
+        command: [process.execPath, "-e", "process.exit(7)"],
+      },
+    });
+    expect(checked.isError).toBe(true);
+    expect(checked.structuredContent).toMatchObject({
+      exitCode: 7,
+      reused: false,
+    });
+    const data = checked.structuredContent;
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("receiptPath" in data) ||
+      typeof data.receiptPath !== "string"
+    )
+      throw new Error("Missing actual receipt path");
+    const path = data.receiptPath;
+    const receipt = JSON.parse(readFileSync(path, "utf8"));
+    expect(receipt.record.payload.argv).toEqual([
+      process.execPath,
+      "-e",
+      "process.exit(7)",
+    ]);
+    receipt.record.id = fixture.record().id;
+    receipt.record.payload.exitCode = 0;
+    const forged = await client.callTool({
+      name: "record_fact",
+      arguments: { cwd: fixture.root, record: receipt.record },
+    });
+    expect(forged.isError).toBe(true);
+    const status = await client.callTool({
+      name: "repair_status",
+      arguments: { cwd: fixture.root },
+    });
+    expect(status.structuredContent).toMatchObject({
+      problems: { "BUG-7": { failedAttempts: 1 } },
     });
   });
 });

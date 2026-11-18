@@ -1,16 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import type { ControlEvent } from "./control-input.ts";
+import { repairGuard, repairState } from "./repair-evidence.ts";
 import {
   activeTask,
   cachedTask,
   pendingRecords,
   projectContext,
   repositoryRevision,
-  type TaskRecord,
-  validateRecord,
+  taskRecords,
 } from "./task-context.ts";
 
 export type { ControlEvent } from "./control-input.ts";
@@ -34,33 +33,7 @@ export function taskStatus(cwd: string) {
   const context = projectContext(cwd);
   const snapshot = cachedTask(context);
   const pending = pendingRecords(context);
-  const records = new Map<string, TaskRecord>();
-  for (const comment of snapshot.comments) {
-    if (!comment.body?.startsWith("<!-- rill-record:v1:")) continue;
-    const match =
-      /^<!-- rill-record:v1:([^ ]+) -->\n\n```json\n([\s\S]+)\n```$/.exec(
-        comment.body,
-      );
-    if (!match?.[2])
-      throw new Error("Malformed Rill record in authoritative task");
-    const record: unknown = JSON.parse(match[2]);
-    if (
-      !validateRecord(record) ||
-      record.id !== match[1] ||
-      record.taskUrl !== snapshot.taskUrl
-    )
-      throw new Error("Mismatched authoritative Rill record");
-    const previous = records.get(record.id);
-    if (previous && !isDeepStrictEqual(previous, record))
-      throw new Error("Conflicting authoritative record identity");
-    records.set(record.id, record);
-  }
-  for (const record of pending) {
-    const previous = records.get(record.id);
-    if (previous && !isDeepStrictEqual(previous, record))
-      throw new Error("Pending record conflicts with authoritative task");
-    records.set(record.id, record);
-  }
+  const records = taskRecords(context);
   const revision = repositoryRevision(context.root);
   const changes = execFileSync("git", ["status", "--porcelain"], {
     cwd: context.root,
@@ -74,10 +47,8 @@ export function taskStatus(cwd: string) {
     remoteState: snapshot.issue.state,
     remoteUpdatedAt: snapshot.issue.updated_at,
     taskBody: snapshot.issue.body,
-    records: [...records.values()].sort(
-      (a, b) =>
-        a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
-    ),
+    records,
+    repair: repairState(context),
     pendingIds: pending.map((record) => record.id),
     ...revision,
     changes,
@@ -138,6 +109,17 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
         event,
         "The bound task is closed. Reconcile actual authorized scope before executing task tools.",
       );
+    if (event.hook_event_name === "PreToolUse") {
+      const reason = repairGuard(projectContext(event.cwd), event.tool_name);
+      if (reason) return blocked(event, reason);
+    }
+    if (
+      event.hook_event_name === "PostToolUse" &&
+      /repair_(check|diagnose|interpret)$/.test(event.tool_name ?? "")
+    )
+      return {
+        systemMessage: `Rill actual repair evidence state: ${JSON.stringify(state.repair)}. Inspect the recorded output before judging cause or completion.`,
+      };
     if (event.hook_event_name === "UserPromptSubmit")
       return {
         hookSpecificOutput: {

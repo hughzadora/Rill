@@ -401,6 +401,51 @@ export function pendingRecords(
     );
 }
 
+export function taskRecords(context: ProjectContext): TaskRecord[] {
+  const snapshot = cachedTask(context);
+  const pending = pendingRecords(context);
+  const records = new Map<string, TaskRecord>();
+  for (const comment of snapshot.comments) {
+    if (!comment.body?.startsWith("<!-- rill-record:v1:")) continue;
+    const match =
+      /^<!-- rill-record:v1:([^ ]+) -->\n\n```json\n([\s\S]+)\n```$/.exec(
+        comment.body,
+      );
+    if (!match?.[2])
+      throw new Error("Malformed Rill record in authoritative task");
+    const record: unknown = JSON.parse(match[2]);
+    if (
+      !validateRecord(record) ||
+      record.id !== match[1] ||
+      record.taskUrl !== snapshot.taskUrl
+    )
+      throw new Error("Mismatched authoritative Rill record");
+    const previous = records.get(record.id);
+    if (previous && !isDeepStrictEqual(previous, record))
+      throw new Error("Conflicting authoritative record identity");
+    records.set(record.id, record);
+  }
+  for (const record of pending) {
+    const previous = records.get(record.id);
+    if (previous && !isDeepStrictEqual(previous, record))
+      throw new Error("Pending record conflicts with authoritative task");
+    records.set(record.id, record);
+  }
+  return [...records.values()].sort(
+    (a, b) =>
+      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  );
+}
+
+// Public fact entry preserves observations; actual execution records come from the runner.
+export async function recordUserFact(context: ProjectContext, record: unknown) {
+  if (validateRecord(record) && record.payload.executor === "rill-repair/v1")
+    throw new Error(
+      "Repair results are executor-owned; use repair-check/diagnose/interpret instead",
+    );
+  return recordFact(context, record);
+}
+
 export async function recordFact(
   context: ProjectContext,
   record: unknown,
@@ -519,7 +564,10 @@ if (import.meta.main) {
     } else if (command === "record" && argument) {
       console.log(
         JSON.stringify(
-          await recordFact(context, JSON.parse(readFileSync(argument, "utf8"))),
+          await recordUserFact(
+            context,
+            JSON.parse(readFileSync(argument, "utf8")),
+          ),
         ),
       );
     } else if (command === "publish") {

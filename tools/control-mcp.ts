@@ -1,18 +1,27 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
+import manifest from "../.codex-plugin/plugin.json" with { type: "json" };
 import { taskStatus } from "./control-event.ts";
 import { controlEventSchema } from "./control-input.ts";
 import { recoverTask } from "./recover-task.ts";
 import { lifecycleEvent } from "./recovery-lifecycle.ts";
 import {
+  interpretDiagnosis,
+  repairState,
+  runRepair,
+} from "./repair-evidence.ts";
+import {
   projectContext,
   publishRecords,
-  recordFact,
+  recordUserFact,
   syncTask,
 } from "./task-context.ts";
 
-const server = new McpServer({ name: "rill-preferences", version: "0.1.0" });
+const server = new McpServer({
+  name: "rill-preferences",
+  version: manifest.version,
+});
 const output = (value: Record<string, unknown>) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
   structuredContent: value,
@@ -102,7 +111,7 @@ server.registerTool(
     },
   },
   async ({ cwd, record }) =>
-    output({ record: await recordFact(projectContext(cwd), record) }),
+    output({ record: await recordUserFact(projectContext(cwd), record) }),
 );
 
 server.registerTool(
@@ -118,6 +127,82 @@ server.registerTool(
     },
   },
   async ({ cwd }) => output(await publishRecords(projectContext(cwd))),
+);
+
+server.registerTool(
+  "repair_status",
+  {
+    description:
+      "Read actual repair failures, diagnosis requirements and unresolved evidence. Counts come from recorded command outcomes, not ordinary tool errors.",
+    inputSchema: z.object({ cwd: z.string().min(1) }),
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  async ({ cwd }) => output(repairState(projectContext(cwd))),
+);
+
+for (const operation of ["check", "diagnose"] as const) {
+  server.registerTool(
+    `repair_${operation}`,
+    {
+      description:
+        operation === "check"
+          ? "Run an existing targeted check as explicit repair evidence. Saves actual exit/output hashes; requires diagnosis after two failures. Does not prove semantic repair."
+          : "Run a discriminating diagnostic command and retain its actual evidence. Successful execution alone does not satisfy diagnosis; interpret the evidence separately.",
+      inputSchema: z.object({
+        cwd: z.string().min(1),
+        thread_id: z.string().min(1),
+        problem_key: z.string().min(1),
+        hypothesis: z.string().min(1),
+        command: z.array(z.string()).min(1),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async ({ cwd, thread_id, problem_key, hypothesis, command }, context) => {
+      const result = await runRepair(
+        projectContext(cwd),
+        operation,
+        problem_key,
+        hypothesis,
+        command,
+        context.mcpReq.signal,
+        thread_id,
+      );
+      return { ...output(result), isError: result.exitCode !== 0 };
+    },
+  );
+}
+server.registerTool(
+  "repair_interpret",
+  {
+    description:
+      "Link fresh diagnostic evidence to the latest failures and explain its causal distinction before the next repair. Mechanical reference validity does not establish causal sufficiency.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      thread_id: z.string().min(1),
+      problem_key: z.string().min(1),
+      evidence_id: z.string().uuid(),
+      explanation: z.string().min(1),
+    }),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
+  },
+  async ({ cwd, thread_id, problem_key, evidence_id, explanation }) =>
+    output(
+      await interpretDiagnosis(
+        projectContext(cwd),
+        problem_key,
+        evidence_id,
+        explanation,
+        thread_id,
+      ),
+    ),
 );
 
 await serveStdio(() => server);

@@ -4,12 +4,12 @@ import { lstatSync, readFileSync, readlinkSync } from "node:fs";
 import { arch, platform, release } from "node:os";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { atomicJson } from "./task-context.ts";
+import { atomicJson, repositoryRevision } from "./task-context.ts";
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" });
 
-export function candidate(cwd: string) {
+export function workingTree(cwd: string) {
   const root = git(cwd, "rev-parse", "--show-toplevel").trim();
   const paths = [
     ...new Set(
@@ -41,9 +41,17 @@ export function candidate(cwd: string) {
   }
   return {
     root,
-    revision: git(root, "rev-parse", "--verify", "HEAD").trim(),
+    ...repositoryRevision(root),
     status: git(root, "status", "--porcelain=v1", "--untracked-files=all"),
     contentSha256: digest.digest("hex"),
+  };
+}
+
+export function candidate(cwd: string) {
+  const tree = workingTree(cwd);
+  const root = tree.root;
+  return {
+    ...tree,
     mergeBases: git(root, "merge-base", "--all", "HEAD", "main")
       .trim()
       .split("\n"),
