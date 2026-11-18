@@ -2,7 +2,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { runEvidence, verifyEvidence } from "../tools/ci-evidence.ts";
+import {
+  runEvidence,
+  verifyEvidence,
+  verifyFullSpecEvidence,
+} from "../tools/ci-evidence.ts";
 import { fixtureProject } from "./helpers/project.ts";
 
 let fixture: ReturnType<typeof fixtureProject>;
@@ -65,4 +69,37 @@ test("changes during a successful command invalidate the candidate receipt", () 
   expect(receipt.exitCode).toBe(0);
   expect(receipt.candidateUnchanged).toBe(false);
   expect(() => verifyEvidence(fixture.root, path)).toThrow();
+});
+
+test("a generic successful command cannot stand in for the full-spec entry", () => {
+  const { path } = runEvidence(
+    fixture.root,
+    [process.execPath, "-e", "process.exit(0)"],
+    [],
+  );
+  expect(() => verifyFullSpecEvidence(fixture.root, path)).toThrow("full-spec");
+});
+
+test("the Just full-spec entry remains bound to its exact candidate", () => {
+  writeFileSync(
+    join(fixture.root, "justfile"),
+    "_full-spec-checks:\n    node -e \"require('node:assert/strict').equal(2+2,4)\"\n",
+  );
+  const { path } = runEvidence(
+    fixture.root,
+    ["just", "_full-spec-checks"],
+    ["native runtime acceptance"],
+  );
+  expect(verifyFullSpecEvidence(fixture.root, path)).toMatchObject({
+    matchingCandidate: true,
+    fullSpecEntry: true,
+    unverified: ["native runtime acceptance"],
+  });
+  writeFileSync(
+    join(fixture.root, "justfile"),
+    '_full-spec-checks:\n    node -e "process.exit(1)"\n',
+  );
+  expect(() => verifyFullSpecEvidence(fixture.root, path)).toThrow(
+    "does not match",
+  );
 });

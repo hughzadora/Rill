@@ -41,6 +41,7 @@ describe("official SDK stdio boundary", () => {
       "repair_status",
       "task_status",
       "task_sync",
+      "verify_full_spec_evidence",
     ]);
     const result = await client.callTool({
       name: "evaluate_event",

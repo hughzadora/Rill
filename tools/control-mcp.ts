@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 import manifest from "../.codex-plugin/plugin.json" with { type: "json" };
+import { verifyFullSpecEvidence } from "./ci-evidence.ts";
 import { taskStatus } from "./control-event.ts";
 import { controlEventSchema } from "./control-input.ts";
 import {
@@ -152,6 +153,20 @@ server.registerTool(
     },
   },
   async ({ cwd }) => output(await publishRecords(projectContext(cwd))),
+);
+
+server.registerTool(
+  "verify_full_spec_evidence",
+  {
+    description:
+      "Verify that saved evidence ran the project's actual full-spec entry and matches the current candidate/environment. Does not rerun checks or establish uncovered acceptance or human approval.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      receipt: z.string().min(1),
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  async ({ cwd, receipt }) => output(verifyFullSpecEvidence(cwd, receipt)),
 );
 
 server.registerTool(

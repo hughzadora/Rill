@@ -15,7 +15,7 @@ test:
     node tools/check-test-report.ts .cache/ci/vitest.json
 
 full-spec-ci:
-    node tools/ci-evidence.ts run just _full-spec-checks
+    node tools/ci-evidence.ts full-spec
 
 [parallel]
 _full-spec-checks: lint typecheck test
@@ -79,3 +79,6 @@ install-personal-policy:
 [positional-arguments]
 decision-source stage thread_id item_id subject quote:
     node tools/decision-evidence.ts "$@"
+
+ci-full-spec-verify receipt:
+    node tools/ci-evidence.ts verify-full-spec {{quote(receipt)}}

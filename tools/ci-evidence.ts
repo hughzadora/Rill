@@ -128,7 +128,9 @@ export function runEvidence(
   return { receipt, path };
 }
 
-export function verifyEvidence(cwd: string, path: string) {
+export const fullSpecCommand = ["just", "_full-spec-checks"];
+
+function verifiedReceipt(cwd: string, path: string) {
   const receipt = JSON.parse(readFileSync(path, "utf8"));
   if (
     receipt.schemaVersion !== 1 ||
@@ -140,11 +142,28 @@ export function verifyEvidence(cwd: string, path: string) {
     throw new Error(
       "Evidence failed, changed during execution, or does not match the current candidate/environment",
     );
+  return receipt;
+}
+
+function verificationResult(
+  receipt: ReturnType<typeof runEvidence>["receipt"],
+) {
   return {
     matchingCandidate: true,
     unverified: receipt.unverified,
     acceptance: receipt.acceptance,
   };
+}
+
+export function verifyEvidence(cwd: string, path: string) {
+  return verificationResult(verifiedReceipt(cwd, path));
+}
+
+export function verifyFullSpecEvidence(cwd: string, path: string) {
+  const receipt = verifiedReceipt(cwd, path);
+  if (!isDeepStrictEqual(receipt.command, fullSpecCommand))
+    throw new Error("Evidence did not execute the project's full-spec entry");
+  return { ...verificationResult(receipt), fullSpecEntry: true };
 }
 
 if (import.meta.main) {
@@ -153,10 +172,18 @@ if (import.meta.main) {
       console.log(
         JSON.stringify(verifyEvidence(process.cwd(), process.argv[3] ?? "")),
       );
-    else if (process.argv[2] === "run") {
+    else if (process.argv[2] === "verify-full-spec")
+      console.log(
+        JSON.stringify(
+          verifyFullSpecEvidence(process.cwd(), process.argv[3] ?? ""),
+        ),
+      );
+    else if (["run", "full-spec"].includes(process.argv[2] ?? "")) {
       const { receipt, path } = runEvidence(
         process.cwd(),
-        process.argv.slice(3),
+        process.argv[2] === "full-spec"
+          ? fullSpecCommand
+          : process.argv.slice(3),
         [
           "Approved acceptance mapping and human acceptance require separate verification",
         ],
@@ -174,7 +201,7 @@ if (import.meta.main) {
         receipt.exitCode === 0 && receipt.candidateUnchanged ? 0 : 1;
     } else
       throw new Error(
-        "Usage: ci-evidence.ts run <command> [args...] | verify <receipt.json>",
+        "Usage: ci-evidence.ts run <command> [args...] | full-spec | verify <receipt.json> | verify-full-spec <receipt.json>",
       );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
