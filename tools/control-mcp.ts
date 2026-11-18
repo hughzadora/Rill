@@ -1,7 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
-import { evaluateEvent, taskStatus } from "./control-event.ts";
+import { taskStatus } from "./control-event.ts";
+import { controlEventSchema } from "./control-input.ts";
+import { recoverTask } from "./recover-task.ts";
+import { lifecycleEvent } from "./recovery-lifecycle.ts";
 import {
   projectContext,
   publishRecords,
@@ -10,20 +13,6 @@ import {
 } from "./task-context.ts";
 
 const server = new McpServer({ name: "rill-preferences", version: "0.1.0" });
-const eventSchema = z
-  .object({
-    hook_event_name: z.string().min(1),
-    cwd: z.string().min(1),
-    session_id: z.string().min(1),
-    turn_id: z.string().optional(),
-    tool_name: z.string().optional(),
-    tool_use_id: z.string().optional(),
-    tool_input: z.unknown().optional(),
-    tool_response: z.unknown().optional(),
-    source: z.string().optional(),
-    trigger: z.string().optional(),
-  })
-  .passthrough();
 const output = (value: Record<string, unknown>) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
   structuredContent: value,
@@ -34,10 +23,15 @@ server.registerTool(
   {
     description:
       "Check Rill personal task preconditions for a native lifecycle event and return the native hook response. Coverage is reported by task_status; this tool does not define engineering methodology.",
-    inputSchema: eventSchema,
-    annotations: { readOnlyHint: true, idempotentHint: true },
+    inputSchema: controlEventSchema,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
   },
-  async (event) => output(evaluateEvent(event)),
+  async (event, context) =>
+    output(await lifecycleEvent(event, context.mcpReq.signal)),
 );
 
 server.registerTool(
@@ -49,6 +43,25 @@ server.registerTool(
     annotations: { readOnlyHint: true, idempotentHint: true },
   },
   async ({ cwd }) => output(taskStatus(cwd)),
+);
+
+server.registerTool(
+  "recover_task",
+  {
+    description:
+      "Recover the bound task and exhaust supported native history pages. Reports uncovered user requests and failures; reading history does not prove semantic reconciliation.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      thread_id: z.string().min(1),
+    }),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ cwd, thread_id }, context) =>
+    output(await recoverTask(cwd, thread_id, context.mcpReq.signal)),
 );
 
 server.registerTool(

@@ -1,0 +1,11 @@
+{
+  "name": "rill",
+  "version": "0.1.2",
+  "description": "Personal preferences and native task preservation for explicitly enrolled projects.",
+  "author": {
+    "name": "Hugh"
+  },
+  "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

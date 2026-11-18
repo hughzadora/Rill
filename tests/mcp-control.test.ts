@@ -32,6 +32,7 @@ describe("official SDK stdio boundary", () => {
       "evaluate_event",
       "publish_records",
       "record_fact",
+      "recover_task",
       "task_status",
       "task_sync",
     ]);

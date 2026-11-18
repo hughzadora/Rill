@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import type { ControlEvent } from "./control-input.ts";
 import {
   activeTask,
   cachedTask,
@@ -12,18 +13,7 @@ import {
   validateRecord,
 } from "./task-context.ts";
 
-export interface ControlEvent {
-  hook_event_name: string;
-  cwd: string;
-  session_id: string;
-  turn_id?: string;
-  tool_name?: string;
-  tool_use_id?: string;
-  tool_input?: unknown;
-  tool_response?: unknown;
-  source?: string;
-  trigger?: string;
-}
+export type { ControlEvent } from "./control-input.ts";
 
 function enrolled(cwd: string) {
   let root: string;

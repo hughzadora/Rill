@@ -1,0 +1,31 @@
+{
+  "description": "Rill task preservation. Native review/trust is required. Local hooks are bypassable.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/tools/control-hook.ts\"",
+            "timeout": 30,
+            "statusMessage": "Saving Rill task and recovery gaps"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/tools/control-hook.ts\"",
+            "timeout": 30,
+            "additionalContextLimit": 5000,
+            "statusMessage": "Restoring Rill task and pending reconciliation"
+          }
+        ]
+      }
+    ]
+  }
+}

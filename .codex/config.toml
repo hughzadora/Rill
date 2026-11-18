@@ -1,0 +1,3 @@
+# Native plugin hooks support linked worktrees without modifying main's config.
+[plugins."rill@rill-local"]
+enabled = true
