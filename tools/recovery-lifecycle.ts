@@ -128,6 +128,12 @@ export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
     const report = JSON.parse(
       readFileSync(recovery.reportPath, "utf8"),
     ) as Record<string, unknown>;
+    const reportGaps = report.mechanicalGaps;
+    if (
+      !Array.isArray(reportGaps) ||
+      !reportGaps.every((gap: unknown) => typeof gap === "string")
+    )
+      throw new Error("Recovery report has invalid mechanical gaps");
     let checkpoint: Record<string, unknown> = { status: "absent", path };
     if (existsSync(path)) {
       try {
@@ -176,7 +182,7 @@ export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
       (comparison !== null &&
         typeof comparison === "object" &&
         Object.values(comparison).some((value) => value === true));
-    const mechanicalGaps = [...recovery.mechanicalGaps];
+    const mechanicalGaps = [...reportGaps];
     if (checkpoint.status === "rejected")
       mechanicalGaps.push(
         "Pre-compaction checkpoint rejected; reconcile its task/thread identity before dependent edits",

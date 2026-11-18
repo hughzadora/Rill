@@ -335,3 +335,33 @@ test("oversized task data stays in the recovery report behind a bounded pointer"
     JSON.parse(readFileSync(result.reportPath, "utf8")).state.taskBody,
   ).toBe(fixture.state.issue.body);
 });
+
+test("recover_task bounds returned working-tree details while retaining them in its report", async () => {
+  const names = Array.from(
+    { length: 100 },
+    (_, index) => `${String(index).padStart(3, "0")}-${"x".repeat(220)}.txt`,
+  );
+  for (const name of names) writeFileSync(join(fixture.root, name), "x");
+  const result = await recoverTask(
+    fixture.root,
+    "native-thread",
+    AbortSignal.timeout(3000),
+  );
+  if (!("reportPath" in result) || typeof result.reportPath !== "string")
+    throw new Error("Recovery report missing");
+  expect(JSON.stringify(result).length).toBeLessThan(5000);
+  if (!result.workingTree) throw new Error("Working-tree summary missing");
+  expect(result.workingTree.changedPathCount).toBeGreaterThanOrEqual(100);
+  expect(result.workingTree.statusOmittedCount).toBeGreaterThanOrEqual(96);
+  expect(result.workingTree.statusTruncated).toBe(true);
+  expect(result.workingTree.contentSha256).toMatch(/^[a-f0-9]{64}$/);
+  const report = JSON.parse(readFileSync(result.reportPath, "utf8"));
+  expect(report.workingTree.status).toContain(names[0]);
+  expect(report.workingTree.status.length).toBeGreaterThan(5000);
+  expect(report.state.records).toEqual([]);
+  expect(report.state.pendingIds).toEqual([]);
+  expect(report.history[0]).toMatchObject({
+    readStatus: "exhausted",
+    pageCount: 2,
+  });
+});

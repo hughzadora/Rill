@@ -6,6 +6,13 @@ import { readNativeHistory } from "./native-history.ts";
 import { saveRecoveryReport } from "./recovery-state.ts";
 import { atomicJson, projectContext } from "./task-context.ts";
 
+const RECOVERY_RESULT_BUDGET_BYTES = 8192;
+const SUMMARY_SAMPLE_COUNT = 4;
+
+function summaryText(value: string, limit = 180) {
+  return value.length > limit ? `${value.slice(0, limit)}…` : value;
+}
+
 function contentReferences(content: unknown, itemId: string) {
   if (!Array.isArray(content))
     return { sourceItemId: itemId, requiresSourceRead: true };
@@ -113,7 +120,7 @@ export async function recoverTask(
   const mechanicalGaps = history
     .filter((entry) => entry.readStatus !== "exhausted")
     .map((entry) => `Native history unavailable for ${entry.threadId}`);
-  let tree: unknown = null;
+  let tree: ReturnType<typeof workingTree> | null = null;
   try {
     tree = workingTree(cwd);
   } catch (error) {
@@ -131,16 +138,87 @@ export async function recoverTask(
     semanticCompleteness: "requires-reconciliation" as const,
   };
   const reportPath = saveRecoveryReport(context, threadId, report);
-  return {
+  const statusLines = tree?.status.split(/\r?\n/).filter(Boolean) ?? [];
+  const statusSample = statusLines
+    .slice(0, SUMMARY_SAMPLE_COUNT)
+    .map((line) => summaryText(line));
+  const summary = {
     reportPath,
-    state: { enrolled: state.enrolled, taskUrl: state.taskUrl },
-    history: history.map((entry) => ({
-      threadId: entry.threadId,
+    taskUrl: summaryText(state.taskUrl),
+    state: {
+      enrolled: state.enrolled,
+      taskUrl: summaryText(state.taskUrl),
+      recordCount: state.records.length,
+      pendingCount: state.pendingIds.length,
+    },
+    historyCount: history.length,
+    history: history.slice(0, SUMMARY_SAMPLE_COUNT).map((entry) => ({
+      threadId: summaryText(entry.threadId, 120),
       readStatus: entry.readStatus,
       pageCount: "pageCount" in entry ? entry.pageCount : null,
     })),
-    workingTree: tree,
-    mechanicalGaps,
+    historyOmittedCount: Math.max(0, history.length - SUMMARY_SAMPLE_COUNT),
+    workingTree: tree
+      ? {
+          root: summaryText(tree.root, 256),
+          revision: tree.revision,
+          revisionState: tree.revisionState,
+          contentSha256: tree.contentSha256,
+          changedPathCount: statusLines.length,
+          statusBytes: Buffer.byteLength(tree.status),
+          status: statusSample.join("\n"),
+          statusTruncated:
+            Buffer.byteLength(tree.status) >
+            Buffer.byteLength(statusSample.join("\n")),
+          statusOmittedCount: Math.max(
+            0,
+            statusLines.length - statusSample.length,
+          ),
+        }
+      : null,
+    mechanicalGapCount: mechanicalGaps.length,
+    mechanicalGaps: mechanicalGaps
+      .slice(0, SUMMARY_SAMPLE_COUNT)
+      .map((gap) => summaryText(gap)),
+    mechanicalGapsOmittedCount: Math.max(
+      0,
+      mechanicalGaps.length - SUMMARY_SAMPLE_COUNT,
+    ),
+    semanticCompleteness: report.semanticCompleteness,
+  };
+  if (
+    Buffer.byteLength(JSON.stringify(summary)) <= RECOVERY_RESULT_BUDGET_BYTES
+  )
+    return summary;
+  return {
+    reportPath,
+    taskUrl: summaryText(state.taskUrl, 128),
+    state: {
+      enrolled: state.enrolled,
+      taskUrl: summaryText(state.taskUrl, 128),
+      recordCount: state.records.length,
+      pendingCount: state.pendingIds.length,
+    },
+    historyCount: history.length,
+    history: [],
+    historyOmittedCount: history.length,
+    mechanicalGaps: mechanicalGaps
+      .slice(0, 1)
+      .map((gap) => summaryText(gap, 180)),
+    workingTree: tree
+      ? {
+          revision: tree.revision,
+          revisionState: tree.revisionState,
+          contentSha256: tree.contentSha256,
+          changedPathCount: statusLines.length,
+          statusBytes: Buffer.byteLength(tree.status),
+          status: "",
+          statusTruncated: tree.status.length > 0,
+          statusOmittedCount: statusLines.length,
+        }
+      : null,
+    mechanicalGapCount: mechanicalGaps.length,
+    mechanicalGapsOmittedCount: mechanicalGaps.length,
     semanticCompleteness: report.semanticCompleteness,
   };
 }
