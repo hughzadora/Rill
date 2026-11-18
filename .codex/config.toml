@@ -1,3 +1,13 @@
+# Cost-aware native defaults; explicit session selections still take precedence.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"
+
 # Native plugin hooks support linked worktrees without modifying main's config.
 [plugins."rill@rill-local"]
 enabled = true

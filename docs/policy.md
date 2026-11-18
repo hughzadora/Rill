@@ -13,6 +13,10 @@ GitHub issues own approved scope, decisions, task details, and repair history. L
 
 Machine records use the GitHub numeric publisher IDs configured in `.rill/authority.json`. Enrollment must resolve the authorized account from GitHub; publisher changes require an owner decision. Other authors' marker comments remain source data and cannot change execution state. Missing author metadata requires recovery before dependent work. This identifies publishers, not human approval or semantic correctness; local configuration and hooks remain bypassable.
 
+## Delegation
+
+Use the native defaults and role definitions in `.codex/`, adopted from the owner's commercial-kitchen-b2b configuration. Hand off implementation serially with fresh context, a bounded goal, owned files, source references, required checks and a completion condition. Choose one read-only review role for the batch's risk. Avoid full-history forks, recursive delegation, repeated investigation by the coordinator and worker, and per-step review churn. Model availability and existing-session overrides must be verified; configuration alone does not hot-switch the current chat or impose a token budget.
+
 ## Design and delivery
 
 The [HTML review view](design.html) presents the approved design with observed evidence and remaining boundaries. Its dated snapshot is a view; #17/#18 remain authoritative.
