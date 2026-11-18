@@ -4,7 +4,7 @@ Owner decisions govern scope. The approved design is [#17](https://github.com/hu
 
 ## Entry and ownership
 
-Apply the shared [personal policy](../skills/rill-preferences/references/personal-policy.md).
+Apply the shared [personal policy](skills/rill-preferences/references/personal-policy.md).
 Rill owns the owner's preferences and their verified integration with native controls. Installed Matt Pocock skills own the engineering methods, as recorded in [#10](https://github.com/hughzadora/Rill/issues/10). Raw ideas pass through Superpowers brainstorming, Matt grill-with-docs methods (grilling and domain-modeling), and writing-for-agents to distill an implementable agent-facing specification. Load the actual relevant skills; respect explicit-only wrapper invocation rules.
 
 Project control integration applies to repositories with explicit `.rill/project.json` enrollment. Existing projects retain effective tools and structure; resolve evidenced conflicts within the authorized change. Shared personal interaction policy remains applicable outside enrolled projects.
@@ -19,7 +19,7 @@ Use the native defaults and role definitions in `.codex/`, adopted from the owne
 
 ## Design and delivery
 
-The [HTML review view](design.html) presents the approved design with observed evidence and remaining boundaries. Its dated snapshot is a view; #17/#18 remain authoritative.
+The [HTML review view](DESIGN.html) presents the approved design with observed evidence and remaining boundaries. Its dated snapshot is a view; #17/#18 remain authoritative.
 
 Before implementation, establish the complete approved scope, acceptance, principal success/failure/recovery paths, interfaces, responsibilities, and implementation slices. Relate each slice to that design. A scope reduction requires an explicit owner decision.
 

@@ -1,6 +1,6 @@
 # Rill
 
-Personal preferences: [project policy](docs/policy.md). Approved scope and current delivery: [#18](https://github.com/hughzadora/Rill/issues/18).
+Personal preferences: [project policy](POLICY.md). Approved scope and current delivery: [#18](https://github.com/hughzadora/Rill/issues/18).
 
 From a target Git checkout, run `node /path/to/Rill/tools/project-enrollment.ts enroll owner/repository`, then bind its task with the task-sync tool. Enrollment resolves the current GitHub publisher, preserves existing tools and edits only Rill's native plugin enable key and enrollment files. Existing publisher or repository conflicts require reconciliation. Install/review the plugin through Codex's native controls; enrollment does not grant trust.
 
