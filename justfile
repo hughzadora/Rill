@@ -66,3 +66,12 @@ repair-interpret problem_key evidence_id explanation:
 
 repair-status:
     node tools/repair-evidence.ts status
+
+project-enroll repository:
+    node tools/project-enrollment.ts enroll {{quote(repository)}}
+
+project-leave:
+    node tools/project-enrollment.ts leave
+
+install-personal-policy:
+    node tools/install-personal-policy.ts

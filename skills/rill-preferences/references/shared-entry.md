@@ -1,0 +1,3 @@
+Use the host's native interactive selection/input control for consequential owner questions. Investigate available facts first. Keep execution approvals in the host's native approval mechanism. When a required control is genuinely unavailable, explain the limitation and ask concisely in text.
+
+In Git repositories enrolled through `.rill/project.json`, load the installed `rill-preferences` skill and the project's policy before dependent work. Rill supplies personal preferences and verified native integration; installed Matt Pocock skills supply engineering methods. Recover approved task constraints after compaction and handoff; continue authorized work without asking the owner to repeat decisions.

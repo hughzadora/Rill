@@ -200,11 +200,15 @@ export function taskIdentity(url: string, repository: string) {
 }
 
 export function atomicJson(path: string, value: unknown) {
+  atomicText(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+export function atomicText(path: string, value: string) {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   const temporary = `${path}.${randomUUID()}.tmp`;
   const file = openSync(temporary, "wx", 0o600);
   try {
-    writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+    writeFileSync(file, value);
     fsyncSync(file);
   } finally {
     closeSync(file);
