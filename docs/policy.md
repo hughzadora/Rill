@@ -15,6 +15,8 @@ Machine records use the GitHub numeric publisher IDs configured in `.rill/author
 
 ## Design and delivery
 
+The [HTML review view](design.html) presents the approved design with observed evidence and remaining boundaries. Its dated snapshot is a view; #17/#18 remain authoritative.
+
 Before implementation, establish the complete approved scope, acceptance, principal success/failure/recovery paths, interfaces, responsibilities, and implementation slices. Relate each slice to that design. A scope reduction requires an explicit owner decision.
 
 Follow the eight stages and human checkpoints in #16, with the owner's latest CI timing in personal policy taking precedence. Add necessary regression protection during cleanup. Finish the whole batch with local full-spec CI, independent review, and human acceptance before the PR. Keep author implementation and independent review distinct. A review belongs to the exact candidate it inspected.
