@@ -30,6 +30,10 @@ describe("official SDK stdio boundary", () => {
   test("exposes structured task access and checks without evaluating user code", async () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
+      "delivery_acceptance_question",
+      "delivery_audit",
+      "delivery_retract",
+      "delivery_status",
       "evaluate_event",
       "publish_records",
       "record_decision_source",
@@ -135,5 +139,28 @@ describe("official SDK stdio boundary", () => {
     expect(status.structuredContent).toMatchObject({
       problems: { "BUG-7": { failedAttempts: 1 } },
     });
+  });
+  test("delivery tools expose real state and reject malformed bundles at the SDK boundary", async () => {
+    await client.callTool({
+      name: "task_sync",
+      arguments: { cwd: fixture.root, issue_url: taskUrl },
+    });
+    const state = await client.callTool({
+      name: "delivery_status",
+      arguments: { cwd: fixture.root },
+    });
+    expect(state.structuredContent).toMatchObject({
+      mayCreatePr: false,
+      reason: "No delivery audit",
+    });
+    const invalid = await client.callTool({
+      name: "delivery_audit",
+      arguments: {
+        cwd: fixture.root,
+        thread_id: "test-owned-source",
+        bundle: {},
+      },
+    });
+    expect(invalid.isError).toBe(true);
   });
 });

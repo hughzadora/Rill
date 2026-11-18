@@ -505,6 +505,10 @@ export async function recordUserFact(context: ProjectContext, record: unknown) {
     throw new Error(
       "Native decision sources are source-owned; use record_decision_source instead",
     );
+  if (validateRecord(record) && record.payload.executor === "rill-delivery/v1")
+    throw new Error(
+      "Delivery conclusions are executor-owned; use delivery-audit/retract instead",
+    );
   return recordFact(context, record);
 }
 

@@ -128,6 +128,9 @@ export function runEvidence(
   return { receipt, path };
 }
 
+export const separateAcceptanceBoundary =
+  "Approved acceptance mapping and human acceptance require separate verification";
+
 export const fullSpecCommand = ["just", "_full-spec-checks"];
 
 function verifiedReceipt(cwd: string, path: string) {
@@ -184,9 +187,7 @@ if (import.meta.main) {
         process.argv[2] === "full-spec"
           ? fullSpecCommand
           : process.argv.slice(3),
-        [
-          "Approved acceptance mapping and human acceptance require separate verification",
-        ],
+        [separateAcceptanceBoundary],
       );
       console.log(
         JSON.stringify({

@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ControlEvent } from "./control-input.ts";
+import { deliveryGuard, deliveryState } from "./delivery-evidence.ts";
 import { repairGuard, repairState } from "./repair-evidence.ts";
 import {
   activeTask,
@@ -63,6 +64,7 @@ export function taskStatus(cwd: string) {
         sourceSha256: record.payload.sourceSha256,
         semanticDecision: record.payload.semanticDecision,
       })),
+    delivery: deliveryState(context),
     repair: repairState(context),
     pendingIds: pending.map((record) => record.id),
     ...revision,
@@ -79,7 +81,7 @@ export function taskStatus(cwd: string) {
   };
 }
 
-function blocked(event: ControlEvent, reason: string) {
+export function blocked(event: ControlEvent, reason: string) {
   if (event.hook_event_name === "PreToolUse")
     return {
       hookSpecificOutput: {
@@ -127,6 +129,12 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
     if (event.hook_event_name === "PreToolUse") {
       const reason = repairGuard(projectContext(event.cwd), event.tool_name);
       if (reason) return blocked(event, reason);
+      const deliveryReason = deliveryGuard(
+        projectContext(event.cwd),
+        event.tool_name,
+        event.tool_input,
+      );
+      if (deliveryReason) return blocked(event, deliveryReason);
     }
     if (
       event.hook_event_name === "PostToolUse" &&

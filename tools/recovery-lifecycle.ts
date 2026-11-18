@@ -2,10 +2,16 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod/v4";
-import { evaluateEvent, taskStatus } from "./control-event.ts";
+import { blocked, evaluateEvent, taskStatus } from "./control-event.ts";
 import type { ControlEvent } from "./control-input.ts";
+import { deliveryTarget, isDeliveryTool } from "./delivery-evidence.ts";
 import { recoverTask } from "./recover-task.ts";
-import { atomicJson, projectContext } from "./task-context.ts";
+import {
+  activeTask,
+  atomicJson,
+  projectContext,
+  syncTask,
+} from "./task-context.ts";
 
 const checkpointSchema = z.object({
   schemaVersion: z.literal(1),
@@ -30,6 +36,30 @@ function checkpointPath(cwd: string, threadId: string) {
 
 // The native runtime owns compaction. This adapter only saves/restores task data.
 export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
+  if (
+    event.hook_event_name === "PreToolUse" &&
+    isDeliveryTool(event.tool_name)
+  ) {
+    try {
+      const state = taskStatus(event.cwd);
+      if (!state.enrolled) return {};
+      const context = projectContext(event.cwd);
+      if (deliveryTarget(context, event.tool_name, event.tool_input)) {
+        const synchronized = await syncTask(context, activeTask(context));
+        if (synchronized.status !== "online")
+          return blocked(
+            event,
+            "Final delivery requires current online authority; an offline cache cannot authorize this operation",
+          );
+      }
+    } catch (error) {
+      return blocked(
+        event,
+        `Final delivery precondition unavailable: ${String(error)}`,
+      );
+    }
+    return evaluateEvent(event);
+  }
   if (!["PreCompact", "SessionStart"].includes(event.hook_event_name))
     return evaluateEvent(event);
   try {

@@ -82,3 +82,16 @@ decision-source stage thread_id item_id subject quote:
 
 ci-full-spec-verify receipt:
     node tools/ci-evidence.ts verify-full-spec {{quote(receipt)}}
+
+delivery-status:
+    node tools/delivery-evidence.ts status
+
+delivery-question:
+    node tools/delivery-evidence.ts question
+
+delivery-audit bundle:
+    node tools/delivery-evidence.ts audit {{quote(bundle)}}
+
+[positional-arguments]
+delivery-retract receipt_id criterion_ids reason:
+    node tools/delivery-evidence.ts retract "$@"

@@ -2,13 +2,22 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 import manifest from "../.codex-plugin/plugin.json" with { type: "json" };
-import { verifyFullSpecEvidence } from "./ci-evidence.ts";
+import { candidate, verifyFullSpecEvidence } from "./ci-evidence.ts";
 import { taskStatus } from "./control-event.ts";
 import { controlEventSchema } from "./control-input.ts";
 import {
   decisionSourceSchema,
   recordDecisionSource,
 } from "./decision-evidence.ts";
+import {
+  acceptanceQuestion,
+  auditDelivery,
+  deliveryBundleSchema,
+  deliveryState,
+  finalAcceptanceAnswers,
+  retractDelivery,
+  scopeInventory,
+} from "./delivery-evidence.ts";
 import { recoverTask } from "./recover-task.ts";
 import { lifecycleEvent } from "./recovery-lifecycle.ts";
 import {
@@ -17,6 +26,7 @@ import {
   runRepair,
 } from "./repair-evidence.ts";
 import {
+  activeTask,
   projectContext,
   publishRecords,
   recordUserFact,
@@ -167,6 +177,92 @@ server.registerTool(
     annotations: { readOnlyHint: true, idempotentHint: true },
   },
   async ({ cwd, receipt }) => output(verifyFullSpecEvidence(cwd, receipt)),
+);
+
+server.registerTool(
+  "delivery_status",
+  {
+    description:
+      "Read current candidate delivery evidence, stale/retracted conclusions and publication prerequisites; does not grant external-write authorization.",
+    inputSchema: z.object({ cwd: z.string().min(1) }),
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  async ({ cwd }) => output(deliveryState(projectContext(cwd))),
+);
+server.registerTool(
+  "delivery_acceptance_question",
+  {
+    description:
+      "Build a candidate/scope-bound final question for the host's existing native input control; this tool neither asks it nor fabricates an owner decision.",
+    inputSchema: z.object({ cwd: z.string().min(1) }),
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  async ({ cwd }) => {
+    const c = projectContext(cwd);
+    return output({
+      answers: finalAcceptanceAnswers,
+      question: acceptanceQuestion(
+        activeTask(c),
+        candidate(cwd),
+        scopeInventory(c).sha256,
+      ),
+    });
+  },
+);
+server.registerTool(
+  "delivery_audit",
+  {
+    description:
+      "Synchronize authority and audit the complete declared acceptance map, actual full-spec receipt, native observations, independent review and exact native owner choice. Saves failures; passing still needs publish/readback. Does not infer semantic correctness or create a PR.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      thread_id: z.string().min(1),
+      bundle: deliveryBundleSchema,
+    }),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
+  },
+  async ({ cwd, thread_id, bundle }, context) => {
+    const result = await auditDelivery(
+      cwd,
+      bundle,
+      thread_id,
+      context.mcpReq.signal,
+    );
+    return { ...output(result), isError: !result.ready };
+  },
+);
+server.registerTool(
+  "delivery_retract",
+  {
+    description:
+      "Retract a known prior pass, retain original history and invalidate affected evidence. Does not change GitHub issue state; use the authorized native GitHub operation if reopening is required.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      thread_id: z.string().min(1),
+      receipt_id: z.string().uuid(),
+      criterion_ids: z.array(z.string().min(1)).min(1),
+      reason: z.string().min(1),
+    }),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
+  },
+  async ({ cwd, thread_id, receipt_id, criterion_ids, reason }) =>
+    output({
+      record: await retractDelivery(
+        cwd,
+        receipt_id,
+        criterion_ids,
+        reason,
+        thread_id,
+      ),
+    }),
 );
 
 server.registerTool(
