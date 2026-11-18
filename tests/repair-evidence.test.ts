@@ -182,3 +182,39 @@ test("public fact entry cannot manufacture an executor-owned passing result", ()
   expect(forged.stderr).toContain("executor-owned");
   expect(result(run("status")).problems["BUG-7"].failedAttempts).toBe(1);
 });
+
+test("repeating the same diagnostic reuses old evidence and cannot unlock a later failure", () => {
+  twoFailures();
+  const command = [
+    process.execPath,
+    "-e",
+    "const fs=require('node:fs');const p='.git/diagnostic-runs';fs.writeFileSync(p,String(Number(fs.existsSync(p)?fs.readFileSync(p,'utf8'):0)+1));console.log('same observed discriminator')",
+  ];
+  const evidence = result(run("diagnose", "BUG-7", "--", ...command));
+  expect(
+    run(
+      "interpret",
+      "BUG-7",
+      evidence.id,
+      "The actual observation distinguishes the hypothesis before checking it again.",
+    ).status,
+  ).toBe(0);
+  expect(check().status).toBe(1);
+  const repeated = result(run("diagnose", "BUG-7", "--", ...command));
+  expect(repeated).toMatchObject({ id: evidence.id, reused: true });
+  expect(readFileSync(join(fixture.root, ".git/diagnostic-runs"), "utf8")).toBe(
+    "1",
+  );
+  expect(
+    run(
+      "interpret",
+      "BUG-7",
+      repeated.id,
+      "Rewording cannot make this old observation new evidence.",
+    ).status,
+  ).toBe(2);
+  expect(result(run("status")).problems["BUG-7"]).toMatchObject({
+    failedAttempts: 3,
+    requiredDiagnosis: true,
+  });
+});

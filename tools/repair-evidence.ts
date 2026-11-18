@@ -174,7 +174,29 @@ export function repairState(context: ProjectContext) {
       (state.consecutiveFailures >= 2 || state.unknownIds.length > 0) &&
       !state.authorizedDiagnosisId;
   }
+  const leasePath = join(context.recoveryRoot, "repair.lock");
+  let executionLease: {
+    path: string;
+    completion: string;
+    owner?: unknown;
+    error?: string;
+  } | null = null;
+  if (existsSync(leasePath)) {
+    executionLease = {
+      path: leasePath,
+      completion: "not-established; inspect native process and receipts",
+    };
+    try {
+      executionLease.owner = JSON.parse(
+        readFileSync(join(leasePath, "owner.json"), "utf8"),
+      );
+    } catch (error) {
+      executionLease.error =
+        error instanceof Error ? error.message : String(error);
+    }
+  }
   return {
+    executionLease,
     problems: Object.fromEntries(problems),
     blockedProblems: [...problems]
       .filter(([, p]) => p.requiredDiagnosis)
@@ -208,7 +230,12 @@ function assertRepairAllowed(context: ProjectContext) {
 
 async function lease<T>(
   context: ProjectContext,
-  operation: (markStarted: () => void) => Promise<T>,
+  operation: (
+    markStarted: (evidence: {
+      runningPath: string;
+      receiptPath: string;
+    }) => void,
+  ) => Promise<T>,
 ) {
   mkdirSync(context.recoveryRoot, { recursive: true, mode: 0o700 });
   const path = join(context.recoveryRoot, "repair.lock");
@@ -224,8 +251,13 @@ async function lease<T>(
       pid: process.pid,
       createdAt: new Date().toISOString(),
     });
-    const result = await operation(() => {
+    const result = await operation((evidence) => {
       started = true;
+      atomicJson(join(path, "owner.json"), {
+        pid: process.pid,
+        started: true,
+        ...evidence,
+      });
     });
     complete = true;
     return result;
@@ -311,18 +343,24 @@ export async function runRepair(
       receiptPath = join(directory, "receipt.json");
     const env = environment();
     const startedAt = new Date().toISOString();
-    atomicJson(join(directory, "running.json"), {
+    const runningPath = join(directory, "running.json");
+    const running = {
       id,
       taskUrl,
       operation,
       problemKey,
+      hypothesis,
       command,
       before,
       startedAt,
-    });
+      environment: env,
+      controllerPid: process.pid,
+      source: origin,
+    };
+    atomicJson(runningPath, running);
     const stdout = openSync(stdoutPath, "wx", 0o600),
       stderr = openSync(stderrPath, "wx", 0o600);
-    markStarted();
+    markStarted({ runningPath, receiptPath });
     let outcome: {
       exitCode: number | null;
       signal: string | null;
@@ -336,6 +374,7 @@ export async function runRepair(
           stdio: ["ignore", stdout, stderr],
           ...(signal ? { signal } : {}),
         });
+        atomicJson(runningPath, { ...running, childPid: child.pid ?? null });
         child.once("error", (e) => {
           error = e.message;
         });
@@ -475,15 +514,26 @@ if (import.meta.main) {
     else if (operation === "check" || operation === "diagnose") {
       const delimiter = args.indexOf("--");
       if (delimiter < 0) throw new Error("Use -- before command argv");
-      const result = await runRepair(
-        context,
-        operation,
-        problemKey ?? "",
-        operation === "check"
-          ? args.slice(0, delimiter).join(" ")
-          : "diagnostic experiment",
-        args.slice(delimiter + 1),
-      );
+      const cancellation = new AbortController();
+      const terminate = () => cancellation.abort();
+      process.once("SIGINT", terminate);
+      process.once("SIGTERM", terminate);
+      let result: Awaited<ReturnType<typeof runRepair>>;
+      try {
+        result = await runRepair(
+          context,
+          operation,
+          problemKey ?? "",
+          operation === "check"
+            ? args.slice(0, delimiter).join(" ")
+            : "diagnostic experiment",
+          args.slice(delimiter + 1),
+          cancellation.signal,
+        );
+      } finally {
+        process.removeListener("SIGINT", terminate);
+        process.removeListener("SIGTERM", terminate);
+      }
       console.log(JSON.stringify(result));
       process.exitCode = result.exitCode === 0 ? 0 : 1;
     } else
