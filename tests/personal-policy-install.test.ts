@@ -13,8 +13,44 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { installPersonalPolicy } from "../tools/install-personal-policy.ts";
+
+const fsFaults = vi.hoisted(() => ({
+  beforeEntryLstat: undefined as ((path: string) => void) | undefined,
+  beforeTargetRead: undefined as ((path: string) => void) | undefined,
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    lstatSync: ((path: string, ...args: unknown[]) => {
+      fsFaults.beforeEntryLstat?.(path);
+      return actual.lstatSync(
+        path,
+        ...(args as Parameters<typeof actual.lstatSync> extends [
+          unknown,
+          ...infer Rest,
+        ]
+          ? Rest
+          : never),
+      );
+    }) as typeof actual.lstatSync,
+    readFileSync: ((path: string, ...args: unknown[]) => {
+      fsFaults.beforeTargetRead?.(path.toString());
+      return actual.readFileSync(
+        path,
+        ...(args as Parameters<typeof actual.readFileSync> extends [
+          unknown,
+          ...infer Rest,
+        ]
+          ? Rest
+          : never),
+      );
+    }) as typeof actual.readFileSync,
+  };
+});
 
 test("shared entry preserves a symlink and owner bytes, updates idempotently and backs up original", () => {
   const root = mkdtempSync(join(tmpdir(), "rill-policy-"));
@@ -86,6 +122,82 @@ test("dangling AGENTS symlinks fail safely unless metadata migration is explicit
     });
     expect(existsSync(removedTarget)).toBe(false);
     expect(installPersonalPolicy(home, backups).changed).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("migration preserves a symlink target restored before unlink", () => {
+  const root = mkdtempSync(join(tmpdir(), "rill-policy-restored-link-"));
+  try {
+    const home = join(root, "codex"),
+      backups = join(root, "backups"),
+      entry = join(home, "AGENTS.md"),
+      ownerTarget = join(root, "owner.md");
+    mkdirSync(home);
+    symlinkSync(ownerTarget, entry);
+    let entryChecks = 0;
+    fsFaults.beforeEntryLstat = (path) => {
+      if (path === entry && ++entryChecks === 2)
+        writeFileSync(ownerTarget, "Restored owner instructions.\n");
+    };
+    try {
+      expect(() =>
+        installPersonalPolicy(home, backups, { migrateBrokenLink: true }),
+      ).toThrow("changed during migration");
+    } finally {
+      fsFaults.beforeEntryLstat = undefined;
+    }
+
+    expect(lstatSync(entry).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(entry)).toBe(ownerTarget);
+    expect(readFileSync(ownerTarget, "utf8")).toBe(
+      "Restored owner instructions.\n",
+    );
+    expect(existsSync(home)).toBe(true);
+    expect(readFileSync(join(home, "AGENTS.md"), "utf8")).toBe(
+      "Restored owner instructions.\n",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("ENOENT after resolving a symlink migrates the entry instead of recreating its target", () => {
+  const root = mkdtempSync(join(tmpdir(), "rill-policy-vanished-target-"));
+  try {
+    const home = join(root, "codex"),
+      backups = join(root, "backups"),
+      entry = join(home, "AGENTS.md"),
+      ownerTarget = join(root, "owner.md");
+    mkdirSync(home);
+    writeFileSync(ownerTarget, "Owner instructions.\n");
+    symlinkSync(ownerTarget, entry);
+    fsFaults.beforeTargetRead = (path) => {
+      if (path === ownerTarget) {
+        rmSync(ownerTarget);
+        throw Object.assign(new Error("target disappeared"), {
+          code: "ENOENT",
+        });
+      }
+    };
+
+    let result: ReturnType<typeof installPersonalPolicy>;
+    try {
+      result = installPersonalPolicy(home, backups, {
+        migrateBrokenLink: true,
+      });
+    } finally {
+      fsFaults.beforeTargetRead = undefined;
+    }
+
+    expect(result.target).toBe(entry);
+    expect(result.migratedBrokenLink).toBe(true);
+    expect(lstatSync(entry).isFile()).toBe(true);
+    expect(readFileSync(entry, "utf8")).toContain(
+      "<!-- rill:shared-entry:start -->",
+    );
+    expect(existsSync(ownerTarget)).toBe(false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

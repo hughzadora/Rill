@@ -42,6 +42,7 @@ export function installPersonalPolicy(
         before = readFileSync(target, "utf8");
       } catch (error) {
         if (!isMissing(error)) throw error;
+        target = entry;
         const linkTarget = readlinkSync(entry);
         if (!options.migrateBrokenLink)
           throw new Error(
@@ -110,6 +111,12 @@ export function installPersonalPolicy(
         current.ino !== brokenLink.inode
       )
         throw new Error("Broken AGENTS.md symlink changed during migration");
+      try {
+        realpathSync(entry);
+        throw new Error("Broken AGENTS.md symlink changed during migration");
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
       unlinkSync(entry);
     }
     atomicText(target, after);
