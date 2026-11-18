@@ -4,6 +4,10 @@ import * as z from "zod/v4";
 import manifest from "../.codex-plugin/plugin.json" with { type: "json" };
 import { taskStatus } from "./control-event.ts";
 import { controlEventSchema } from "./control-input.ts";
+import {
+  decisionSourceSchema,
+  recordDecisionSource,
+} from "./decision-evidence.ts";
 import { recoverTask } from "./recover-task.ts";
 import { lifecycleEvent } from "./recovery-lifecycle.ts";
 import {
@@ -112,6 +116,27 @@ server.registerTool(
   },
   async ({ cwd, record }) =>
     output({ record: await recordUserFact(projectContext(cwd), record) }),
+);
+
+server.registerTool(
+  "record_decision_source",
+  {
+    description:
+      "Read a referenced native user message and retain its exact text/hash as decision source evidence. Does not infer approval, prove semantic coverage or approve the current candidate.",
+    inputSchema: z.object({
+      cwd: z.string().min(1),
+      source: decisionSourceSchema,
+    }),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ cwd, source }, context) =>
+    output({
+      record: await recordDecisionSource(cwd, source, context.mcpReq.signal),
+    }),
 );
 
 server.registerTool(

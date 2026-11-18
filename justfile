@@ -75,3 +75,7 @@ project-leave:
 
 install-personal-policy:
     node tools/install-personal-policy.ts
+
+[positional-arguments]
+decision-source stage thread_id item_id subject quote:
+    node tools/decision-evidence.ts "$@"

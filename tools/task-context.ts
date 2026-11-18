@@ -498,6 +498,13 @@ export async function recordUserFact(context: ProjectContext, record: unknown) {
     throw new Error(
       "Repair results are executor-owned; use repair-check/diagnose/interpret instead",
     );
+  if (
+    validateRecord(record) &&
+    record.payload.executor === "rill-decision-source/v1"
+  )
+    throw new Error(
+      "Native decision sources are source-owned; use record_decision_source instead",
+    );
   return recordFact(context, record);
 }
 

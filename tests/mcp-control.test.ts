@@ -32,6 +32,7 @@ describe("official SDK stdio boundary", () => {
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
       "evaluate_event",
       "publish_records",
+      "record_decision_source",
       "record_fact",
       "recover_task",
       "repair_check",

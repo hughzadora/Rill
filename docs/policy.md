@@ -34,3 +34,5 @@ Use direct local shell/Git/build/test tools for local work and direct supported 
 ## Completion
 
 Bind evidence to the current candidate and original acceptance. Distinguish executed behavior, local simulation, human testing, unavailable checks, and deferred work. Documents, declarations, agent agreement, and a green proxy do not establish product correctness. Retract invalid completion claims, restore affected acceptance to incomplete or unknown, and preserve the correction and original evidence.
+
+Collect decision sources through `record_decision_source` or `just decision-source`: it reads the original native user item, retains its full text/hash and exact quote, and rejects agent messages or mismatched quotes. These receipts make existing decisions recoverable; stage/subject interpretation and approval of a particular design or final candidate still require source review. A collected quote does not establish final acceptance.

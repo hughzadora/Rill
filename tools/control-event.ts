@@ -53,6 +53,16 @@ export function taskStatus(cwd: string) {
       ignoredCommentIds: recordView.ignoredCommentIds,
       trustedPublisherIds: recordView.trustedPublisherIds,
     },
+    decisionSources: records
+      .filter((record) => record.payload.executor === "rill-decision-source/v1")
+      .map((record) => ({
+        id: record.id,
+        stage: record.payload.stage,
+        subject: record.payload.subject,
+        source: record.source,
+        sourceSha256: record.payload.sourceSha256,
+        semanticDecision: record.payload.semanticDecision,
+      })),
     repair: repairState(context),
     pendingIds: pending.map((record) => record.id),
     ...revision,
