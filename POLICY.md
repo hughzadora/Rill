@@ -2,6 +2,8 @@
 
 Owner decisions govern scope. The approved design is [#17](https://github.com/hughzadora/Rill/issues/17); the approved implementation plan and current execution record are [#18](https://github.com/hughzadora/Rill/issues/18). The delivery stages and engineering preferences are owned by [#16](https://github.com/hughzadora/Rill/issues/16), which supersedes conflicting older process decisions. Read relevant sources rather than treating historical candidates as the current implementation.
 
+Root development documents: [PRD](PRD.md) is the user and acceptance overview; [ARCHITECTURE](ARCHITECTURE.md) describes observed module and state boundaries; [DESIGN](DESIGN.md) summarizes confirmed behavior and rationale; [GLOSSARY](GLOSSARY.md) defines domain terms. They are navigation and project context, not independent decision records or evidence. GitHub remains authoritative, and the approved [HTML design view](DESIGN.html) is not a second specification.
+
 ## Entry and ownership
 
 Apply the shared [personal policy](skills/rill-preferences/references/personal-policy.md).
