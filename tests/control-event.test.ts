@@ -16,7 +16,7 @@ describe("personal task preconditions", () => {
     hook_event_name,
     cwd: fixture.root,
     session_id: "test-session",
-    tool_name: "Bash",
+    tool_name: "apply_patch",
     tool_input: { command: "unrelated command, not a sentinel" },
   });
   const sync = () => {
@@ -27,12 +27,22 @@ describe("personal task preconditions", () => {
   test("does not enroll an unrelated directory implicitly", () => {
     expect(evaluateEvent({ ...event(), cwd: tmpdir() })).toEqual({});
   });
-  test("rejects tools when an enrolled task has no durable binding", () => {
+  test("rejects supported edits when an enrolled task has no durable binding", () => {
     expect(evaluateEvent(event())).toMatchObject({
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
       },
+    });
+  });
+  test("diagnostic tools remain available without a binding or with a closed task", () => {
+    expect(evaluateEvent({ ...event(), tool_name: "Bash" })).toEqual({});
+    fixture.state.issue.state = "closed";
+    fixture.save();
+    sync();
+    expect(evaluateEvent({ ...event(), tool_name: "Bash" })).toEqual({});
+    expect(evaluateEvent(event())).toMatchObject({
+      hookSpecificOutput: { permissionDecision: "deny" },
     });
   });
   test("new projects can recover before a first commit", () => {
@@ -68,7 +78,7 @@ describe("personal task preconditions", () => {
     });
     expect("revision" in status && status.revision).toMatch(/^[0-9a-f]{40}$/);
   });
-  test("does not allow a closed task to authorize tools", () => {
+  test("does not allow a closed task to authorize supported edits", () => {
     fixture.state.issue.state = "closed";
     fixture.save();
     sync();

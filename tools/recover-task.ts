@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { workingTree } from "./ci-evidence.ts";
 import { taskStatus } from "./control-event.ts";
 import { readNativeHistory } from "./native-history.ts";
+import { saveRecoveryReport } from "./recovery-state.ts";
 import { atomicJson, projectContext } from "./task-context.ts";
 
 function contentReferences(content: unknown, itemId: string) {
@@ -108,11 +110,38 @@ export async function recoverTask(
       });
     }
   }
-  return {
+  const mechanicalGaps = history
+    .filter((entry) => entry.readStatus !== "exhausted")
+    .map((entry) => `Native history unavailable for ${entry.threadId}`);
+  let tree: unknown = null;
+  try {
+    tree = workingTree(cwd);
+  } catch (error) {
+    mechanicalGaps.push(
+      `Current Git fingerprint unavailable: ${String(error)}`,
+    );
+  }
+  const report = {
+    taskUrl: state.taskUrl,
     state,
     history,
+    workingTree: tree,
+    mechanicalGaps,
     recoveredAt: new Date().toISOString(),
-    semanticCompleteness: "requires-reconciliation",
+    semanticCompleteness: "requires-reconciliation" as const,
+  };
+  const reportPath = saveRecoveryReport(context, threadId, report);
+  return {
+    reportPath,
+    state: { enrolled: state.enrolled, taskUrl: state.taskUrl },
+    history: history.map((entry) => ({
+      threadId: entry.threadId,
+      readStatus: entry.readStatus,
+      pageCount: "pageCount" in entry ? entry.pageCount : null,
+    })),
+    workingTree: tree,
+    mechanicalGaps,
+    semanticCompleteness: report.semanticCompleteness,
   };
 }
 

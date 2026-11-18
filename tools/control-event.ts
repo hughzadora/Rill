@@ -2,7 +2,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ControlEvent } from "./control-input.ts";
-import { deliveryGuard, deliveryState } from "./delivery-evidence.ts";
+import {
+  deliveryGuard,
+  deliveryState,
+  isDeliveryTool,
+} from "./delivery-evidence.ts";
+import { recoveryGuard } from "./recovery-state.ts";
 import { repairGuard, repairState } from "./repair-evidence.ts";
 import {
   activeTask,
@@ -15,7 +20,7 @@ import {
 
 export type { ControlEvent } from "./control-input.ts";
 
-function enrolled(cwd: string) {
+export function enrolled(cwd: string) {
   let root: string;
   try {
     root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -101,6 +106,13 @@ export function blocked(event: ControlEvent, reason: string) {
 
 export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
   try {
+    if (
+      event.hook_event_name === "PreToolUse" &&
+      event.tool_name &&
+      !/^(apply_patch|Edit|Write)$/.test(event.tool_name) &&
+      !isDeliveryTool(event.tool_name)
+    )
+      return {};
     const state = taskStatus(event.cwd);
     if (!state.enrolled) return {};
     if (event.hook_event_name === "SessionStart") {
@@ -127,6 +139,11 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
         "The bound task is closed. Reconcile actual authorized scope before executing task tools.",
       );
     if (event.hook_event_name === "PreToolUse") {
+      const recoveryReason = recoveryGuard(
+        projectContext(event.cwd),
+        event.session_id,
+      );
+      if (recoveryReason) return blocked(event, recoveryReason);
       const reason = repairGuard(projectContext(event.cwd), event.tool_name);
       if (reason) return blocked(event, reason);
       const deliveryReason = deliveryGuard(
