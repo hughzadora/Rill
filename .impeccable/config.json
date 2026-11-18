@@ -1,0 +1,22 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": ["docs/design.html"],
+        "createdAt": "2026-11-18T08:32:33.672Z",
+        "reason": "Agent: rendered light/dark DOM triage of 174 text nodes per theme found no failing pairs; minimum ratios 5.24:1 and 6.21:1. Detector combines mutually exclusive dark foreground and white surface tokens. Evidence: implementation-2026-11-18/design-view/finding-triage.json; future edits require rendered contrast checks."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": ["docs/design.html"],
+        "createdAt": "2026-11-18T08:32:33.679Z",
+        "reason": "Agent: rendered narrow viewport shows caption/cell padding minimum 11.2px. Detector flags the scroll wrapper without accounting for descendant table cell padding; retain full-width table boundary. Evidence: implementation-2026-11-18/design-view/finding-triage.json."
+      }
+    ]
+  }
+}
