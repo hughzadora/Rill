@@ -4,7 +4,7 @@
 
 Keep Rill small at the system boundary: shared personal preferences and project adapters use Codex's native hooks, MCP tools, configuration, sessions, permissions, and interaction. GitHub remains the source for approved decisions and task execution; local recovery material protects work that has not synchronized yet. Matt Pocock skills provide engineering methods. Rill does not replace either system with its own workflow engine or session service.
 
-The approved visual review is [DESIGN.html](DESIGN.html), the unchanged view of the design approved in [issue #17](https://github.com/hughzadora/Rill/issues/17). The view is not a second specification and does not certify implementation. The complete decision source is #17; delivery evidence and remaining work are maintained in [issue #18](https://github.com/hughzadora/Rill/issues/18).
+The owner-confirmed visual review is [DESIGN.html](DESIGN.html), a dated view associated with the design in [issue #17](https://github.com/hughzadora/Rill/issues/17). The view is not a second specification and does not certify implementation. The complete decision source is #17; delivery evidence and remaining work are maintained in [issue #18](https://github.com/hughzadora/Rill/issues/18).
 
 ## Confirmed flows
 
@@ -46,3 +46,7 @@ The approved design sequence follows #16: requirements, quick prototype, HTML de
 - Hook and MCP paths are complementary: hooks act at declared lifecycle/tool boundaries; MCP gives structured task and evidence operations. Neither alone proves the combined native package works.
 
 The remaining negative recovery cases, combined native package trial, full-spec CI, independent review, owner acceptance, and PR are tracked in #18. Current design documents must not be read as evidence that these gates have passed.
+
+## Implementation versus acceptance
+
+At inspected revision `5ca5ab1`, the working tree also contains uncommitted recovery changes: startup refresh, explicit persisted recovery gaps, and allowing independent diagnostics while guarding supported dependent edits. These follow the intended flow above; their remaining negative-case checks and combined native execution are unverified. The existing manual/automatic compaction observations and repair-guard probe recorded in #18 concern their actual earlier versions and paths. The HTML view, this behavior description and content hashes are not evidence that this working tree has passed those scenarios.

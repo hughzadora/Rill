@@ -18,9 +18,14 @@ Codex native session and permissions
                                   ├── repair evidence
                                   └── delivery audit/status/retraction
 
-GitHub issue/comments <── task-context.ts and recover-task.ts
+GitHub issue/comments <── task-context.ts
+Native thread history <── native-history.ts <── recover-task.ts
 Project enrollment ────> .rill identity + native plugin config
 ```
+
+## Source status at inspection
+
+Inspected base revision: `5ca5ab1`, with uncommitted recovery changes in `tools/control-event.ts`, `tools/recover-task.ts`, `tools/recovery-lifecycle.ts`, `tests/recovery-lifecycle.test.ts` and new `tools/recovery-state.ts`. The map below describes this working tree, not only the committed or installed package. In particular, fresh startup recovery, persisted mechanical gaps and the edit recovery guard are draft behavior with incomplete negative-case validation. Installed owner-trusted 0.1.2 does not establish their execution. Current status belongs to #18.
 
 ## Modules and interfaces
 
@@ -28,7 +33,7 @@ Project enrollment ────> .rill identity + native plugin config
 - `tools/recovery-lifecycle.ts` handles lifecycle save/restore and recovery preconditions. `tools/control-event.ts` evaluates project enrollment, task state, repair and delivery guards, and native response shape. `tools/recovery-state.ts` retains explicit recovery gaps and reports.
 - `tools/control-mcp.ts` registers the structured MCP interface. Its tools call the same task, history, repair, CI, decision, and delivery modules used by command entry points. MCP exposes evidence and status; it does not infer owner approval or semantic correctness.
 - `tools/task-context.ts` validates project/task identity, discovers the Git worktree recovery location, reads or synchronizes GitHub snapshots, and writes/publishes local facts. Atomic local writes and pending-record retention protect facts until successful publication and readback.
-- `tools/recover-task.ts` reads supported native history pages and reports requests/failures not yet reconciled. Exhausting pages establishes history coverage, not interpretation.
+- `tools/native-history.ts` uses the native `codex app-server --stdio` interface and validates paginated thread items; it does not read a private session database. `tools/recover-task.ts` reads supported native history pages and reports requests/failures not yet reconciled. Exhausting pages establishes history coverage, not interpretation.
 - `tools/repair-evidence.ts` records actual check, diagnosis, and interpretation results and applies the repeated-failure guard.
 - `tools/decision-evidence.ts` retains the exact referenced native user text and hash. This supports source tracing; it does not make the resulting interpretation an approval.
 - `tools/ci-evidence.ts` captures candidate, worktree and environment around commands, and checks saved evidence against the full-spec entry. Evidence verification does not run the checks.
@@ -37,7 +42,7 @@ Project enrollment ────> .rill identity + native plugin config
 
 ## State ownership and failure boundaries
 
-GitHub issue and comments are the authority for approved scope and task history. Local snapshots are caches. Local outbox records are the only copy of unsynchronized facts until publication and readback; they must be retained. The Git revision and actual working tree establish code state. Native execution observations establish only the event, version, and path actually observed.
+GitHub issue and comments are the authority for approved scope and task history. Local snapshots are caches. Within Rill, local outbox records are the retained copy of unsynchronized facts until publication and readback; they must be retained. The Git revision and actual working tree establish code state. Native execution observations establish only the event, version, and path actually observed.
 
 When GitHub is unavailable, a validated previously reconciled snapshot can support already authorized steps, while new facts remain pending. If a required fact is missing, dependent work pauses while independent checks continue. If task identity or recovery integrity is uncertain, supported dependent edits are guarded and the gap remains visible. Native history discovery and semantic reconciliation are separate operations.
 
@@ -50,3 +55,9 @@ Hooks are local deterministic checks and are bypassable. Declared configuration,
 ## Delivery state
 
 The source candidate and installed trusted plugin are separate versions. The #18 record identifies candidate 0.1.3 and installed trusted version 0.1.2; it also leaves final full-spec CI, independent review, owner acceptance, and the batch PR pending. Consult #18 and actual native evidence for current state; this architecture description is not runtime validation.
+
+## Check and packaging integration
+
+[Justfile](justfile) owns command composition; [README](README.md#commands) is the command entry. Husky calls lint only at commit and push. Full-spec invokes the actual lint/type/test entry and stores a receipt; accepted product scope and native/human checks are separate evidence. No hosted workflow is present. `stage-plugin` copies runtime source and installs pinned production dependencies into a new directory; native marketplace installation and hook trust are separate host operations.
+
+Task data, command logs and native source text can be sensitive. See [.github/SECURITY.md](.github/SECURITY.md) for the implemented trust and publication boundaries.

@@ -4,9 +4,6 @@ Rill's domain is the relationship between an owner, an enrolled project, an auth
 
 ## Language
 
-**Owner**:
-The person who sets product scope, makes consequential decisions, and performs or selects the final human acceptance check.
-
 **Project enrollment**:
 The explicit association between a repository and Rill's project-specific preferences and native controls.
 _Avoid_: Installation (which can describe the plugin without opting a repository into project processing).
@@ -30,11 +27,5 @@ A known missing, conflicting, stale, or incomplete piece of information that lim
 **Repair round**:
 A set of changes made for one original problem and the targeted check of whether its required behavior is now correct.
 
-**Candidate**:
-The specific source revision and worktree state to which a check, review, or acceptance record applies.
-
-**Acceptance**:
-The determination that an approved requirement is satisfied by evidence for the current candidate, including any required human decision.
-
-**Retraction**:
-The recorded invalidation of a prior acceptance conclusion while preserving its original evidence and history.
+**Delivery audit**:
+Rill's check of candidate-bound acceptance evidence and declared review/owner sources. A passing local audit becomes PR readiness only after publication/readback and live artifact checks; it does not itself create a PR, authorize a merge or establish semantic correctness.
