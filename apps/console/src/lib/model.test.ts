@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   acceptanceItems,
+  currentCheck,
   issueClassification,
   issueSections,
   validateDashboard,
@@ -49,6 +50,48 @@ describe("native issue evidence model", () => {
   it("reports blocked only with actual open native dependencies", () => {
     expect(issueClassification(issue(["OPEN", "CLOSED"]))).toBe("blocked");
     expect(issueClassification(issue(["CLOSED"]))).toBe("open");
+  });
+
+  it("rejects unrelated successful CI and an older SHA when the Quality gate failed", () => {
+    const sha = "a".repeat(40);
+    const base = {
+      branch: "candidate",
+      sha,
+      dirty: false,
+      changedPaths: 0,
+      prs: [],
+      runs: [
+        {
+          databaseId: 1,
+          name: "Documentation",
+          headSha: sha,
+          status: "completed",
+          conclusion: "success",
+          createdAt: "2026-11-19T21:00:00Z",
+          url: "https://github.com/example/repo/actions/runs/1",
+        },
+        {
+          databaseId: 2,
+          name: "Quality",
+          headSha: sha,
+          status: "completed",
+          conclusion: "failure",
+          createdAt: "2026-11-19T20:00:00Z",
+          url: "https://github.com/example/repo/actions/runs/2",
+        },
+        {
+          databaseId: 3,
+          name: "Quality",
+          headSha: "b".repeat(40),
+          status: "completed",
+          conclusion: "success",
+          createdAt: "2026-11-19T22:00:00Z",
+          url: "https://github.com/example/repo/actions/runs/3",
+        },
+      ],
+    };
+    expect(currentCheck(base)?.databaseId).toBe(2);
+    expect(currentCheck({ ...base, runs: [base.runs[0]] })).toBeNull();
   });
 
   it("rejects incomplete issue graphs instead of calling them valid", () => {

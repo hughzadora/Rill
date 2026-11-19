@@ -104,6 +104,22 @@ function verifyWorkflow(destination) {
   return readFileSync(generated, "utf8");
 }
 
+function executeGeneratedStep(workflow, label, cwd, options = {}) {
+  const section = workflow.split("      - name: " + label + "\n")[1];
+  assert.ok(section, "Missing generated step: " + label);
+  const body = section.split("\n      - name:")[0];
+  const multiline = body.match(/run: \|\n([\s\S]*)/);
+  const singleLine = body.match(/run: (.+)/);
+  assert.ok(multiline || singleLine, "No executable source gate: " + label);
+  const script = multiline
+    ? multiline[1]
+        .split("\n")
+        .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
+        .join("\n")
+    : singleLine[1];
+  return execute("bash", ["-e", "-c", script], { cwd, ...options });
+}
+
 function newProduct(directory) {
   const files = {
     "package.json":
@@ -265,11 +281,10 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
     assert.match(workflow, new RegExp("^  " + job + ":", "m"));
   }
   for (const gate of [
-    "test:coverage",
-    "test:integration",
-    "test:unit",
-    "test:e2e",
-    "test:a11y",
+    "Execute native Vitest source coverage",
+    "Execute native Chrome E2E test cases",
+    "Execute native Chrome accessibility test cases",
+    "Execute native Node test runner with full-source coverage",
     "ruff check",
     "mypy --strict",
     "bats --tap",
@@ -278,7 +293,29 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
   ]) {
     assert.ok(workflow.includes(gate), gate + " is missing");
   }
+  for (const gate of [
+    "Verify tracked React application and test source",
+    "Execute native Vitest source coverage",
+    "Execute native Chrome E2E test cases",
+    "Execute native Chrome accessibility test cases",
+    "Verify tracked Node application and test source",
+    "Execute native Node test runner with full-source coverage",
+  ]) {
+    assert.ok(
+      workflow.includes(gate),
+      "Absent product-source verification: " + gate,
+    );
+  }
+  for (const job of ["typescript", "python", "shell"]) {
+    assert.match(workflow, new RegExp("  " + job + ":\\n    needs: security"));
+  }
   assert.ok(!existsSync(join(project, "package.json")));
+  executeGeneratedStep(
+    workflow,
+    "Verify tracked React application and test source",
+    project,
+    { mustFail: true },
+  );
   pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:coverage"], {
     mustFail: true,
   });
@@ -305,6 +342,25 @@ test("nested pnpm projects use repository-relative action inputs and merge-queue
   assert.equal(
     workflow.match(/package_json_file: "frontend\/package\.json"/g)?.length,
     2,
+  );
+});
+
+test("native Node Vitest profile is selected without trusting package scripts", () => {
+  const project = join(sandbox, "node-vitest-profile");
+  mkdirSync(project);
+  copyStandard(project, {
+    node: true,
+    react: false,
+    python: false,
+    shell: false,
+    node_root: ".",
+    node_test_runner: "vitest",
+  });
+  const workflow = verifyWorkflow(project);
+  assert.match(workflow, /Execute native Vitest source coverage for Node/);
+  assert.doesNotMatch(
+    workflow,
+    /Execute native Node test runner with full-source coverage/,
   );
 });
 
@@ -464,6 +520,17 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     ]);
     if (gate.startsWith("test:")) assert.match(output, /pass [1-9]/);
   }
+  executeGeneratedStep(
+    workflow,
+    "Verify tracked Node application and test source",
+    project,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+  );
+
   const sourcePath = join(project, "src/server.ts");
   const healthy = readFileSync(sourcePath, "utf8");
   assert.ok(healthy.includes("return left + right;"));
@@ -480,6 +547,20 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     },
   );
   assert.match(negative, /fail [1-9]/);
+  const manifest = join(project, "package.json");
+  const originalPackage = readFileSync(manifest, "utf8");
+  const scripts = JSON.parse(originalPackage);
+  scripts.scripts["test:unit"] = "node -e 'process.exit(0)'";
+  scripts.scripts["test:coverage"] = "node -e 'process.exit(0)'";
+  writeFileSync(manifest, JSON.stringify(scripts, null, 2) + "\n");
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(manifest, originalPackage);
   git(project, ["restore", "--", "src/server.ts"]);
   pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
 
@@ -769,6 +850,8 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   const originalManifest = readFileSync(join(project, "package.json"), "utf8");
 
   git(project, ["init", "-q", "-b", "main"]);
+  git(project, ["add", "."]);
+  git(project, ["commit", "-qm", "Existing independent React UI"]);
   copyStandard(project, {
     project_name: "Independent Inventory",
     react: true,
@@ -782,9 +865,9 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   assert.match(workflow, /^ {2}security:/m);
   assert.doesNotMatch(workflow, /^ {2}python:/m);
   assert.doesNotMatch(workflow, /^ {2}shell:/m);
-  assert.match(workflow, /run test:e2e/);
-  assert.match(workflow, /run test:a11y/);
-  assert.match(workflow, /run test:coverage/);
+  assert.match(workflow, /playwright test --grep '@e2e'/);
+  assert.match(workflow, /playwright test --grep '@a11y'/);
+  assert.match(workflow, /vitest run --coverage/);
   assert.match(workflow, /^ {2}merge_group:/m);
   assert.match(workflow, /rill-sbom\.cdx\.json/);
   assert.match(workflow, /--scanners license --include-dev-deps/);
@@ -821,6 +904,26 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   ]) {
     pnpm("run", command);
   }
+  executeGeneratedStep(
+    workflow,
+    "Verify tracked React application and test source",
+    project,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Vitest source coverage",
+    project,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Chrome E2E test cases",
+    project,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Chrome accessibility test cases",
+    project,
+  );
   const trivy = (...args) => pinned(["aqua:aquasecurity/trivy"], "trivy", args);
   const classifications = join(project, "rill-license-classifications.json");
   const sbom = join(project, "rill-sbom.cdx.json");
@@ -884,6 +987,20 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     { mustFail: true },
   );
   assert.match(failure, /failed|expected/i);
+  const pkgPath = join(project, "package.json");
+  const originalPkg = readFileSync(pkgPath, "utf8");
+  const altered = JSON.parse(originalPkg);
+  altered.scripts["test:unit"] = "node -e 'process.exit(0)'";
+  altered.scripts["test:coverage"] = "node -e 'process.exit(0)'";
+  writeFileSync(pkgPath, JSON.stringify(altered, null, 2) + "\n");
+  pnpm("run", "test:unit");
+  executeGeneratedStep(
+    workflow,
+    "Execute native Vitest source coverage",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(pkgPath, originalPkg);
   writeFileSync(component, original);
   pnpm("run", "test:unit");
 });

@@ -111,7 +111,27 @@ branch-check assumption was also corrected for detached HEAD.
 and existing external product repositories (rather than isolated
 test repositories), production startup/resilience, approved standard
 version provenance, independent current-SHA review, human approval,
-upgrade of a genuinely deployed product and complete release acceptance. No fixture, CI configuration or green
+upgrade of a genuinely deployed product and complete release acceptance. Local full-integration review subsequently identified a source-test
+false-pass opportunity: package scripts can be replaced with no-ops.
+The candidate profile now checks committed application/unit/integration
+source, calls actual native Vitest, Node test runner, Playwright Chrome,
+Biome and TypeScript commands directly, and applies project-specific
+coverage floors. All language jobs depend on completing the security
+job so original Git history/source scans finish before test/build
+code execution. The independent Node/React pilots deliberately
+replace package test scripts with no-ops and corrupt real product
+behavior; native gates still reject the regression.
+
+A separate real GitHub issue/PR/CI Chrome trial (rather than mocked
+fixture data) revealed two handoff screen contrast violations.
+Changing status/date text to a 6.13:1 contrast color eliminated them;
+local Chrome+axe checks on overview, tasks, quality and handoff then
+passed with no detected violations. The console now selects only
+its actual Quality workflow on the exact SHA and never recommends
+blocked issues as the next executable task. This remains automated
+evidence, not the owner's interactive acceptance.
+
+No fixture, CI configuration or green
 local test should be described as universal standard enforcement.
 
 ## Review and release authority

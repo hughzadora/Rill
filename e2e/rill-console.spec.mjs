@@ -97,6 +97,56 @@ test("pipeline supports stage selection without impersonating approval", async (
   await expect(page.locator("form")).toHaveCount(0);
 });
 
+test("the handoff refuses an unrelated green job and never recommends blocked work", async ({
+  page,
+}) => {
+  const changed = structuredClone(dashboard);
+  changed.workspace.runs = [
+    {
+      databaseId: 41,
+      name: "Documentation",
+      status: "completed",
+      conclusion: "success",
+      headSha: changed.workspace.sha,
+      url: "https://github.com/hughzadora/Rill/actions/runs/41",
+      createdAt: "2026-11-19T21:01:00Z",
+    },
+    {
+      databaseId: 42,
+      name: "Quality",
+      status: "completed",
+      conclusion: "failure",
+      headSha: changed.workspace.sha,
+      url: "https://github.com/hughzadora/Rill/actions/runs/42",
+      createdAt: "2026-11-19T20:01:00Z",
+    },
+  ];
+  const items = changed.issueData.parent.subIssues.nodes;
+  const blocked = items.find((issue) => issue.number === 25);
+  const firstUnblocked = items.find((issue) => issue.number === 24);
+  changed.issueData.parent.subIssues.nodes = [
+    blocked,
+    firstUnblocked,
+    ...items.filter((issue) => ![24, 25].includes(issue.number)),
+  ];
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(changed),
+    }),
+  );
+  await page.reload();
+  await page.getByRole("button", { name: /质量实验室/ }).click();
+  await expect(page.getByText("当前提交检查未通过 / 未完成")).toBeVisible();
+  await page.getByRole("button", { name: /交付交接/ }).click();
+  await expect(page.getByText("#24 · Native session continuity")).toBeVisible();
+  await expect(
+    page.getByText("#25 · Interactive delivery console"),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /#33/ })).toBeVisible();
+});
+
 test("mobile engineering navigation and quality matrix do not overflow", async ({
   page,
 }) => {

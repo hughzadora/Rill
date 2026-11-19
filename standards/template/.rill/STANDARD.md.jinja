@@ -9,10 +9,14 @@ verified provenance and review.
 
 Enabled profiles:
 {% if react %}
-- React/Tailwind UI: `[[ react_root ]]`, pnpm workspace `[[ js_workspace ]]`.
+- React/Tailwind UI: `[[ react_root ]]`, source `[[ react_sources ]]`,
+  pnpm workspace `[[ js_workspace ]]`, verified statement coverage
+  floor [[ react_coverage ]]%.
 {% endif %}
 {% if node %}
-- Node.js/TypeScript API: `[[ node_root ]]`, pnpm workspace `[[ js_workspace ]]`.
+- Node.js/TypeScript API: `[[ node_root ]]`, source `[[ node_sources ]]`,
+  pnpm workspace `[[ js_workspace ]]`, native test runner
+  `[[ node_test_runner ]]`, source coverage floor [[ node_coverage ]]%.
 {% endif %}
 {% if python %}
 - Python project: `[[ python_root ]]`, with sources `[[ python_sources ]]`,
@@ -29,19 +33,28 @@ dependency locks, analyzer errors and insecure dependencies **fail**.
 Do not weaken existing checks or claim fixtures as production evidence.
 
 {% if react %}
-### Mandatory React package scripts
+### Mandatory React product contracts
 
-At `[[ react_root ]]`: lint, typecheck, test:unit, test:integration,
-test:coverage, test:e2e, test:a11y and build.
-Use React Testing Library, Vitest, Playwright with system Google Chrome,
-axe-core, and a meaningful enforced project-specific coverage threshold.
+At `[[ react_root ]]`: committed application source in
+`[[ react_sources ]]` and actual component/unit/integration test
+files. Native CI invokes Biome, TypeScript, Vitest with a reviewed
+source-coverage threshold, Playwright `@e2e` and `@a11y`
+real Chrome scenarios directly. The product's native `build` script
+must produce its actual deployment artifact. Do not replace a native
+tool with green shell-echo scripts or skip component/API failure paths.
+Playwright must use system Google Chrome, never auto-download Chromium.
 {% endif %}
 {% if node %}
-### Mandatory Node package scripts
+### Mandatory Node product contracts
 
-At `[[ node_root ]]`: lint, typecheck, test:unit, test:integration,
-test:coverage and build. Test actual HTTP/contract/service behavior,
-including negative and recovery paths.
+At `[[ node_root ]]`: committed application source in
+`[[ node_sources ]]` and real unit and integration tests. Native
+CI invokes Biome, TypeScript and selected
+`[[ node_test_runner ]]` runner with source coverage thresholds.
+The product's real `build` script remains mandatory and must
+produce the deployable package. Check HTTP/contract/service behavior,
+negative cases and recovery. No-op test scripts cannot replace
+native source checks.
 {% endif %}
 {% if python %}
 ### Python quality contracts

@@ -109,3 +109,29 @@ not a guessed branch. The next hosted run must pass on the new exact SHA.
 A second independent Codex review reported four more security/source
 inventory issues. Read the current changes and actual CI evidence,
 not the earlier green local run, before treating review as complete.
+
+## Full-branch spec review and live GitHub Chrome evidence
+
+A fresh read-only independent spec reviewer inspected
+`origin/main...6b0fc2d` and all 39 integration commits.
+It found three actionable issues: JavaScript package scripts
+could be stubs, the security/source scan job did not gate
+parallel language installs, and the console could select
+an unrelated green run or blocked task. The current candidate
+changes enforce native tool execution and actual tracked
+source, add `needs: security`, filter the canonical
+`Quality` workflow by exact SHA, and skip blocked issues.
+
+A separate live GitHub browser trial read the current issue
+tree, PR #33 and CI run 44517967412 using real `gh`
+queries and system Google Chrome. Axe first found two
+handoff status/date contrast failures (3.66:1); the corrected
+display reached at least 6.13:1 and four live data views
+then had zero automated WCAG A/AA findings. Actual screenshots
+were captured locally for this trial, not committed or
+authenticated as final owner clicks.
+
+The standards-axis reviewer attempt hit a 225-second
+execution limit without issuing a completed report. Do not
+claim that review was completed. Any new SHA requires
+a new hosted CI result and a scoped independent review.

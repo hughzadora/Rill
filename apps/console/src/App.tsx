@@ -10,7 +10,13 @@ import { Overview } from "./components/Overview";
 import { Pipeline } from "./components/Pipeline";
 import { QualityPanel } from "./components/QualityPanel";
 import { TaskBoard } from "./components/TaskBoard";
-import { type Dashboard, formatTime, validateDashboard } from "./lib/model";
+import {
+  currentCheck,
+  type Dashboard,
+  formatTime,
+  issueClassification,
+  validateDashboard,
+} from "./lib/model";
 
 type View = "overview" | "work" | "pipeline" | "quality" | "docs" | "handoff";
 const navigation: { view: View; title: string; note: string }[] = [
@@ -31,9 +37,12 @@ function Handoff({
 }) {
   const work = data.workspace;
   const issue = data.issueData;
-  const candidate = work?.runs?.find((run) => run.headSha === work.sha);
+  const candidate = currentCheck(work ?? null);
   const nextIssue = issue?.parent.subIssues.nodes.find(
-    (item) => item.state === "OPEN",
+    (item) => issueClassification(item) === "open",
+  );
+  const blockedWork = issue?.parent.subIssues.nodes.some(
+    (item) => issueClassification(item) === "blocked",
   );
   return (
     <div className="page-grid">
@@ -94,7 +103,9 @@ function Handoff({
               <span>
                 {nextIssue
                   ? "#" + nextIssue.number + " · " + nextIssue.title
-                  : "尚无可确认的开放子任务"}
+                  : blockedWork
+                    ? "现有开放任务均受依赖阻塞，先查看阻塞条件"
+                    : "尚无可确认的开放子任务"}
               </span>
               <button onClick={() => onNavigate("work")} type="button">
                 查看验收和阻塞

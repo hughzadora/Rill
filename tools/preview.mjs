@@ -106,6 +106,8 @@ const workspace = async () => {
         execute("gh", [
           "run",
           "list",
+          "--workflow",
+          ".github/workflows/quality.yml",
           "--branch",
           branch,
           "--limit",

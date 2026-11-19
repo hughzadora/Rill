@@ -74,7 +74,17 @@ export const dashboard = {
     sha: "c515adcb48018529e9430412bbc28563c0d8e625",
     dirty: false,
     changedPaths: 0,
-    prs: [],
+    prs: [
+      {
+        number: 33,
+        title: "Software factory source review",
+        state: "OPEN",
+        isDraft: true,
+        url: "https://github.com/hughzadora/Rill/pull/33",
+        headRefOid: "c515adcb48018529e9430412bbc28563c0d8e625",
+        updatedAt: "2026-11-19T10:31:00Z",
+      },
+    ],
     runs: [
       {
         databaseId: 1,

@@ -11,6 +11,7 @@ permissions:
 jobs:
 {% if react or node %}
   typescript:
+    needs: security
     name: TypeScript application gates
     runs-on: ubuntu-24.04
     env:
@@ -34,43 +35,71 @@ jobs:
           cache-dependency-path: [[ (js_workspace ~ "/pnpm-lock.yaml") | tojson ]]
       - name: Install frozen workspace dependencies
         run: pnpm install --frozen-lockfile
+      - name: Verify install did not mutate tracked product source
+        run: git diff --exit-code -- .
 {% if react %}
-      - name: React source lint
-        run: pnpm --dir [[ react_root | tojson ]] run lint
+      - name: Verify tracked React application and test source
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        shell: bash
+        run: |
+          test -f package.json
+          test -n "$(git ls-files -- [[ react_sources | tojson ]] | grep -E '\.(js|jsx|ts|tsx|mjs|cjs)$' | grep -Ev '(\.d\.ts$|\.(test|spec)\.)')"
+          test -n "$(git ls-files -- [[ react_sources | tojson ]] tests e2e | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+          test -n "$(git ls-files -- [[ react_sources | tojson ]] tests e2e | grep -E 'integration.*\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+      - name: Execute native Vitest source coverage
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm exec vitest run --coverage --coverage.include=[[ (react_sources ~ "/**/*.{ts,tsx,js,jsx}") | tojson ]] --coverage.thresholds.statements=[[ react_coverage ]]
+      - name: Execute native Chrome E2E test cases
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm exec playwright test --grep '@e2e'
+      - name: Execute native Chrome accessibility test cases
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm exec playwright test --grep '@a11y'
+
+      - name: React source lint with Biome
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm exec biome check [[ react_sources | tojson ]]
       - name: React TypeScript and public contracts
-        run: pnpm --dir [[ react_root | tojson ]] run typecheck
-      - name: React component unit tests
-        run: pnpm --dir [[ react_root | tojson ]] run test:unit
-      - name: React component/service integration
-        run: pnpm --dir [[ react_root | tojson ]] run test:integration
-      - name: React source coverage gate
-        run: pnpm --dir [[ react_root | tojson ]] run test:coverage
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm exec tsc --noEmit
       - name: React production build
-        run: pnpm --dir [[ react_root | tojson ]] run build
-      - name: Chrome E2E behavior
-        run: pnpm --dir [[ react_root | tojson ]] run test:e2e
-      - name: Chrome accessibility
-        run: pnpm --dir [[ react_root | tojson ]] run test:a11y
+        working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
+        run: pnpm run build
 {% endif %}
 {% if node %}
-      - name: Node source lint
-        run: pnpm --dir [[ node_root | tojson ]] run lint
+      - name: Verify tracked Node application and test source
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        shell: bash
+        run: |
+          test -f package.json
+          test -n "$(git ls-files -- [[ node_sources | tojson ]] | grep -E '\.(js|jsx|ts|tsx|mjs|cjs)$' | grep -Ev '(\.d\.ts$|\.(test|spec)\.)')"
+          test -n "$(git ls-files -- [[ node_sources | tojson ]] tests | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+          test -n "$(git ls-files -- [[ node_sources | tojson ]] tests | grep -E 'integration(/|.*\.(test|spec)\.)' | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+{% if node_test_runner == "node" %}
+      - name: Execute native Node test runner with full-source coverage
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        run: pnpm exec node --experimental-strip-types --test --experimental-test-coverage --test-coverage-include-all --test-coverage-include=[[ (node_sources ~ "/**/*") | tojson ]] --test-coverage-lines=[[ node_coverage ]]
+{% else %}
+      - name: Execute native Vitest source coverage for Node
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        run: pnpm exec vitest run --coverage --coverage.include=[[ (node_sources ~ "/**/*.{ts,tsx,js,jsx}") | tojson ]] --coverage.thresholds.statements=[[ node_coverage ]]
+{% endif %}
+      - name: Node source lint with Biome
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        run: pnpm exec biome check [[ node_sources | tojson ]]
       - name: Node TypeScript and contracts
-        run: pnpm --dir [[ node_root | tojson ]] run typecheck
-      - name: Node unit behavior
-        run: pnpm --dir [[ node_root | tojson ]] run test:unit
-      - name: Node service integration and failure modes
-        run: pnpm --dir [[ node_root | tojson ]] run test:integration
-      - name: Node source coverage gate
-        run: pnpm --dir [[ node_root | tojson ]] run test:coverage
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        run: pnpm exec tsc --noEmit
       - name: Node production build
-        run: pnpm --dir [[ node_root | tojson ]] run build
+        working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
+        run: pnpm run build
 {% endif %}
       - name: Audit production Node dependencies
         run: pnpm audit --prod
 {% endif %}
 {% if python %}
   python:
+    needs: security
     name: Python application gates
     runs-on: ubuntu-24.04
     defaults:
@@ -100,6 +129,7 @@ jobs:
 {% endif %}
 {% if shell %}
   shell:
+    needs: security
     name: Shell source and CLI behavior
     runs-on: ubuntu-24.04
     steps:
@@ -185,6 +215,8 @@ jobs:
           uv run --locked pip-licenses --format=json --output-file rill-python-licenses.json
           test -s rill-python-licenses.json
 {% endif %}
+      - name: Verify supply-chain installs preserved tracked source
+        run: git diff --exit-code -- .
       - name: Record complete license classifications, including unknown
         run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --scanners license --include-dev-deps --format json --output rill-license-classifications.json --skip-dirs .venv .
       - name: Generate CycloneDX software bill of materials

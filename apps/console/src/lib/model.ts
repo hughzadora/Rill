@@ -160,9 +160,17 @@ export function issueClassification(
   return "open";
 }
 
+// .github/workflows/quality.yml owns the required workflow name.
+// Other successful jobs cannot be reported as Rill's quality gate.
 export function currentCheck(workspace: Workspace | null): CheckRun | null {
   if (!workspace?.runs) return null;
-  return workspace.runs.find((run) => run.headSha === workspace.sha) ?? null;
+  return (
+    workspace.runs
+      .filter((run) => run.headSha === workspace.sha && run.name === "Quality")
+      .sort((left, right) =>
+        right.createdAt.localeCompare(left.createdAt),
+      )[0] ?? null
+  );
 }
 
 export function formatTime(value: string): string {

@@ -69,10 +69,15 @@ a successful copy as verified project adoption.
 
 GitHub Actions run at `pull_request` and `merge_group` to support
 required merge-queue checks, and at `workflow_dispatch` when invoked.
-JavaScript gates require a frozen pnpm lock,
-source lint, strict types, unit, service integration, source coverage,
-a build, Chrome E2E and accessibility if React is enabled. Required
-product scripts must exist, or the workflow fails.
+JavaScript gates require a frozen pnpm lock and committed application,
+unit and integration test sources. They execute **native** Biome,
+TypeScript and the selected Node/Vitest runner with source coverage
+thresholds directly, rather than trusting package scripts that may
+be no-ops. React additionally executes real Chrome-tagged `@e2e` and
+`@a11y` Playwright tests directly; the target project's native
+`build` script remains required. Tests or real source missing
+from the checked-out Git tree cause CI to fail. The reporter still
+requires human review of test quality and deployment artifacts.
 
 Python runs inside the configured `python_root`, with a locked uv
 environment, Ruff, strict mypy, pytest + pytest-cov, real integration

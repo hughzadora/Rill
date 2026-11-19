@@ -45,6 +45,41 @@ node_root:
   when: "[[ node ]]"
   validator: "{% if node_root.startswith('/') or node_root.startswith('..') or '/..' in node_root or not (node_root | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
   help: "Node.js package directory relative to the pnpm workspace."
+react_sources:
+  type: str
+  default: "src"
+  when: "[[ react ]]"
+  validator: "{% if react_sources.startswith('/') or react_sources.startswith('..') or '/..' in react_sources or not (react_sources | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Tracked application source directory relative to the React package."
+
+react_coverage:
+  type: int
+  default: 80
+  when: "[[ react ]]"
+  validator: "{% if react_coverage < 0 or react_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Reviewed minimum React source statement coverage percentage."
+
+node_sources:
+  type: str
+  default: "src"
+  when: "[[ node ]]"
+  validator: "{% if node_sources.startswith('/') or node_sources.startswith('..') or '/..' in node_sources or not (node_sources | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Tracked application source directory relative to the Node.js package."
+
+node_coverage:
+  type: int
+  default: 80
+  when: "[[ node ]]"
+  validator: "{% if node_coverage < 0 or node_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Reviewed minimum Node.js source line coverage percentage."
+
+node_test_runner:
+  type: str
+  choices: ["node", "vitest"]
+  default: "node"
+  when: "[[ node ]]"
+  help: "Actual native test runner of the Node/TypeScript package."
+
 node_version:
   type: str
   default: "24.22.3"
