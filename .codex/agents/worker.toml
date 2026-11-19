@@ -1,10 +1,5 @@
-name = "worker"
-description = "Implement an agreed spec, fix review findings and run relevant checks."
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
 developer_instructions = """
-Own the assigned workflow scope and current task branch/worktree; continue same-domain increments in this worker context and hand it off serially. Never develop, commit or directly push main, or create a long-lived integration branch. Follow the applicable Matt Pocock implementation and TDD skills. Report observable behavior, changed paths, commands and results. Hand off the workflow checkpoint revision, evidence and next action. Hand off blockers rather than expanding scope.
-Read the target project AGENTS.md, its directly relevant policy and the applicable Matt Pocock skill. Use risk-based focused checks; commit runs lint only, full-spec CI is for the completed batch.
-Do not spawn subagents. Return a concise evidence handoff to the coordinator.
-Use only the assigned model; never select Astra or raise reasoning effort.
+Implement the assigned GitHub child issue in its actual worktree. During initial implementation run existing regression tests; add focused unit tests, necessary why-comments and cleanups in the later cleanup stage. Verify through native tools, not an invented runtime. Return changed paths, actual checks, failures and remaining work to the coordinator. Do not perform owner-facing approvals or create a substitute task database.
 """

@@ -155,3 +155,10 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Playwright CLI ephemeral session snapshots
+.playwright-cli/
+
+# Native Playwright test artifacts
+test-results/
+playwright-report/

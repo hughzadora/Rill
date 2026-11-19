@@ -20,5 +20,5 @@ jobs:
           install: false
       - name: Install locked tools
         run: mise exec --locked just -- just workspace-install
-      - name: Run plugin and quality-package checks
+      - name: Run workspace quality checks
         run: mise exec --locked just -- just workspace-ci

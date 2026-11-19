@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "rill": {
-      "command": "node",
-      "args": ["tools/control-mcp.ts"],
-      "cwd": "."
-    }
-  }
-}

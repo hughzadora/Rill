@@ -1,13 +1,13 @@
 # Rill
 
-Project development entry: [PRD](PRD.md) defines user jobs and observable scope; [ARCHITECTURE](ARCHITECTURE.md) maps current module and state ownership; [DESIGN](DESIGN.md) describes confirmed behavior; [GLOSSARY](GLOSSARY.md) defines domain language. Read the relevant document for the task.
+Rill is an owner-directed, native Codex development workflow. Do not create a parallel agent runtime, transcript store, scheduler, approval mechanism, or proprietary task status database.
 
-Read [project policy](POLICY.md) when entering this repository or when its revision changes. Apply [personal preferences](skills/rill-preferences/SKILL.md) in this enrolled project. Use installed Matt Pocock skills for engineering methods; Rill owns preferences and their native integration.
-
-GitHub remains authoritative: [approved design and decisions #17](https://github.com/hughzadora/Rill/issues/17), [current delivery and execution record #18](https://github.com/hughzadora/Rill/issues/18), and [engineering process #16](https://github.com/hughzadora/Rill/issues/16). Verify actual Git, task, runtime, and evidence state before resuming; these documents do not replace current issue state or execution evidence.
-
-Use [README commands](README.md#commands) for setup and checks; `just --list` is the executable command index. Commit runs lint only. Select development checks by risk under [personal CI policy](skills/rill-preferences/references/personal-policy.md); run `just full-spec-ci` at the batch pre-PR checkpoint, not after every edit.
-
-For major owner-facing overall-design or delivery-route decisions where visual comparison adds value, include a standalone interactive HTML review companion with options, consequences, and a copy-to-chat fallback. Routine reviews need no extra artifact. The companion does not record approval; use the host's native control for consequential decisions.
-
-For GitHub collaboration read [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md); for hook/MCP trust, task-data exposure or vulnerability reporting read [.github/SECURITY.md](.github/SECURITY.md). Preserve pending recovery work and the incomplete gates in #18.
+- Read the current [GitHub engineering parent](https://github.com/hughzadora/Rill/issues/22), its relevant native sub-issue and the actual Git branch/diff before working. The [permanent bug ledger](https://github.com/hughzadora/Rill/issues/23) is for reproducible bugs only. Record tasks and outcomes in issue/sub-issue bodies and PRs; do not use issue comments as a running work log. Preserve historical decisions in closed issues.
+- Codex owns conversation compaction, sessions, delegation, permissions and approvals. A fresh session recovers intent from GitHub and Git, not from custom saved chat text. Missing source information is a blocker for dependent work, not permission to guess.
+- For substantial features: requirements → quick prototype → interactive HTML design → agent implementation with existing regression checks → integration and owner test → cleanup and focused unit tests → final verification and owner click-test → focused PR. Small changes may combine steps.
+- Human checkpoints: prototype behavior, consequential design decisions, and final genuine user acceptance. HTML can explain and compare; only a real harness-native structured choice or approval can bind a consequential decision. Do not simulate an approval control or require the owner to copy commands from a page.
+- Use the installed upstream Modern Web Guidance and Impeccable skills for frontend work, and language-native lint/type/test/CI for backend work. Prefer the installed Google Chrome with the official Playwright CLI; agent-desktop CLI supports OS interactions where verified. Do not download another browser or expand permissions as a fallback.
+- Apply poteto/pstack as a development method, not as a copied Cursor harness: specify outcomes, let tools iterate, unslop the diff, demand observable proof, and evaluate automation before adding it.
+- Turn repeat corrections into a failing test, lint/type rule or stronger API. Remove redundant implementation patterns. Keep the repository and instructions small; do not invent names, project frameworks, or compatibility layers.
+- Run `just lint` while editing, `just workspace-ci` before a PR, and compare screenshots or real interactions for UI behavior. Preserve exact failures and scope limitations. Never claim a configured gate, green fixture or screenshot independently proves real-product acceptance.
+- Do not merge, publish, install paid tooling or alter production without explicit authorization.
