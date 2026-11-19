@@ -135,3 +135,16 @@ The standards-axis reviewer attempt hit a 225-second
 execution limit without issuing a completed report. Do not
 claim that review was completed. Any new SHA requires
 a new hosted CI result and a scoped independent review.
+
+## Hosted Node runtime compatibility correction
+
+The first GitHub-hosted run for `8cc1dfb` (run 44523441361) **failed** in the
+brownfield generated native Node coverage step. The workstation defaulted
+to Node 26, where `--test-coverage-include-all` exists, but the generated
+workflow pins Node 24.22.3, which rejects this option. This was an actual
+cross-environment false local pass, not a flaky test. The corrected profile
+uses supported `--test-coverage-include` and a committed-source inventory.
+The adoption test harness now executes generated Node/React commands through
+the _same Mise-locked Node and pnpm_ and then changes to the isolated target
+project directory before execution. The fix passed its seven adoption cases
+locally but requires a **new exact-SHA hosted run** before any PASS claim.

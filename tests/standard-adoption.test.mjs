@@ -117,7 +117,17 @@ function executeGeneratedStep(workflow, label, cwd, options = {}) {
         .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
         .join("\n")
     : singleLine[1];
-  return execute("bash", ["-e", "-c", script], { cwd, ...options });
+  // Run the generated command with the repository's *locked* Node/pnpm
+  // versions; a newer system Node may accept flags unavailable in CI.
+  // Mise resolves tools from Rill's lockfile, then Bash returns to the
+  // isolated product directory before evaluating the generated step.
+  // A positional argument avoids interpolating a path into shell source.
+  return pinned(
+    ["node", "pnpm"],
+    "bash",
+    ["-e", "-c", 'cd "$1"\n' + script, "rill-step", cwd],
+    options,
+  );
 }
 
 function newProduct(directory) {

@@ -146,3 +146,11 @@ References:
 [GoogleChrome Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance),
 [Playwright accessibility testing](https://playwright.dev/docs/accessibility-testing),
 [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects).
+
+The first hosted CI on the native-source-gate hardening SHA `8cc1dfb`
+failed because its integration test was indirectly run under system
+Node 26 locally, while the actual product workflow pinned Node 24.22.3.
+The unsupported `--test-coverage-include-all` flag was removed; the
+corrected adoption harness uses the real pinned runtime to prevent this
+class of false positive. Current-SHA hosted success is required and
+cannot be inferred from a prior green run.

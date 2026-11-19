@@ -78,7 +78,7 @@ jobs:
 {% if node_test_runner == "node" %}
       - name: Execute native Node test runner with full-source coverage
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
-        run: pnpm exec node --experimental-strip-types --test --experimental-test-coverage --test-coverage-include-all --test-coverage-include=[[ (node_sources ~ "/**/*") | tojson ]] --test-coverage-lines=[[ node_coverage ]]
+        run: pnpm exec node --experimental-strip-types --test --experimental-test-coverage --test-coverage-include=[[ (node_sources ~ "/**/*") | tojson ]] --test-coverage-lines=[[ node_coverage ]]
 {% else %}
       - name: Execute native Vitest source coverage for Node
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
