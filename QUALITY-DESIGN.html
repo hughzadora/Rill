@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>#19 质量规范设计评审 · Rill</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f5f8fc;
+        --paper: #ffffff;
+        --ink: #172f46;
+        --muted: #4f657a;
+        --line: #c9d6e4;
+        --blue: #225781;
+        --blue-soft: #e7f0f8;
+        --gold: #80510c;
+        --gold-soft: #fff4dd;
+        --green: #235f4c;
+        --red: #963f3f;
+        --shadow: 0 14px 38px rgb(29 62 91 / 7%);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --page: #111c29;
+          --paper: #192a3b;
+          --ink: #e6edf5;
+          --muted: #b2c4d7;
+          --line: #425b72;
+          --blue: #a4d3f7;
+          --blue-soft: #233e56;
+          --gold: #f4cf8b;
+          --gold-soft: #3b311e;
+          --green: #9edac2;
+          --red: #ffb5a9;
+          --shadow: 0 14px 38px rgb(0 0 0 / 16%);
+        }
+      }
+
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --page: #f5f8fc;
+        --paper: #ffffff;
+        --ink: #172f46;
+        --muted: #4f657a;
+        --line: #c9d6e4;
+        --blue: #225781;
+        --blue-soft: #e7f0f8;
+        --gold: #80510c;
+        --gold-soft: #fff4dd;
+        --green: #235f4c;
+        --red: #963f3f;
+        --shadow: 0 14px 38px rgb(29 62 91 / 7%);
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --page: #111c29;
+        --paper: #192a3b;
+        --ink: #e6edf5;
+        --muted: #b2c4d7;
+        --line: #425b72;
+        --blue: #a4d3f7;
+        --blue-soft: #233e56;
+        --gold: #f4cf8b;
+        --gold-soft: #3b311e;
+        --green: #9edac2;
+        --red: #ffb5a9;
+        --shadow: 0 14px 38px rgb(0 0 0 / 16%);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-padding-block: 1.2rem;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--ink);
+        font: 1rem / 1.7 system-ui, "Noto Sans CJK SC", sans-serif;
+      }
+
+      a {
+        color: var(--blue);
+        text-underline-offset: 0.2em;
+      }
+
+      :focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 3px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p,
+      figure {
+        margin: 0;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.3;
+        text-wrap: balance;
+      }
+
+      h1,
+      h2 {
+        font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+      }
+
+      h1 {
+        max-width: 16ch;
+        font-size: clamp(2.35rem, 6vw, 4.6rem);
+        letter-spacing: -0.035em;
+      }
+
+      h2 {
+        font-size: clamp(1.55rem, 3vw, 2.15rem);
+      }
+
+      h3 {
+        font-size: 1.06rem;
+      }
+
+      p,
+      li {
+        max-width: 68ch;
+      }
+
+      code,
+      .mono,
+      .eyebrow {
+        font-family: ui-monospace, "Noto Sans Mono", monospace;
+        font-variant-numeric: tabular-nums;
+      }
+
+      code {
+        overflow-wrap: anywhere;
+        background: var(--blue-soft);
+        padding: 0.12em 0.32em;
+      }
+
+      .skip-link {
+        position: fixed;
+        inset-block-start: 0.65rem;
+        inset-inline-start: 0.65rem;
+        z-index: 2;
+        transform: translateY(-180%);
+        padding: 0.6rem 0.9rem;
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      .skip-link:focus {
+        transform: none;
+      }
+
+      .shell {
+        width: min(1050px, calc(100% - 2.5rem));
+        margin-inline: auto;
+      }
+
+      .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding-block: 1.2rem;
+        border-block-end: 1px solid var(--line);
+      }
+
+      .wordmark {
+        color: var(--blue);
+        font-size: 0.86rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+      }
+
+      .revision {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .revision span {
+        border: 1px solid var(--line);
+        padding: 0.2rem 0.55rem;
+        background: var(--paper);
+      }
+
+      main {
+        display: grid;
+        gap: 2.8rem;
+        padding-block: 2.2rem 4rem;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(230px, 0.55fr);
+        gap: 2rem;
+        align-items: end;
+      }
+
+      .hero-copy {
+        display: grid;
+        gap: 1.1rem;
+      }
+
+      .eyebrow {
+        color: var(--blue);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .lead {
+        max-width: 55ch;
+        color: var(--muted);
+        font-size: clamp(1.04rem, 2vw, 1.2rem);
+      }
+
+      .hero-mark {
+        min-width: 0;
+        padding: 1.15rem 1.25rem;
+        border-inline-start: 3px solid var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .state {
+        color: var(--gold);
+        font-weight: 750;
+      }
+
+      .notice {
+        display: grid;
+        gap: 0.35rem;
+        padding: 1rem 1.2rem;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .notice strong {
+        color: var(--gold);
+      }
+
+      section {
+        display: grid;
+        gap: 1.15rem;
+        scroll-margin-block: 1.5rem;
+      }
+
+      .section-title {
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .branch-figure {
+        display: grid;
+        gap: 0.65rem;
+        padding: 1.1rem;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .branch-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .branch-node {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--line);
+        background: var(--page);
+        font-size: 0.9rem;
+      }
+
+      .branch-node strong {
+        color: var(--blue);
+      }
+
+      .branch-lines {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 2.5rem minmax(0, 1fr);
+        gap: 0.45rem;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .branch-line {
+        height: 1px;
+        background: var(--line);
+      }
+
+      .branch-fork {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      .fork-path {
+        height: 14px;
+        border-inline-start: 1px solid var(--blue);
+        border-block-end: 1px solid var(--blue);
+      }
+
+      .fork-path.stacked {
+        border-color: var(--gold);
+        margin-inline-start: 1.25rem;
+      }
+
+      .branch-figure figcaption {
+        color: var(--muted);
+        font-size: 0.83rem;
+      }
+
+      form {
+        display: grid;
+        gap: 1rem;
+      }
+
+      fieldset {
+        min-inline-size: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+
+      legend {
+        margin-block-end: 0.7rem;
+        font-weight: 750;
+      }
+
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .choice {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.8rem;
+        align-items: start;
+        min-width: 0;
+        min-height: 100%;
+        padding: 1.1rem;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        cursor: pointer;
+        transition: border-color 140ms ease, background-color 140ms ease;
+      }
+
+      .choice:has(input:checked) {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+        box-shadow: inset 0 0 0 1px var(--blue);
+      }
+
+      .choice:focus-within {
+        outline: 3px solid var(--blue);
+        outline-offset: 3px;
+      }
+
+      .choice input {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-block-start: 0.2rem;
+        accent-color: var(--blue);
+      }
+
+      .choice-content {
+        display: grid;
+        gap: 0.5rem;
+        min-width: 0;
+      }
+
+      .choice-title {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.65rem;
+        align-items: baseline;
+        font-weight: 800;
+      }
+
+      .choice-title small {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 650;
+      }
+
+      .choice-content p {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .choice-content ul {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0;
+        padding-inline-start: 1.1rem;
+        font-size: 0.88rem;
+      }
+
+      .choice-content li::marker {
+        color: var(--blue);
+      }
+
+      .option-adjust {
+        grid-column: 1 / -1;
+        min-height: auto;
+        border-style: dashed;
+        background: transparent;
+      }
+
+      .text-field {
+        display: grid;
+        gap: 0.4rem;
+        margin-block-start: 0.8rem;
+      }
+
+      .text-field label {
+        font-weight: 700;
+      }
+
+      textarea {
+        display: block;
+        width: 100%;
+        min-height: 112px;
+        resize: vertical;
+        padding: 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: max(1rem, 1em);
+      }
+
+      .helper {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .live-choice {
+        min-height: 1.5em;
+        padding-inline-start: 0.8rem;
+        border-inline-start: 3px solid var(--blue);
+        color: var(--blue);
+        font-weight: 750;
+      }
+
+      .scope-box {
+        padding: 1rem 1.1rem;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .scope-box ul,
+      .details-body ul,
+      .details-body ol {
+        display: grid;
+        gap: 0.45rem;
+        margin-block-start: 0.6rem;
+        padding-inline-start: 1.2rem;
+      }
+
+      .scope-box li::marker,
+      .details-body li::marker {
+        color: var(--blue);
+      }
+
+      .choice.stacked li::marker {
+        color: var(--gold);
+      }
+
+      .review-stack {
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      details {
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      summary {
+        min-height: 48px;
+        padding: 0.8rem 1rem;
+        cursor: pointer;
+        font-weight: 750;
+      }
+
+      summary::marker {
+        color: var(--blue);
+      }
+
+      details[open] summary {
+        border-block-end: 1px solid var(--line);
+      }
+
+      .details-body {
+        display: grid;
+        gap: 0.85rem;
+        padding: 1rem 1.1rem 1.2rem;
+      }
+
+      .details-body p {
+        color: var(--muted);
+      }
+
+      .hero-mark p + p {
+        margin-block-start: 0.45rem;
+      }
+
+      .failure-list {
+        border-inline-start: 3px solid var(--red);
+        padding-inline-start: 1rem;
+      }
+
+      .failure-list strong {
+        color: var(--red);
+      }
+
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        padding: 0;
+        list-style: none;
+      }
+
+      .evidence-grid li {
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--line);
+        background: var(--page);
+      }
+
+      .evidence-grid strong {
+        display: block;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .copy-panel {
+        display: grid;
+        gap: 0.7rem;
+        padding: 1.2rem;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .copy-panel textarea {
+        min-height: 150px;
+      }
+
+      .copy-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+      }
+
+      button {
+        min-height: 48px;
+        padding: 0.65rem 1rem;
+        border: 1px solid var(--blue);
+        border-radius: 0;
+        background: var(--blue);
+        color: var(--paper);
+        font: inherit;
+        font-weight: 750;
+        cursor: pointer;
+      }
+
+      button:hover {
+        filter: brightness(0.92);
+      }
+
+      .copy-note {
+        color: var(--muted);
+        font-size: 0.87rem;
+      }
+
+      footer {
+        display: grid;
+        gap: 0.45rem;
+        padding-block: 1.3rem 2rem;
+        border-block-start: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.87rem;
+      }
+
+      .mono {
+        overflow-wrap: anywhere;
+        font-size: 0.9em;
+      }
+
+      @media (max-width: 720px) {
+        .shell {
+          width: min(100% - 1.5rem, 620px);
+        }
+
+        main {
+          gap: 2rem;
+          padding-block-start: 1.5rem;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 1.2rem;
+        }
+
+        .choices {
+          grid-template-columns: 1fr;
+        }
+
+        .option-adjust {
+          grid-column: auto;
+        }
+
+        .evidence-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .branch-head {
+          grid-template-columns: 1fr;
+          gap: 0.45rem;
+        }
+
+        .branch-lines {
+          grid-template-columns: minmax(0, 1fr) 1.2rem minmax(0, 1fr);
+          font-size: 0.72rem;
+        }
+
+        .copy-actions {
+          align-items: stretch;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+
+      @media (pointer: coarse) {
+        .choice {
+          min-height: 48px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .choice {
+          transition-duration: 0.01ms;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到评审内容</a>
+    <header class="shell topbar">
+      <p class="wordmark">RILL / QUALITY STANDARD</p>
+      <div class="revision">
+        <span>Issue #19</span>
+        <span>路线 A 已选 · 设计待审</span>
+        <span class="mono">e71aae0</span>
+      </div>
+    </header>
+
+    <main class="shell" id="main">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">质量规范 · 整体设计评审</p>
+          <h1 id="page-title">先把质量门定下来，再开始功能开发</h1>
+          <p class="lead">这份提案把 Rill 的 lint 与 full CI 标准做成可复用、可验证的项目入口。当前只审阅设计，不改项目配置，也不批准执行。</p>
+        </div>
+        <aside class="hero-mark" aria-label="当前候选说明">
+          <p class="eyebrow">审阅基线</p>
+          <p><strong>干净 #19 工作树</strong></p>
+          <p class="muted">分支 <code>codex/quality-standard-first</code><br>检查点 <code>e71aae0</code></p>
+        </aside>
+      </section>
+
+      <aside class="notice" aria-label="决定边界">
+        <p><strong>PR 基线已选：路线 A，独立基于 main。</strong>方案只提取 #19 必要的已提交基础，增加等价/契约测试，不带 #18 WIP。</p>
+        <p>首批画像已确定为 React + Tailwind 前端、TypeScript/Node.js 后端、Python、Markdown 和 shell。页面只准备“批准设计”或“请求修改”的聊天摘要；不会自动批准、发送消息或修改项目。</p>
+      </aside>
+
+      <section aria-labelledby="decision-heading">
+        <div class="section-title">
+          <p class="eyebrow">已选路线 · 待设计评审</p>
+          <h2 id="decision-heading">检查方案与上游工具选择</h2>
+          <p class="muted">候选均未作为项目依赖安装，尚未完成各栈负例。工具选择使用 Mise 稳定版 latest，并由提交的 mise.lock 固定解析版本；勾选表示保留在本提案中，不代表工具已验证。</p>
+        </div>
+        <div class="scope-box">
+          <p><strong>路线 A · 独立 main</strong></p>
+          <ul>
+            <li>新建 #19 main-based 工作线，仅提取已提交且必要的标准/profile contract、native entry seam 和 receipt interface。</li>
+            <li>对抽取接口及其 #19 用法增加等价/契约测试；不复制 #18 未提交 WIP。</li>
+            <li>在精简基线上重现继承失败，只判断是否影响 #19 验收；无关 #18 合并/修复不是前置条件。</li>
+          </ul>
+        </div>
+
+        <div class="scope-box">
+          <p><strong>版本与锁文件</strong></p>
+          <ul>
+            <li><code>mise.toml</code> 声明工具 <code>latest</code>；首次用 <code>mise lock</code> 解析并提交 <code>mise.lock</code>。</li>
+            <li>本地和 CI 用 <code>mise install --locked</code> 安装已锁版本。只有刻意升级时才运行 <code>mise lock --bump</code>，并评审变更和重跑受影响的正/负例。</li>
+            <li>保留 <code>pnpm-lock.yaml</code>、<code>uv.lock</code> 等原生依赖锁。Rill 标准仍由独立的 SemVer + artifact digest 固定；Mise 工具锁和依赖锁不替代标准 pin。</li>
+          </ul>
+        </div>
+
+        <form id="decision-form" aria-labelledby="decision-heading">
+          <fieldset>
+            <legend>上游工具提案（可取消或补充）</legend>
+            <div class="choices">
+              <label class="choice" for="tool-biome">
+                <input id="tool-biome" name="tools" type="checkbox" value="Biome" checked>
+                <span class="choice-content"><span class="choice-title">Biome <small>单一 formatter · 显式规则与文件 overrides</small></span><p>JS/TS、React、CSS、HTML、Markdown 等受支持文件；Tailwind class 排序先验证 Biome 2.6 原生规则。</p></span>
+              </label>
+              <label class="choice" for="tool-ts">
+                <input id="tool-ts" name="tools" type="checkbox" value="TypeScript + Oxlint + Vitest" checked>
+                <span class="choice-content"><span class="choice-title">TypeScript + Oxlint + Vitest <small>Node/React</small></span><p>严格 tsc、Vitest；Oxlint 只加入经负例证明互补的上游规则。</p></span>
+              </label>
+              <label class="choice" for="tool-python">
+                <input id="tool-python" name="tools" type="checkbox" value="Ruff + mypy + pytest" checked>
+                <span class="choice-content"><span class="choice-title">Ruff + mypy + pytest <small>Python</small></span><p>上游 formatter/linter、类型检查与测试；许可证另用已安装包 allowlist。</p></span>
+              </label>
+              <label class="choice" for="tool-markdown-shell">
+                <input id="tool-markdown-shell" name="tools" type="checkbox" value="markdownlint-cli2 + ShellCheck + shfmt + bats-core" checked>
+                <span class="choice-content"><span class="choice-title">markdownlint-cli2 + ShellCheck + shfmt + bats-core <small>Markdown / shell</small></span><p>只选择不与 Biome 重复的 Markdown 规则；shell 格式、静态检查与测试均使用上游 CLI。</p></span>
+              </label>
+              <label class="choice" for="tool-trivy">
+                <input id="tool-trivy" name="tools" type="checkbox" value="Trivy + pip-licenses" checked>
+                <span class="choice-content"><span class="choice-title">Trivy + pip-licenses <small>依赖 / secret / license / misconfiguration / SBOM</small></span><p>Trivy 按官方锁文件覆盖启用；uv.lock 不支持 license 检查时，用 pip-licenses 检查已安装 Python 包。</p></span>
+              </label>
+              <label class="choice" for="tool-google">
+                <input id="tool-google" name="tools" type="checkbox" value="适用的 Google Style Guide conventions" checked>
+                <span class="choice-content"><span class="choice-title">适用的 Google Style Guide conventions <small>规范参考，不代表 Google 所有/认证</small></span><p>记录采用的 JS/TS、Python、Markdown、shell 约定及偏离项；只通过上游工具原生规则执行。</p></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="text-field">
+            <label for="adjustment">请求修改或补充条件</label>
+            <textarea id="adjustment" name="adjustment" maxlength="1200" aria-describedby="adjustment-help" placeholder="例如：调整某个工具候选、增加一种上游工具，或说明不接受的设计条件。"></textarea>
+            <p class="helper" id="adjustment-help">页面不会改写 DESIGN.md。请不要把未验证候选描述为已安装或通过。</p>
+          </div>
+          <div class="copy-actions">
+            <button id="approve-design" type="button">准备“批准设计”摘要</button>
+            <button id="request-changes" type="button">准备“请求修改”摘要</button>
+          </div>
+          <p class="live-choice" id="choice-status" role="status" aria-live="polite">路线 A 与首批画像已选；请检查工具候选。</p>
+        </form>
+      </section>
+
+      <section aria-labelledby="default-heading">
+        <div class="section-title">
+          <p class="eyebrow">实测证据边界</p>
+          <h2 id="default-heading">已测结果与待验证负例</h2>
+          <p class="muted">工具提案不等于项目依赖、门禁通过或完整 profile 支持。</p>
+        </div>
+        <div class="scope-box">
+          <ul>
+            <li><strong>Biome 2.6.8 当前配置太浅。</strong><code>recommended</code>、空泛目录入口和缩进设置之外没有显式规则/overrides。先用原生 inspect 解析有效配置，再按栈显式配置所选 error 规则与文件覆盖；不启用全部规则。</li>
+            <li><strong>Biome 2.6 Tailwind class 排序仍是待验证的上游规则。</strong>在真实 Tailwind v4 stylesheet/config 上跑正例与逆序负例；若不适用，只考虑 Tailwind Labs 的 Prettier 插件作为替代 formatter，并确保同一文件只有一个 formatter。</li>
+            <li><strong>Trivy 本地 secret 扫描。</strong>测得 binary 0.76.1 对干净 <code>e71aae0</code> 跟踪快照退出 0、0 项；隔离假凭据负例命中规则并退出 1。缓存漏洞 DB 已过期，因此没有漏洞库通过结论。工具版本不手工 pin；经批准后由 Mise 稳定版解析并写入锁。digest/signature 与各包管理器覆盖仍须验证。</li>
+            <li><strong>官方锁覆盖。</strong>Trivy 对 pnpm v9+ 可扫描 transitive/dev 依赖（dev 需显式请求）；npm license 需已安装 <code>node_modules</code>。Python <code>uv.lock</code> 支持 vulnerability/SBOM，不支持 license；为已安装 Python 包评估 <code>pip-licenses --allow-only</code>。</li>
+            <li><strong>Google 风格参考。</strong>Google 发布并维护这些公开指南；项目可采纳选定约定，但工具、Rill profile 或项目验收不归 Google 所有，也不构成认证。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="details-heading">
+        <div class="section-title">
+          <p class="eyebrow">可展开核对</p>
+          <h2 id="details-heading">验收细节与真实基线</h2>
+        </div>
+        <div class="review-stack">
+          <details open>
+            <summary>当前门禁证据与未通过项</summary>
+            <div class="details-body">
+              <ul class="evidence-grid">
+                <li><strong>Biome 2.6.8 · 通过</strong><span>67 文件，96 ms</span></li>
+                <li><strong>TypeScript 7.0.2 · 通过</strong><span>218 ms</span></li>
+                <li><strong>Vitest 5.1.0 · 基线失败</strong><span>95 项中 93 项通过；两项失败保留</span></li>
+                <li><strong>Gitleaks 8.30.1 · 历史扫描通过</strong><span>49 commits / 约 912 KB；工作树 secret 由 Trivy 候选补充</span></li>
+                <li><strong>Oxlint 1.93.0 · 探测通过</strong><span>40 文件、96 规则、0 诊断；尚未成为 Rill 依赖/门禁</span></li>
+                <li><strong>Lizard 1.26.0 · 仅测量</strong><span>候选阈值下有 36 条函数告警；尚无上游原生 debt baseline</span></li>
+                <li><strong>Tokei 15.0.0 · 仅测量</strong><span>40 文件、8,932 代码行；3 文件超过 500 行</span></li>
+              </ul>
+              <div class="failure-list">
+                <p><strong>Full-spec 真实失败：93/95 测试通过。</strong></p>
+                <ul>
+                  <li><code>recovery-lifecycle.test.ts</code> 响应 5,505 字符，高于测试界限 5,000。</li>
+                  <li><code>repair-interruption.test.ts</code> 读取 ready 文件时得到不完整 JSON。</li>
+                </ul>
+                <p>不重试隐藏失败，也不放宽断言。选定 PR 基线后，重现每项失败并判断是否继承、是否影响 #19 接受范围；共享 #18 代码问题回到 #18 归属修复。#18 是否整体合并不是 #19 的通用前置条件。</p>
+              </div>
+              <p>目前没有 Rill hosted workflow、依赖/license 门禁或 stage-plugin 完整包验证。Trivy 的 secret 扫描仅有本地限定证据；漏洞 DB 过期，不作漏洞通过声明。完整 receipt 与命令见基线报告。</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>新项目：先画像、设计和负例，再写功能</summary>
+            <div class="details-body">
+              <ol>
+                <li>检查语言、框架、运行时、包管理、monorepo、构建物、数据/权限风险、现有规则和 CI；汇总适用、不适用和未知门。</li>
+                <li>owner 审阅完整工具/插件、版本、规则、命令、CI、hook、费用、例外和验证方案。</li>
+                <li>按锁安装；每个阻断门先跑干净正例，再在临时夹具验证对应反例确实失败。</li>
+                <li>验证 lint-only hook、本地 full-spec、托管 PR workflow、必需检查归属和 clean clone，然后才进入 feature-ready。</li>
+              </ol>
+              <p>各栈负例覆盖 React hook/Tailwind 顺序/JSX a11y/TS 类型、Node import 与 Vitest、Python Ruff/mypy/pytest/uv 锁漏洞/安装包 license、Markdown 规则、ShellCheck/shfmt/bats、复杂度与体积、Trivy dummy secret/license/misconfiguration/SBOM，以及缺失产物。每个候选必须用上游 CLI 正例/负例证明；服务型漏洞负例无法安全搭建时标为未验证。</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>存量项目：先审计与保留，再分阶段清债</summary>
+            <div class="details-body">
+              <ol>
+                <li>只读检查真实脚本、配置、覆盖路径、工作树、hooks、CI、锁与近期失败；跑原有入口，记录命令、耗时和结果。</li>
+                <li>逐项分类为保留、缺失、损坏、重复、过时、冲突、不适用或未知；显示 exclusions 与托管门禁的区别。</li>
+                <li>展示路径级变更计划并保留有效工具、结构和本地编辑；owner 批准后应用最小 adapter。</li>
+                <li>每个旧债使用精确 finding、负责 owner、补偿检查与复查日期；新问题或指标恶化立即失败。修完后删除对应旧债记录。</li>
+              </ol>
+              <p>new project 只有全净状态才进入 feature-ready；legacy 只有上游工具原生 baseline/suppression 可保留负例语义时才可能带已批准旧债就绪。Rill 不比较原始报告；无原生 debt 机制时保持 blocked，直到债务清除。</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>CLI/MCP 契约与 quality-ready 转换</summary>
+            <div class="details-body">
+              <p>同一接口计划由 <code>just quality profile|audit|conflicts|debt|plan|setup|run|status|reconcile|readiness --root …</code> 和同名结构化 MCP tools 调用。profile/audit/status/conflicts/debt 查询/plan/reconcile 默认只读；setup 只在 host native approval 后写入。每个结果含 profile/release digest、revision、coverage、gate states、conflicts、debt、命令/退出/时长、外部依赖和下一步。</p>
+              <p>转换顺序：<code>unprofiled → profiled → audited → design-approved → planned → configured → local-verified → hosted-verified → quality-ready</code>。冲突、旧计划、失败门禁或未验证外部条件都阻止就绪；源码、锁、配置、例外或 merge-base 变化使相关证据失效。</p>
+              <p>设计选择只经 host 原生输入/批准并回读 task source 后成为正式状态。HTML 摘要不是任务事实，不触发工具、不执行修改。</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section aria-labelledby="handoff-heading">
+        <div class="section-title">
+          <p class="eyebrow">手动交回聊天 · 不自动批准</p>
+          <h2 id="handoff-heading">准备一段可复制的决定摘要</h2>
+          <p class="muted">选择在上方变化时，摘要会在页面内更新。确认内容后复制并粘贴到当前任务聊天；之后仍需通过 host 原生控件完成正式决定。</p>
+        </div>
+        <form id="handoff-form" class="copy-panel" aria-labelledby="handoff-heading">
+          <label for="decision-summary"><strong>将要复制的摘要</strong></label>
+          <textarea id="decision-summary" name="decision-summary" readonly aria-describedby="copy-help"></textarea>
+          <div class="copy-actions">
+            <button type="submit">复制摘要到剪贴板</button>
+            <p class="copy-note" id="copy-help">如果本地文件页面无法访问剪贴板，文本会选中；请按 Ctrl+C / ⌘C，再切回任务聊天粘贴。页面不会替你发送。</p>
+          </div>
+          <p class="helper" id="copy-status" role="status" aria-live="polite">还没有生成或复制决定。</p>
+        </form>
+      </section>
+
+      <footer>
+        <p>设计源：<a href="https://github.com/hughzadora/Rill/issues/19">#19 质量标准任务</a> · <a href="DESIGN.md">完整方案</a> · <a href="research/quality-standard-baseline-2026-11-19.md">基线报告</a></p>
+        <p>当前状态：路线 A 与工具集已选，设计批准待正式确认。没有 owner decision receipt、产品实现、CI 修改或外部写入。</p>
+      </footer>
+    </main>
+
+    <script>
+      const decisionForm = document.querySelector("#decision-form");
+      const handoffForm = document.querySelector("#handoff-form");
+      const adjustment = document.querySelector("#adjustment");
+      const choiceStatus = document.querySelector("#choice-status");
+      const summary = document.querySelector("#decision-summary");
+      const copyStatus = document.querySelector("#copy-status");
+      let decision = "review";
+
+      function selectedTools() {
+        return Array.from(decisionForm.querySelectorAll('input[name="tools"]:checked'))
+          .map((input) => input.value);
+      }
+
+      function makeSummary() {
+        const selected = selectedTools();
+        const note = adjustment.value.trim();
+        const intent = decision === "approve"
+          ? "准备批准设计（仍需在任务聊天/host 原生控件正式确认）"
+          : decision === "changes"
+            ? "请求修改；请按下方摘要讨论并修订设计"
+            : "设计评审中；尚未形成批准决定";
+        return [
+          "#19 质量标准设计反馈（网页只准备摘要，不记录决定）",
+          `评审意图：${intent}`,
+          "PR 基线｜已选 A：从 main 独立交付；只提取必要的已提交 substrate，增加等价/契约测试，不带 #18 WIP。",
+          "首批画像｜React + Tailwind frontend；TypeScript/Node.js backend；Python；Markdown；shell。",
+          "版本策略｜mise.toml 声明 latest，mise.lock 固定解析版本；首次 mise lock，刻意升级 mise lock --bump，本地/CI mise install --locked；保留原生包锁与 Rill 标准 SemVer + digest pin。",
+          `保留的上游候选｜${selected.length ? selected.join("；") : "未选；请讨论候选范围"}`,
+          `修改/条件｜${note || "无补充"}`,
+          "正式决定须由负责人在任务聊天/host 原生控件确认并回读；网页未批准、未发送、未修改任何文件。",
+        ].join("\n");
+      }
+
+      function updateSelection() {
+        const tools = selectedTools();
+        const intent = decision === "approve"
+          ? "已准备批准设计的摘要；网页本身不构成正式批准。"
+          : decision === "changes"
+            ? "已准备请求修改的摘要；请检查下方内容。"
+            : "路线 A 与首批画像已选；请检查工具候选。";
+        choiceStatus.textContent = `${intent} 保留 ${tools.length} 个上游候选。`;
+        summary.value = makeSummary();
+        copyStatus.textContent = "摘要已更新；尚未复制或发送。";
+      }
+
+      decisionForm.addEventListener("change", updateSelection);
+      adjustment.addEventListener("input", updateSelection);
+      document.querySelector("#approve-design").addEventListener("click", () => {
+        decision = "approve";
+        updateSelection();
+      });
+      document.querySelector("#request-changes").addEventListener("click", () => {
+        decision = "changes";
+        updateSelection();
+      });
+      updateSelection();
+
+      handoffForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        summary.value = makeSummary();
+
+        try {
+          if (!navigator.clipboard?.writeText) {
+            throw new Error("Clipboard API unavailable");
+          }
+          await navigator.clipboard.writeText(summary.value);
+          copyStatus.textContent = "已复制到剪贴板。请切回当前任务聊天粘贴；这不是批准。";
+        } catch {
+          summary.focus();
+          summary.select();
+          copyStatus.textContent = "浏览器未允许自动复制；摘要已选中。按 Ctrl+C / ⌘C，再切回任务聊天粘贴。";
+        }
+      });
+    </script>
+  </body>
+</html>
