@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { chmodSync, lstatSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { atomicJson, atomicText } from "./atomic-files.ts";
 import {
   type DistributionPlan,
   type DistributionPlanTarget,
   distributionPlanId,
 } from "./distribution-plan.ts";
 import { checkedProjectPath } from "./project-path-boundary.ts";
-import { atomicJson, atomicText } from "./task-context.ts";
 
 export type JournalTargetState =
   | "pending"

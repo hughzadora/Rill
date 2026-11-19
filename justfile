@@ -50,7 +50,8 @@ stage-plugin destination:
     cp -R tools schemas skills hooks "$target/"
     cp package.json pnpm-lock.yaml .mcp.json "$target/"
     cp .codex-plugin/plugin.json "$target/.codex-plugin/"
-    pnpm --dir "$target" install --prod --offline --frozen-lockfile --ignore-scripts --node-linker=hoisted
+    store_dir=$(pnpm store path)
+    pnpm --dir "$target" install --prod --offline --frozen-lockfile --ignore-scripts --node-linker=hoisted --store-dir "$store_dir" --package-import-method=copy
 
 [positional-arguments]
 repair-check problem_key hypothesis +command:
@@ -95,3 +96,12 @@ delivery-audit bundle:
 [positional-arguments]
 delivery-retract receipt_id criterion_ids reason:
     node tools/delivery-evidence.ts retract "$@"
+
+# The repository hosts one native plugin and an independently testable quality package.
+workspace-install:
+    MISE_QUIET=1 mise install --locked node pnpm just python uv aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks cargo:tokei aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard
+    HUSKY=0 MISE_QUIET=1 mise exec --locked pnpm -- pnpm install --frozen-lockfile
+    cd packages/quality && just install
+
+workspace-ci: full-spec-ci
+    cd packages/quality && just full-spec-ci

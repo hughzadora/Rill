@@ -163,8 +163,10 @@ The independently developed quality-profile candidate was merged into
 Its [quality-design provenance](https://github.com/hughzadora/Rill/pull/21)
 and [Issue #19](https://github.com/hughzadora/Rill/issues/19) remain readable
 in GitHub history rather than as a second, long-lived implementation plan.
-The QUALITY_STANDARD.md on main describes the candidate and its measured
-gaps. Its green hosted CI does not certify Rill #18 integration.
+The original quality candidate's design and audit history remain in PR #20,
+while current quality-gate implementation lives in the native pnpm Workspace
+under [packages/quality](packages/quality/README.md). Its earlier green
+hosted CI does not certify Rill #18 integration.
 
 Active engineering and acceptance are consolidated in
 [Issue #18](https://github.com/hughzadora/Rill/issues/18).

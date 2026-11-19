@@ -10,13 +10,13 @@ import {
   rmSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { atomicText } from "./atomic-files.ts";
 import {
   isStrictSemVer,
   type LoadedStandardRelease,
   loadRelease,
   validateStandardRelease,
 } from "./standard-release.ts";
-import { atomicText } from "./task-context.ts";
 
 const fixedSources = [
   {

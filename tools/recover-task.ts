@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { atomicJson } from "./atomic-files.ts";
 import { workingTree } from "./ci-evidence.ts";
 import { taskStatus } from "./control-event.ts";
 import { readNativeHistory } from "./native-history.ts";
 import { saveRecoveryReport } from "./recovery-state.ts";
-import { atomicJson, projectContext } from "./task-context.ts";
+import { projectContext } from "./task-context.ts";
 
 const RECOVERY_RESULT_BUDGET_BYTES = 8192;
 const SUMMARY_SAMPLE_COUNT = 4;

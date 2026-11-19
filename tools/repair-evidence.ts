@@ -12,10 +12,10 @@ import {
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import * as z from "zod/v4";
+import { atomicJson } from "./atomic-files.ts";
 import { environment, workingTree } from "./ci-evidence.ts";
 import {
   activeTask,
-  atomicJson,
   cachedTask,
   type ProjectContext,
   projectContext,

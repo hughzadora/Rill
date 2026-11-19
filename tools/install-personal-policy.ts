@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { atomicText } from "./task-context.ts";
+import { atomicText } from "./atomic-files.ts";
 
 const start = "<!-- rill:shared-entry:start -->";
 const end = "<!-- rill:shared-entry:end -->";

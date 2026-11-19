@@ -4,7 +4,8 @@ import { lstatSync, readFileSync, readlinkSync } from "node:fs";
 import { arch, platform, release } from "node:os";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { atomicJson, repositoryRevision } from "./task-context.ts";
+import { atomicJson } from "./atomic-files.ts";
+import { repositoryRevision } from "./task-context.ts";
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" });

@@ -33,7 +33,7 @@ test("CLI termination stops its actual child and persists unknown outcome instea
         "--",
         process.execPath,
         "-e",
-        "require('node:fs').writeFileSync('.git/child-ready.json',JSON.stringify({pid:process.pid}));setInterval(()=>{},1000)",
+        "const fs=require('node:fs');const temp='.git/child-ready.json.tmp';fs.writeFileSync(temp,JSON.stringify({pid:process.pid}));fs.renameSync(temp,'.git/child-ready.json');setInterval(()=>{},1000)",
       ],
       {
         cwd: fixture.root,

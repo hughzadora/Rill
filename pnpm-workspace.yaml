@@ -1,0 +1,6 @@
+packages:
+  - packages/quality
+  - packages/quality/quality-fixtures/web
+
+allowBuilds:
+  "esbuild@0.28.2": true

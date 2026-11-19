@@ -155,8 +155,7 @@ function sessionStartContext(
     },
   });
   if (JSON.stringify(render()).length >= limit && policyPath)
-    preferences =
-      "Owner working agreements: read the installed policy at " + policyPath;
+    preferences = `Owner working agreements: read the installed policy at ${policyPath}`;
   if (JSON.stringify(render()).length >= limit) facts.taskBody = null;
   if (JSON.stringify(render()).length >= limit) {
     facts.recordIds = [];

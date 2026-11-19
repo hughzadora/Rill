@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { atomicText } from "./task-context.ts";
+import { atomicText } from "./atomic-files.ts";
 
 // Native config/value/write preserves TOML, but only accepts its user layer.
 // Edit a staged user layer, then compare-and-replace the requested project file.

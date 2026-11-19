@@ -1,33 +1,29 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
-  closeSync,
   existsSync,
-  fsyncSync,
   mkdirSync,
-  openSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { Ajv } from "ajv";
 import formats from "ajv-formats";
 import recordSchema from "../schemas/task-record.schema.json" with {
   type: "json",
 };
+import { atomicJson } from "./atomic-files.ts";
 import type {
   ProjectEnrollmentV2,
   ProjectStandardException,
   ProjectToolBinding,
-} from "./project-enrollment.ts";
+} from "./project-contract.ts";
 import {
   isSchema1Enrollment,
   validateProjectEnrollment,
-} from "./project-enrollment.ts";
+} from "./project-contract.ts";
 
 export interface TaskRecord {
   schemaVersion: 1;
@@ -208,29 +204,6 @@ export function taskIdentity(url: string, repository: string) {
     endpoint: `repos/${repository}/issues/${number}`,
     number,
   };
-}
-
-export function atomicJson(path: string, value: unknown) {
-  atomicText(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-export function atomicText(path: string, value: string) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  const file = openSync(temporary, "wx", 0o600);
-  try {
-    writeFileSync(file, value);
-    fsyncSync(file);
-  } finally {
-    closeSync(file);
-  }
-  renameSync(temporary, path);
-  const directory = openSync(dirname(path), "r");
-  try {
-    fsyncSync(directory);
-  } finally {
-    closeSync(directory);
-  }
 }
 
 async function locked<T>(

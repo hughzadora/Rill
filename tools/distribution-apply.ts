@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { chmodSync, lstatSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { atomicText } from "./atomic-files.ts";
 import {
   type DistributionPlan,
   type DistributionPlanTarget,
@@ -19,7 +20,6 @@ import {
 } from "./distribution-recovery.ts";
 import { readGitFacts } from "./project-inventory.ts";
 import { checkedProjectPath } from "./project-path-boundary.ts";
-import { atomicText } from "./task-context.ts";
 
 export interface ApplyTargetResult {
   name: string;

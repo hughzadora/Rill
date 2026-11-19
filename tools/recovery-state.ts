@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod/v4";
-import { activeTask, atomicJson, type ProjectContext } from "./task-context.ts";
+import { atomicJson } from "./atomic-files.ts";
+import { activeTask, type ProjectContext } from "./task-context.ts";
 
 const reportSchema = z.object({
   schemaVersion: z.literal(1),

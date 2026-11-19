@@ -12,5 +12,8 @@
     "rules": {
       "preset": "recommended"
     }
+  },
+  "files": {
+    "includes": ["**", "!!packages/quality", "!!.mise"]
   }
 }

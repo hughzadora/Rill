@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import * as z from "zod/v4";
+import { atomicJson } from "./atomic-files.ts";
 import {
   blocked,
   enrolled,
@@ -14,12 +15,7 @@ import { deliveryTarget, isDeliveryTool } from "./delivery-evidence.ts";
 import { recoverTask } from "./recover-task.ts";
 import { saveRecoveryGap, saveRecoveryReport } from "./recovery-state.ts";
 import type { PackagedRuntime } from "./standard-runtime.ts";
-import {
-  activeTask,
-  atomicJson,
-  projectContext,
-  syncTask,
-} from "./task-context.ts";
+import { activeTask, projectContext, syncTask } from "./task-context.ts";
 
 const checkpointSchema = z.object({
   schemaVersion: z.literal(1),
