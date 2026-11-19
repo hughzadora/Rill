@@ -595,7 +595,25 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(workflow, /uv build --no-build-isolation/);
   assert.match(workflow, /pip-licenses --format=json/);
   assert.match(workflow, /--fail-on "GPL;AGPL/);
+  assert.doesNotMatch(workflow, /pip-licenses --partial-match/);
   assert.match(workflow, /rill-sbom\.cdx\.json/);
+  const supplyChainJob = workflow.slice(workflow.indexOf("  security:"));
+  assert.ok(supplyChainJob.indexOf("Scan committed Git history") >= 0);
+  assert.ok(supplyChainJob.indexOf("Scan original source and lockfiles") >= 0);
+  assert.ok(
+    supplyChainJob.indexOf("Scan original source and lockfiles") <
+      supplyChainJob.indexOf("Install locked Python dependencies"),
+  );
+  assert.ok(
+    supplyChainJob.indexOf("actions/upload-artifact@") <
+      supplyChainJob.indexOf("Block prohibited Python license families"),
+  );
+  assert.ok(
+    supplyChainJob.indexOf("actions/upload-artifact@") <
+      supplyChainJob.indexOf(
+        "Block forbidden or restricted license classifications",
+      ),
+  );
 
   const shellSourceStep = workflow.match(
     / {6}- name: Shell source static analysis\n {8}shell: bash\n {8}run: \|\n([\s\S]*?)(?= {6}- name: Bats real CLI behavior)/,
@@ -660,6 +678,19 @@ test("independent Python/Shell project executes actual source gates and rejects 
   const invalidShell = runShellGate({ mustFail: true });
   assert.match(invalidShell, /error|syntax|SC1/i);
   writeFileSync(extensionless, originalExtensionless);
+  runShellGate();
+
+  // The interpreter token, not a later shebang argument, determines
+  // whether an extensionless file is Bash/sh. Tabs are legal separators.
+  const tabbed = join(project, "scripts/tabbed");
+  const notShell = join(project, "scripts/non-shell");
+  writeFileSync(tabbed, "#!/bin/bash\t-e\nprintf 'tabbed ready\\n'\n");
+  writeFileSync(notShell, "#!/usr/bin/python3 /bin/sh\nprint('not shell')\n");
+  runShellGate();
+  writeFileSync(tabbed, "#!/bin/bash\t-e\nif [; then\n");
+  const rejectedTabbed = runShellGate({ mustFail: true });
+  assert.match(rejectedTabbed, /error|syntax|SC1/i);
+  writeFileSync(tabbed, "#!/bin/bash\t-e\nprintf 'tabbed ready\\n'\n");
   runShellGate();
   rmSync(script);
   runShellGate();
@@ -757,6 +788,15 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   assert.match(workflow, /^ {2}merge_group:/m);
   assert.match(workflow, /rill-sbom\.cdx\.json/);
   assert.match(workflow, /--scanners license --include-dev-deps/);
+  const security = workflow.slice(workflow.indexOf("  security:"));
+  assert.ok(
+    security.indexOf("Scan original source and lockfiles") <
+      security.indexOf("Install locked JavaScript dependencies"),
+  );
+  assert.ok(
+    security.indexOf("actions/upload-artifact@") <
+      security.indexOf("Block forbidden or restricted license classifications"),
+  );
   assert.match(
     workflow,
     /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/,

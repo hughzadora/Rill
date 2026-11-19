@@ -85,16 +85,20 @@ both `.sh` files and extensionless Bash/sh shebang entry points using
 the same source inventory; Bats verifies actual CLI behavior. A missing
 shell source fails.
 
-Every project runs pinned Gitleaks and Trivy vulnerability, secret and
-configuration checks. The security job installs the real locked
-JavaScript/Python dependencies before collecting license data; Trivy
+Every project runs pinned Gitleaks and Trivy against the **original
+checkout and lockfiles before dependency installation**. The security
+job then installs the real locked JavaScript/Python dependencies for
+license classification; Trivy
 blocks forbidden and restricted license classes and records all classes.
 Python uses `pip-licenses` from its locked development dependencies to
 record installed package licenses and block a conservative set of
 prohibited GPL/AGPL families. CycloneDX SBOM and license inventories are
-uploaded as short-lived GitHub Actions artifacts for review. Unknown
-license classes and incomplete classification remain explicit manual
-review conditions, **not** automatically approved licenses.
+uploaded as short-lived GitHub Actions artifacts **before** license
+policy blocks the PR, so a violation retains its evidence. Python
+`pip-licenses` uses exact reported SPDX/legacy identifiers, not
+substring matching that accidentally rejects LGPL as GPL. Unknown
+and compound license expressions and incomplete classifications
+remain explicit manual review conditions, **not** automatic approval.
 
 Project-specific business paths, test fixtures, failure cases, coverage
 thresholds and runtime startup health must be established and reviewed

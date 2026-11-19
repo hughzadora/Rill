@@ -87,32 +87,36 @@ const workspace = async () => {
     execute("git", ["rev-parse", "HEAD"]),
     execute("git", ["status", "--porcelain", "--untracked-files=all"]),
   ]);
-  const [prs, runs] = await Promise.allSettled([
-    execute("gh", [
-      "pr",
-      "list",
-      "--head",
-      branch,
-      "--state",
-      "all",
-      "--limit",
-      "10",
-      "--json",
-      "number,title,state,isDraft,url,headRefOid,updatedAt",
-    ]),
-    execute("gh", [
-      "run",
-      "list",
-      "--branch",
-      branch,
-      "--limit",
-      "8",
-      "--json",
-      "databaseId,name,status,conclusion,headSha,url,createdAt",
-    ]),
-  ]);
+  // GitHub Actions checks out a detached HEAD. Do not query an empty branch
+  // as if it identified a particular PR or attribute unrelated CI runs.
+  const [prs, runs] = branch
+    ? await Promise.allSettled([
+        execute("gh", [
+          "pr",
+          "list",
+          "--head",
+          branch,
+          "--state",
+          "all",
+          "--limit",
+          "10",
+          "--json",
+          "number,title,state,isDraft,url,headRefOid,updatedAt",
+        ]),
+        execute("gh", [
+          "run",
+          "list",
+          "--branch",
+          branch,
+          "--limit",
+          "8",
+          "--json",
+          "databaseId,name,status,conclusion,headSha,url,createdAt",
+        ]),
+      ])
+    : [{ status: "rejected" }, { status: "rejected" }];
   return {
-    branch,
+    branch: branch || null,
     sha,
     dirty: Boolean(changes),
     changedPaths: changes.split("\n").filter(Boolean).length,

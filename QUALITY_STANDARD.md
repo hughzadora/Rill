@@ -98,6 +98,15 @@ profile also requires locked `pip-licenses`. Unknown classifications
 remain for independent human assessment; green CI does not grant an
 unrecorded license exception.
 
+A second independent Codex review of `8ac0365` found four further
+risks: original-source scans were after install, GPL substring matching
+rejected LGPL, failed license checks prevented artifact upload, and a
+shebang regex misidentified extensionless scripts. The corrective
+candidate runs source scans **before** installation, publishes reports
+before license policy exits, uses exact license identifiers, and
+parses the shebang interpreter token with Bash. The hosted Actions
+branch-check assumption was also corrected for detached HEAD.
+
 **Still open under #32:** hosted checks in an actual owner's new
 and existing external product repositories (rather than isolated
 test repositories), production startup/resilience, approved standard

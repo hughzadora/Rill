@@ -98,3 +98,14 @@ The follow-up also excludes generated Python `.venv` and build
 artifacts when copying fixtures; otherwise the harness may report
 coverage on the wrong environment. Final acceptance is bound to the
 latest commit, not the reviewed ancestor.
+
+## Hosted CI / second review follow-up
+
+Draft PR #33 initially failed hosted `Quality` at exact SHA
+`8ac0365`: Actions checked out detached HEAD, whereas the preview
+contract test incorrectly assumed a named worktree branch. Preserve
+the true null branch and keep PR/check status explicitly unavailable,
+not a guessed branch. The next hosted run must pass on the new exact SHA.
+A second independent Codex review reported four more security/source
+inventory issues. Read the current changes and actual CI evidence,
+not the earlier green local run, before treating review as complete.

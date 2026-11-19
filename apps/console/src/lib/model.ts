@@ -61,7 +61,7 @@ export interface CheckRun {
 }
 
 export interface Workspace {
-  branch: string;
+  branch: string | null;
   sha: string;
   dirty: boolean;
   changedPaths: number;

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   chmod,
   mkdir,
@@ -93,7 +93,12 @@ after(async () => {
 
 test("real server binds GitHub issues, exact Git revision and quality metadata", async () => {
   const response = await fetch(origin + "/api/dashboard");
-  assert.equal(response.status, 200);
+  const currentBranch = execFileSync("git", ["branch", "--show-current"], {
+    cwd: repository,
+    encoding: "utf8",
+  }).trim();
+  const detached = !currentBranch;
+  assert.equal(response.status, detached ? 206 : 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   const payload = await response.json();
@@ -109,10 +114,15 @@ test("real server binds GitHub issues, exact Git revision and quality metadata",
     true,
   );
   assert.match(payload.workspace.sha, /^[0-9a-f]{40}$/);
-  assert.equal(payload.workspace.branch, "codex/native-feasibility");
-  assert.equal(payload.workspace.prs.length, 0);
-  assert.equal(payload.workspace.runs.length, 0);
-  assert.deepEqual(payload.errors, []);
+  assert.equal(payload.workspace.branch, currentBranch || null);
+  assert.deepEqual(payload.workspace.prs, detached ? null : []);
+  assert.deepEqual(payload.workspace.runs, detached ? null : []);
+  assert.deepEqual(
+    payload.errors,
+    detached
+      ? ["GitHub PR state unavailable", "GitHub CI run state unavailable"]
+      : [],
+  );
   assert.equal(typeof payload.workspace.changedPaths, "number");
 });
 

@@ -90,3 +90,8 @@ as short-lived GitHub Actions artifacts. Trivy cannot determine uv.lock
 package licenses by reading that file alone: the Python license inventory
 uses the locked `pip-licenses` tool on installed project dependencies.
 Unknown licenses require explicit human review, never a silent PASS.
+Source and lockfile scans occur before installation; generated license
+and SBOM reports are uploaded before a blocking classification check.
+Compound SPDX expressions and unsupported classifications need
+recorded human review; the exact-match GPL/AGPL block cannot certify
+all license expressions automatically.
