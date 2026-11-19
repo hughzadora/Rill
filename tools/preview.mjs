@@ -186,6 +186,84 @@ const json = (response, status, value) =>
 const unavailable = (response) =>
   json(response, 503, { error: "Authoritative source unavailable" });
 
+const serveDashboard = async (response) => {
+  const [issueResult, workspaceResult, quality] = await Promise.allSettled([
+    github(),
+    workspace(),
+    readFile(join(root, "standards/quality-gates.json"), "utf8"),
+  ]);
+  const issueData =
+    issueResult.status === "fulfilled" ? issueResult.value : null;
+  const worktree =
+    workspaceResult.status === "fulfilled" ? workspaceResult.value : null;
+  const errors = [
+    ...(issueData ? [] : ["GitHub issue tree unavailable"]),
+    ...(worktree ? [] : ["Local Git state unavailable"]),
+    ...(worktree?.prs === null ? ["GitHub PR state unavailable"] : []),
+    ...(worktree?.runs === null ? ["GitHub CI run state unavailable"] : []),
+    ...(quality.status === "fulfilled"
+      ? []
+      : ["Versioned quality standard unavailable"]),
+  ];
+  json(response, errors.length ? 206 : 200, {
+    source: "github-graphql-and-local-git",
+    fetchedAt: new Date().toISOString(),
+    issueData,
+    workspace: worktree,
+    quality: quality.status === "fulfilled" ? JSON.parse(quality.value) : null,
+    documents: documents.map(([title, path]) => ({ title, path })),
+    errors,
+  });
+};
+
+const serveDocument = async (response, pathname) => {
+  if (!documents.some((item) => item[1] === pathname)) {
+    send(response, 404, "text/plain", "Unknown document");
+    return;
+  }
+  send(
+    response,
+    200,
+    "text/plain; charset=utf-8",
+    await readFile(await confinedPath(root, join(root, pathname)), "utf8"),
+  );
+};
+
+const contentTypes = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon",
+};
+
+const serveStatic = async (response, pathname) => {
+  const target = resolve(
+    buildRoot,
+    "." + (pathname === "/" ? "/index.html" : pathname),
+  );
+  const within = relative(buildRoot, target);
+  if (
+    within === ".." ||
+    within.startsWith(".." + sep) ||
+    isAbsolute(within) ||
+    !Object.hasOwn(contentTypes, extname(target))
+  ) {
+    send(response, 404, "text/plain", "Not found");
+    return;
+  }
+  const safeTarget = await confinedPath(buildRoot, target);
+  if (!(await stat(safeTarget)).isFile()) throw new Error("Not a file");
+  send(
+    response,
+    200,
+    contentTypes[extname(target)] + "; charset=utf-8",
+    await readFile(safeTarget),
+  );
+};
+
 createServer(async (request, response) => {
   if (request.headers.host !== "127.0.0.1:" + port) {
     send(response, 403, "text/plain", "Unexpected host");
@@ -195,37 +273,11 @@ createServer(async (request, response) => {
     send(response, 405, "text/plain", "Read-only preview");
     return;
   }
-  const url = new URL(request.url ?? "/", "http://127.0.0.1:" + port);
+  let url;
   try {
+    url = new URL(request.url ?? "/", "http://127.0.0.1:" + port);
     if (url.pathname === "/api/dashboard") {
-      const [issueResult, workspaceResult, quality] = await Promise.allSettled([
-        github(),
-        workspace(),
-        readFile(join(root, "standards/quality-gates.json"), "utf8"),
-      ]);
-      const issueData =
-        issueResult.status === "fulfilled" ? issueResult.value : null;
-      const worktree =
-        workspaceResult.status === "fulfilled" ? workspaceResult.value : null;
-      const errors = [
-        ...(issueData ? [] : ["GitHub issue tree unavailable"]),
-        ...(worktree ? [] : ["Local Git state unavailable"]),
-        ...(worktree?.prs === null ? ["GitHub PR state unavailable"] : []),
-        ...(worktree?.runs === null ? ["GitHub CI run state unavailable"] : []),
-        ...(quality.status === "fulfilled"
-          ? []
-          : ["Versioned quality standard unavailable"]),
-      ];
-      json(response, errors.length ? 206 : 200, {
-        source: "github-graphql-and-local-git",
-        fetchedAt: new Date().toISOString(),
-        issueData,
-        workspace: worktree,
-        quality:
-          quality.status === "fulfilled" ? JSON.parse(quality.value) : null,
-        documents: documents.map(([title, path]) => ({ title, path })),
-        errors,
-      });
+      await serveDashboard(response);
       return;
     }
     if (url.pathname === "/api/progress") {
@@ -237,52 +289,12 @@ createServer(async (request, response) => {
       return;
     }
     if (url.pathname === "/api/document") {
-      const path = url.searchParams.get("path");
-      if (!documents.some((item) => item[1] === path)) {
-        send(response, 404, "text/plain", "Unknown document");
-        return;
-      }
-      send(
-        response,
-        200,
-        "text/plain; charset=utf-8",
-        await readFile(await confinedPath(root, join(root, path)), "utf8"),
-      );
+      await serveDocument(response, url.searchParams.get("path"));
       return;
     }
-    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-    const target = resolve(buildRoot, "." + pathname);
-    const within = relative(buildRoot, target);
-    if (
-      within === ".." ||
-      within.startsWith(".." + sep) ||
-      isAbsolute(within) ||
-      ![".html", ".js", ".css", ".svg", ".png", ".woff2", ".ico"].includes(
-        extname(target),
-      )
-    ) {
-      send(response, 404, "text/plain", "Not found");
-      return;
-    }
-    const safeTarget = await confinedPath(buildRoot, target);
-    if (!(await stat(safeTarget)).isFile()) throw new Error("Not a file");
-    const contentTypes = {
-      ".html": "text/html",
-      ".js": "text/javascript",
-      ".css": "text/css",
-      ".svg": "image/svg+xml",
-      ".png": "image/png",
-      ".woff2": "font/woff2",
-      ".ico": "image/x-icon",
-    };
-    send(
-      response,
-      200,
-      contentTypes[extname(target)] + "; charset=utf-8",
-      await readFile(safeTarget),
-    );
+    await serveStatic(response, url.pathname);
   } catch {
-    if (url.pathname.startsWith("/api/")) unavailable(response);
+    if (url?.pathname.startsWith("/api/")) unavailable(response);
     else
       send(response, 404, "text/plain", "Not found (build the console first)");
   }

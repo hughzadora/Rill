@@ -10,7 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { request } from "node:http";
-import { createServer } from "node:net";
+import { connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { after, before, test } from "node:test";
@@ -165,6 +165,32 @@ test("HTML endpoint is isolated from repository source and refuses writes", asyn
     outgoing.end();
   });
   assert.equal(invalidHost, 403);
+});
+
+test("malformed absolute request target cannot terminate the preview server", async () => {
+  const port = Number(new URL(origin).port);
+  const reply = await new Promise((resolveReply, reject) => {
+    const socket = connect(port, "127.0.0.1");
+    let content = "";
+    socket.setTimeout(3000, () =>
+      socket.destroy(new Error("Raw HTTP timeout")),
+    );
+    socket.once("connect", () => {
+      socket.write(
+        "GET http://[ HTTP/1.1\r\nHost: 127.0.0.1:" +
+          port +
+          "\r\nConnection: close\r\n\r\n",
+      );
+    });
+    socket.on("data", (data) => {
+      content += data.toString();
+    });
+    socket.once("end", () => resolveReply(content));
+    socket.once("error", reject);
+  });
+  assert.match(reply, /^HTTP\/1\.1 (400|404)/);
+  assert.equal((await fetch(origin + "/")).status, 200);
+  assert.equal((await fetch(origin + "/api/dashboard")).status, 200);
 });
 
 test("static assets cannot follow symlinks outside the built console", async () => {

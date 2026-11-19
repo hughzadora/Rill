@@ -14,6 +14,8 @@ workspace-install:
 # Full hosted PR quality gate. Native user acceptance is a separate check.
 workspace-ci:
     pnpm exec biome check .
+    MISE_QUIET=1 mise exec --locked aqua:oxc-project/oxc/oxlint -- oxlint -D correctness --deny-warnings apps/console/src tools/preview.mjs
+    MISE_QUIET=1 mise exec --locked pypi:lizard -- lizard -l typescript -l tsx -l javascript -i 0 apps/console/src tools/preview.mjs
     cd packages/quality && just full-spec-ci
     pnpm --dir apps/console run typecheck
     pnpm --dir apps/console run test:coverage

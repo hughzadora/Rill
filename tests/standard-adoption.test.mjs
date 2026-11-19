@@ -112,7 +112,7 @@ const pinnedNodeDirectory = dirname(
 function executeGeneratedStep(workflow, label, cwd, options = {}) {
   const section = workflow.split("      - name: " + label + "\n")[1];
   assert.ok(section, "Missing generated step: " + label);
-  const body = section.split("\n      - name:")[0];
+  const body = section.split(/\n {6}- name:|\n {2}[a-z][\w-]*:/)[0];
   const multiline = body.match(/run: \|\n([\s\S]*)/);
   const singleLine = body.match(/run: (.+)/);
   assert.ok(multiline || singleLine, "No executable source gate: " + label);
@@ -644,6 +644,14 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   );
   rmSync(alternateModule);
   git(project, ["reset", "--", "src/complexity-failure.mts"]);
+  executeGeneratedStep(workflow, "Execute actual Node unit tests", project);
+  const nodeUnitFile = join(project, "tests/unit.test.ts");
+  const nodeUnitSource = readFileSync(nodeUnitFile, "utf8");
+  writeFileSync(nodeUnitFile, nodeUnitSource.replaceAll("test(", "test.skip("));
+  executeGeneratedStep(workflow, "Execute actual Node unit tests", project, {
+    mustFail: true,
+  });
+  writeFileSync(nodeUnitFile, nodeUnitSource);
   executeGeneratedStep(
     workflow,
     "Execute actual Node integration tests",
@@ -986,6 +994,34 @@ test("independent Python/Shell project executes actual source gates and rejects 
       ),
   );
 
+  executeGeneratedStep(workflow, "Python real integration", pythonRoot);
+  executeGeneratedStep(workflow, "Bats real CLI behavior", project);
+  const pythonIntegration = join(
+    pythonRoot,
+    "tests/integration/test_roundtrip.py",
+  );
+  const realIntegration = readFileSync(pythonIntegration, "utf8");
+  writeFileSync(
+    pythonIntegration,
+    'import pytest\\n\\n@pytest.mark.skip(reason="negative control")\\ndef test_skipped() -> None:\\n    assert True\\n'.replaceAll(
+      "\\n",
+      "\n",
+    ),
+  );
+  executeGeneratedStep(workflow, "Python real integration", pythonRoot, {
+    mustFail: true,
+  });
+  writeFileSync(pythonIntegration, realIntegration);
+  const realBats = readFileSync(bats, "utf8");
+  writeFileSync(
+    bats,
+    '#!/usr/bin/env bats\n\n@test "skipped" {\n  skip "negative control"\n}\n',
+  );
+  executeGeneratedStep(workflow, "Bats real CLI behavior", project, {
+    mustFail: true,
+  });
+  writeFileSync(bats, realBats);
+
   const shellSourceStep = workflow.match(
     / {6}- name: Shell source static analysis\n {8}shell: bash\n {8}run: \|\n([\s\S]*?)(?= {6}- name: Bats real CLI behavior)/,
   );
@@ -1063,6 +1099,12 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(rejectedTabbed, /error|syntax|SC1/i);
   writeFileSync(tabbed, "#!/bin/bash\t-e\nprintf 'tabbed ready\\n'\n");
   runShellGate();
+  const spaced = join(project, "scripts/spaced-shebang");
+  writeFileSync(spaced, "#! /bin/bash\necho valid\n");
+  runShellGate();
+  writeFileSync(spaced, "#! /bin/bash\nif [; then\n");
+  assert.match(runShellGate({ mustFail: true }), /error|syntax|SC1/i);
+  rmSync(spaced);
   rmSync(script);
   runShellGate();
   writeFileSync(script, originalShell);
@@ -1272,6 +1314,24 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     { mustFail: true },
   );
   rmSync(badReactSource);
+  executeGeneratedStep(
+    workflow,
+    "Execute actual React unit/component tests",
+    project,
+  );
+  const reactUnitFile = join(project, "src/Counter.test.tsx");
+  const reactUnitSource = readFileSync(reactUnitFile, "utf8");
+  writeFileSync(
+    reactUnitFile,
+    reactUnitSource.replaceAll("test(", "test.skip("),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute actual React unit/component tests",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(reactUnitFile, reactUnitSource);
   executeGeneratedStep(
     workflow,
     "Execute actual React integration tests",
