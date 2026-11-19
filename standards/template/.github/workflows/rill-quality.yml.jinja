@@ -304,12 +304,20 @@ jobs:
           done < "$inventory"
           test -n "${unit[0]:-}"
           for file in "${unit[@]}"; do
-            node --experimental-strip-types --test --test-reporter=tap "$file" > "$report"
-            grep -Eq '^# pass [1-9][0-9]*$' "$report"
-            if grep -Eq '^# Subtest: .*/[^/]+\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$' "$report"; then
-              printf 'No registered unit test case in %s\n' "$file" >&2
-              exit 1
-            fi
+            node --experimental-strip-types --test --test-reporter=junit "$file" > "$report"
+            python3 - "$report" "$file" <<'PYTEST'
+          from pathlib import Path
+          from xml.etree import ElementTree
+          import sys
+          root = ElementTree.parse(sys.argv[1]).getroot()
+          wrapper = str(Path(sys.argv[2]).resolve())
+          relative_file = sys.argv[2]
+          cases = root.findall(".//testcase")
+          if not any(case.get("name") not in (wrapper, relative_file) and
+                     not list(case.findall("failure")) and
+                     not list(case.findall("skipped")) for case in cases):
+              sys.exit("No passing registered unit test")
+          PYTEST
           done
       - name: Execute actual Node integration tests
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
@@ -333,12 +341,20 @@ jobs:
           done < "$inventory"
           test -n "${integration[0]:-}"
           for file in "${integration[@]}"; do
-            node --experimental-strip-types --test --test-reporter=tap "$file" > "$report"
-            grep -Eq '^# pass [1-9][0-9]*$' "$report"
-            if grep -Eq '^# Subtest: .*/[^/]+\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$' "$report"; then
-              printf 'No registered test case in %s\n' "$file" >&2
-              exit 1
-            fi
+            node --experimental-strip-types --test --test-reporter=junit "$file" > "$report"
+            python3 - "$report" "$file" <<'PYTEST'
+          from pathlib import Path
+          from xml.etree import ElementTree
+          import sys
+          root = ElementTree.parse(sys.argv[1]).getroot()
+          wrapper = str(Path(sys.argv[2]).resolve())
+          relative_file = sys.argv[2]
+          cases = root.findall(".//testcase")
+          if not any(case.get("name") not in (wrapper, relative_file) and
+                     not list(case.findall("failure")) and
+                     not list(case.findall("skipped")) for case in cases):
+              sys.exit("No passing registered integration test")
+          PYTEST
           done
 {% else %}
       - name: Execute actual Node unit tests
@@ -561,7 +577,7 @@ jobs:
           report=$(mktemp)
           trap 'rm -f "$report"' EXIT
           mise exec aqua:bats-core/bats-core@1.14.0 -- bats --tap [[ shell_tests | tojson ]] | tee "$report"
-          grep -E '^ok [0-9]+ ' "$report" | grep -Evi '#[ ]*(skip|todo)' >/dev/null
+          grep -E '^ok [0-9]+ ' "$report" | grep -Evi ' #[ ]*(skip|todo)( |$)' >/dev/null
 {% endif %}
   security:
     name: Source and supply-chain safety

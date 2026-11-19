@@ -652,6 +652,16 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     mustFail: true,
   });
   writeFileSync(nodeUnitFile, nodeUnitSource);
+  assert.match(nodeUnitSource, /test\("/);
+  writeFileSync(
+    nodeUnitFile,
+    nodeUnitSource.replace(
+      /test\("[^"]+"/,
+      'test("loads fixtures/parser.test.js"',
+    ),
+  );
+  executeGeneratedStep(workflow, "Execute actual Node unit tests", project);
+  writeFileSync(nodeUnitFile, nodeUnitSource);
   executeGeneratedStep(
     workflow,
     "Execute actual Node integration tests",
@@ -1020,6 +1030,11 @@ test("independent Python/Shell project executes actual source gates and rejects 
   executeGeneratedStep(workflow, "Bats real CLI behavior", project, {
     mustFail: true,
   });
+  writeFileSync(
+    bats,
+    '#!/usr/bin/env bats\n\n@test "prints # skipped items" {\n  run echo valid\n  [ "$status" -eq 0 ]\n}\n',
+  );
+  executeGeneratedStep(workflow, "Bats real CLI behavior", project);
   writeFileSync(bats, realBats);
 
   const shellSourceStep = workflow.match(
