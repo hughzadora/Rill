@@ -71,6 +71,10 @@
     .ticket-actions{display:flex;gap:8px;flex-wrap:wrap}
     .ticket-actions button{border:1px solid #d1ddd9;background:#fff;padding:8px 14px;border-radius:8px;color:#53686d;font-size:13px}
     .ticket-actions button[aria-pressed="true"]{background:#184a45;border-color:#184a45;color:#fff}
+    .syncbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 0 17px}
+    .syncbar output{font-size:13px;color:#405b60}
+    .syncbar button{padding:8px 14px;border:1px solid #b4d0c7;border-radius:8px;background:#e4f1ec;color:#195e52;font-size:13px;font-weight:650}
+    .syncbar button:disabled{cursor:wait;opacity:.65}
     .ticket-table{display:grid;background:#fff;border-radius:12px;border:1px solid #d4dfdc;overflow:hidden}
     .ticket{padding:18px 22px;display:grid;grid-template-columns:75px minmax(0,1fr) 110px 120px;gap:16px;align-items:center;border-bottom:1px solid #e4ebe9}
     .ticket:last-child{border-bottom:0}
@@ -103,10 +107,10 @@
       <a href="#tasks">开发任务</a>
       <a href="#proof">可核实的证据</a>
     </nav>
-    <div class="rail-note"><strong>真实状态来源</strong>GitHub Issues #22–#29<br>开发分支 codex/native-feasibility<br>本页为只读原型快照</div>
+    <div class="rail-note"><strong>真实状态来源</strong>GitHub 原生父子 Issue<br>开发分支 codex/native-feasibility<br>本页为只读原型，可刷新真实状态</div>
   </aside>
   <main class="workspace">
-    <div class="topline"><span>Rill vNext / 个人开发流程</span><span class="source">GitHub Issue #22 · 2026-11-19 快照</span></div>
+    <div class="topline"><span>Rill vNext / 个人开发流程</span><span class="source">GitHub Issue #22 · 只读进度</span></div>
     <header class="hero">
       <div><h1>你只负责判断结果。<br>Agent 负责把事情做成。</h1>
       <p>从想法到可验收的产品，工作状态和证据一眼看清。无需翻阅长篇开发日志；重要决定仍在 Codex 原生交互框完成。</p></div>
@@ -144,6 +148,7 @@
     </section>
     <section class="ticket-area" id="tasks" aria-labelledby="tasks-title">
       <div class="section-title"><h2 id="tasks-title">当前开发任务</h2><nav class="ticket-actions" aria-label="筛选任务"><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="owner" aria-pressed="false">面向用户</button><button type="button" data-filter="core" aria-pressed="false">底层重建</button><button type="button" data-filter="proof" aria-pressed="false">验证</button></nav></div>
+      <div class="syncbar"><output id="progress-status" aria-live="polite">2026-11-19 历史快照 · 尚未同步</output><button id="refresh-progress" type="button">刷新 GitHub 状态</button></div>
       <div class="ticket-table" id="ticket-list">
         <div class="ticket" data-category="core"><span class="ticket-id">#24</span><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/24">移除自建压缩恢复，改用原生连续性</a><span class="kind">底层重建</span><span class="state">OPEN</span></div>
         <div class="ticket" data-category="owner"><span class="ticket-id">#25</span><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/25">HTML 交互、进度和原生决策边界</a><span class="kind">用户体验</span><span class="state">OPEN</span></div>
@@ -159,11 +164,11 @@
       <div class="evidence-list">
         <article><h3>旧代码基线已保存</h3><p>提交 81bd8f4：上一轮合并与测试已保存，供清理前后对比。不能证明新架构通过验收。</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/commit/81bd8f4">查看原始提交</a></article>
         <article><h3>新开发任务已落到 GitHub</h3><p>#22 是唯一当前工程主任务；六个原生子任务明确区分实现与验证。永久 Bug 分类由 #23 负责。</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/22">打开 Issue 树</a></article>
-        <article><h3>本地工具存在，不等于完成验收</h3><p>已检测到 Google Chrome、agent-desktop 和 Modern Web Guidance；Playwright 与最终交互证据仍需实际执行。</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/27">查看工具验收要求</a></article>
+        <article><h3>本地工具存在，不等于完成验收</h3><p>已使用真实 Google Chrome 完成 3 项 E2E，并留有桌面、移动端截图；用户验收及跨项目验证尚未完成。</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/27">查看工具验收要求</a></article>
         <article><h3>后续仍需真实点击与独立审查</h3><p>截屏、测试日志与 PR CI 是参考证据。最终用户路径与新的上下文接续尚未在此候选上证明。</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/hughzadora/Rill/issues/29">查看最终验收任务</a></article>
       </div>
     </section>
-    <footer class="footer"><span>Rill vNext · 可交互原型，非授权界面</span><span>数据快照：2026-11-19 · 来源：GitHub Issue #22 / #23 / #24–#29</span></footer>
+    <footer class="footer"><span>Rill vNext · 可交互原型，非授权界面</span><span>初始快照：2026-11-19 · 刷新后读取 GitHub 原生 Issue 状态；状态不是验收结论</span></footer>
   </main>
 </div>
 <script>
@@ -207,19 +212,91 @@
       document.querySelector("#journey").scrollIntoView({behavior:"auto",block:"start"});
     });
   });
-  document.querySelectorAll("[data-filter]").forEach((button) => {
-    button.addEventListener("click", ()=> {
-      const selected = button.dataset.filter;
-      let visible = 0;
-      document.querySelectorAll("[data-filter]").forEach((item)=> { item.setAttribute("aria-pressed", String(item === button)); });
-      document.querySelectorAll(".ticket[data-category]").forEach((row)=> {
-        const show = selected === "all" || row.dataset.category === selected;
-        row.hidden = !show;
-        if (show) visible += 1;
-      });
-      document.querySelector("#ticket-empty").style.display = visible ? "none" : "block";
+  const ticketList = document.querySelector("#ticket-list");
+  let hasLiveData = false;
+  const status = document.querySelector("#progress-status");
+  const refreshButton = document.querySelector("#refresh-progress");
+  const categories = new Map(
+    Array.from(document.querySelectorAll(".ticket[data-category]"), (row) => [
+      Number(row.querySelector(".ticket-id").textContent.slice(1)),
+      row.dataset.category
+    ])
+  );
+  function applyTicketFilter(selected) {
+    let visible = 0;
+    document.querySelectorAll("[data-filter]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.filter === selected));
     });
+    document.querySelectorAll(".ticket[data-category]").forEach((row) => {
+      const show = selected === "all" || row.dataset.category === selected;
+      row.hidden = !show;
+      if (show) visible += 1;
+    });
+    document.querySelector("#ticket-empty").style.display = visible ? "none" : "block";
+  }
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => applyTicketFilter(button.dataset.filter));
   });
+  async function refreshProgress() {
+    refreshButton.disabled = true;
+    try {
+      const response = await fetch("/api/progress", { cache: "no-store" });
+      if (!response.ok) throw new Error("Issue data is unavailable");
+      const data = await response.json();
+      const items = data.parent?.subIssues?.nodes;
+      if (data.source !== "github-graphql" || !Array.isArray(items) || !data.fetchedAt) {
+        throw new Error("Issue data has an unexpected format");
+      }
+      if (!items.every((item) => Number.isSafeInteger(item.number) &&
+        typeof item.title === "string" && ["OPEN", "CLOSED"].includes(item.state) &&
+        item.url === "https://github.com/hughzadora/Rill/issues/" + item.number)) {
+        throw new Error("Issue metadata could not be verified");
+      }
+      const nodes = items.map((item) => {
+        const row = document.createElement("div");
+        row.className = "ticket";
+        row.dataset.category = categories.get(item.number) ?? "unclassified";
+        const id = document.createElement("span");
+        id.className = "ticket-id";
+        id.textContent = "#" + item.number;
+        const link = document.createElement("a");
+        link.href = item.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = item.title;
+        const kind = document.createElement("span");
+        kind.className = "kind";
+        kind.textContent = row.dataset.category === "owner" ? "用户体验" :
+          row.dataset.category === "proof" ? "验证交付" :
+          row.dataset.category === "core" ? "底层建设" : "新子任务";
+        const state = document.createElement("span");
+        state.className = "state";
+        state.textContent = item.state;
+        row.append(id, link, kind, state);
+        return row;
+      });
+      ticketList.querySelectorAll(".ticket").forEach((row) => { row.remove(); });
+      document.querySelector("#ticket-empty").before(...nodes);
+      const open = items.filter((item) => item.state === "OPEN").length;
+      const activeBugs = data.bugs?.subIssues?.nodes?.filter((bug) => bug.state === "OPEN").length;
+      const fetched = new Date(data.fetchedAt).toLocaleString("zh-CN", {
+        month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+      });
+      status.textContent = "GitHub 已同步 " + fetched + " · 开放子任务 " + open + "/" + items.length +
+        (Number.isInteger(activeBugs) ? " · 待处理 Bug " + activeBugs : "");
+      hasLiveData = true;
+      document.querySelector(".source").textContent = "GitHub Issue #22 · 已同步";
+      applyTicketFilter(document.querySelector("[data-filter][aria-pressed=true]")?.dataset.filter ?? "all");
+    } catch {
+      status.textContent = hasLiveData
+        ? "GitHub 同步失败；仍显示上次成功同步的状态，可能已经过时"
+        : "GitHub 同步失败；当前仅展示历史快照，不能据此判断完成情况";
+    } finally {
+      refreshButton.disabled = false;
+    }
+  }
+  refreshButton.addEventListener("click", refreshProgress);
+  refreshProgress();
 </script>
 </body>
 </html>

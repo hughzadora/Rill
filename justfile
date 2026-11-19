@@ -17,5 +17,5 @@ workspace-ci:
     cd packages/quality && just full-spec-ci
     pnpm exec playwright test
 
-preview:
-    python3 -m http.server 8765 --bind 127.0.0.1 --directory prototype
+preview port="8765" parent="22" bugs="23":
+    PORT={{quote(port)}} node tools/preview.mjs {{quote(parent)}} {{quote(bugs)}}
