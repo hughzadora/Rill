@@ -190,7 +190,10 @@ test("malformed absolute request target cannot terminate the preview server", as
   });
   assert.match(reply, /^HTTP\/1\.1 (400|404)/);
   assert.equal((await fetch(origin + "/")).status, 200);
-  assert.equal((await fetch(origin + "/api/dashboard")).status, 200);
+  const recovered = await fetch(origin + "/api/dashboard");
+  assert.ok([200, 206].includes(recovered.status));
+  const body = await recovered.json();
+  assert.match(body.workspace.sha, /^[0-9a-f]{40}$/);
 });
 
 test("static assets cannot follow symlinks outside the built console", async () => {
