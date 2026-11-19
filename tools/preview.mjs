@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,24 @@ import { promisify } from "node:util";
 const executeFile = promisify(execFile);
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const buildRoot = join(root, "apps/console/dist");
+
+// Resolve before reading so a symlink cannot turn an allowlisted path
+// into a read of files outside the authorized project or build root.
+const confinedPath = async (base, requested) => {
+  const [trustedRoot, candidate] = await Promise.all([
+    realpath(base),
+    realpath(requested),
+  ]);
+  const subpath = relative(trustedRoot, candidate);
+  if (
+    subpath === ".." ||
+    subpath.startsWith(".." + sep) ||
+    isAbsolute(subpath)
+  ) {
+    throw new Error("Resolved file escapes the authorized root");
+  }
+  return candidate;
+};
 const parent = Number(process.argv[2]);
 const bugs = Number(process.argv[3]);
 const port = Number(process.env.PORT);
@@ -228,7 +246,7 @@ createServer(async (request, response) => {
         response,
         200,
         "text/plain; charset=utf-8",
-        await readFile(join(root, path), "utf8"),
+        await readFile(await confinedPath(root, join(root, path)), "utf8"),
       );
       return;
     }
@@ -246,7 +264,8 @@ createServer(async (request, response) => {
       send(response, 404, "text/plain", "Not found");
       return;
     }
-    if (!(await stat(target)).isFile()) throw new Error("Not a file");
+    const safeTarget = await confinedPath(buildRoot, target);
+    if (!(await stat(safeTarget)).isFile()) throw new Error("Not a file");
     const contentTypes = {
       ".html": "text/html",
       ".js": "text/javascript",
@@ -260,7 +279,7 @@ createServer(async (request, response) => {
       response,
       200,
       contentTypes[extname(target)] + "; charset=utf-8",
-      await readFile(target),
+      await readFile(safeTarget),
     );
   } catch {
     if (url.pathname.startsWith("/api/")) unavailable(response);

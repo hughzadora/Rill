@@ -592,6 +592,55 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     project,
   );
 
+  executeGeneratedStep(
+    workflow,
+    "Node security and correctness lint with Oxlint",
+    project,
+  );
+  executeGeneratedStep(workflow, "Node source complexity with Lizard", project);
+  const badNodeSource = join(project, "src/complexity-failure.ts");
+  writeFileSync(
+    badNodeSource,
+    [
+      "export function bad(value: number): number {",
+      ...Array.from(
+        { length: 23 },
+        (_, index) => "if (value === " + index + ") return " + index + ";",
+      ),
+      "return -1;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Node source complexity with Lizard",
+    project,
+    { mustFail: true },
+  );
+  rmSync(badNodeSource);
+  executeGeneratedStep(
+    workflow,
+    "Execute actual Node integration tests",
+    project,
+  );
+  const nodeIntegrationFile = join(project, "tests/integration/health.test.ts");
+  const nodeIntegrationSource = readFileSync(nodeIntegrationFile, "utf8");
+  writeFileSync(
+    nodeIntegrationFile,
+    nodeIntegrationSource.replace(
+      'test("HTTP health',
+      'test.skip("HTTP health',
+    ),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute actual Node integration tests",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(nodeIntegrationFile, nodeIntegrationSource);
+
   const unloaded = join(project, "src/unloaded.ts");
   writeFileSync(
     unloaded,
@@ -1067,6 +1116,30 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     react_coverage: 75,
   });
   const workflow = verifyWorkflow(project);
+  executeGeneratedStep(
+    workflow,
+    "Verify install did not mutate tracked product source",
+    project,
+  );
+  const readme = join(project, "README.md");
+  const readmeOriginal = readFileSync(readme, "utf8");
+  writeFileSync(readme, readmeOriginal + "\nStaged malicious installer edit\n");
+  git(project, ["add", "README.md"]);
+  executeGeneratedStep(
+    workflow,
+    "Verify install did not mutate tracked product source",
+    project,
+    { mustFail: true },
+  );
+  executeGeneratedStep(
+    workflow,
+    "Verify supply-chain installs preserved tracked source",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(readme, readmeOriginal);
+  git(project, ["reset", "--", "README.md"]);
+
   assert.match(workflow, /^ {2}typescript:/m);
   assert.match(workflow, /^ {2}security:/m);
   assert.doesNotMatch(workflow, /^ {2}python:/m);
@@ -1130,6 +1203,51 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     "Execute native Vitest source coverage",
     project,
   );
+  executeGeneratedStep(
+    workflow,
+    "React security and correctness lint with Oxlint",
+    project,
+  );
+  executeGeneratedStep(
+    workflow,
+    "React source complexity with Lizard",
+    project,
+  );
+  const badReactSource = join(project, "src/disallowed-debugger.ts");
+  writeFileSync(
+    badReactSource,
+    "export function bad() { debugger; return 1; }\n",
+  );
+  executeGeneratedStep(
+    workflow,
+    "React security and correctness lint with Oxlint",
+    project,
+    { mustFail: true },
+  );
+  rmSync(badReactSource);
+  executeGeneratedStep(
+    workflow,
+    "Execute actual React integration tests",
+    project,
+  );
+  const reactViteConfig = join(project, "vite.config.ts");
+  const oldReactViteConfig = readFileSync(reactViteConfig, "utf8");
+  assert.match(oldReactViteConfig, /include: \["src\/\*\*\/\*\.test\.tsx"\]/);
+  writeFileSync(
+    reactViteConfig,
+    oldReactViteConfig.replace(
+      'include: ["src/**/*.test.tsx"]',
+      'include: ["src/Counter.test.tsx"]',
+    ),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute actual React integration tests",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(reactViteConfig, oldReactViteConfig);
+
   const untestedModule = join(project, "src/unloaded.mjs");
   writeFileSync(untestedModule, "export function untested() { return 42; }\n");
   git(project, ["add", "src/unloaded.mjs"]);
@@ -1140,6 +1258,20 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     { mustFail: true },
   );
   rmSync(untestedModule);
+  const quotedModule = join(project, "src/非ASCII模块.ts");
+  writeFileSync(
+    quotedModule,
+    "export function missingCoverage() { return 7; }\n",
+  );
+  git(project, ["add", "src/非ASCII模块.ts"]);
+  executeGeneratedStep(
+    workflow,
+    "Execute native Vitest source coverage",
+    project,
+    { mustFail: true },
+  );
+  rmSync(quotedModule);
+  git(project, ["reset", "--", "src/非ASCII模块.ts"]);
   executeGeneratedStep(workflow, "Verify system Google Chrome", project);
   const browserIsolated = {
     env: {

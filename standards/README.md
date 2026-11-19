@@ -76,9 +76,9 @@ a successful copy as verified project adoption.
 GitHub Actions run at `pull_request` and `merge_group` to support
 required merge-queue checks, and at `workflow_dispatch` when invoked.
 JavaScript gates require a frozen pnpm lock and committed application,
-unit and integration test sources. They execute **native** Biome,
-TypeScript and the selected Node/Vitest runner with source coverage
-thresholds directly, rather than trusting package scripts that may
+unit and integration test sources. They execute **native** Biome, pinned Oxlint correctness rules,
+Lizard complexity checks, TypeScript and the selected Node/Vitest
+runner with source coverage thresholds directly, rather than trusting package scripts that may
 be no-ops. React additionally executes real Chrome-tagged `@e2e` and
 `@a11y` Playwright tests directly; the target project's native
 `build` script remains required. Tests or real source missing

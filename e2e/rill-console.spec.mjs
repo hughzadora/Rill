@@ -160,6 +160,28 @@ test("the handoff refuses an unrelated green job and never recommends blocked wo
   await expect(page.getByRole("link", { name: /#33/ })).toBeVisible();
 });
 
+test("handoff distinguishes matching and historical PR heads", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: /交付交接/ }).click();
+  await expect(page.getByText("对应当前提交", { exact: false })).toBeVisible();
+
+  const previous = structuredClone(dashboard);
+  previous.workspace.prs[0].headRefOid = "different-commit-sha";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(previous),
+    }),
+  );
+  await page.reload();
+  await page.getByRole("button", { name: /交付交接/ }).click();
+  await expect(
+    page.getByText("历史提交（不能证明当前质量）", { exact: false }),
+  ).toBeVisible();
+});
+
 test("mobile engineering navigation and quality matrix do not overflow", async ({
   page,
 }) => {

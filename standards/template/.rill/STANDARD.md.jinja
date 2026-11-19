@@ -37,7 +37,8 @@ Do not weaken existing checks or claim fixtures as production evidence.
 
 At `[[ react_root ]]`: committed application source in
 `[[ react_sources ]]` and actual component/unit/integration test
-files. Native CI invokes Biome, TypeScript, Vitest with a reviewed
+files. Native CI invokes Biome, pinned Oxlint, Lizard source complexity,
+TypeScript, Vitest with a reviewed
 source-coverage threshold, Playwright `@e2e` and `@a11y`
 real Chrome scenarios directly. The product's native `build` script
 must produce its actual deployment artifact. Do not replace a native
@@ -52,7 +53,7 @@ Never use downloaded Chromium in place of system Google Chrome.
 
 At `[[ node_root ]]`: committed application source in
 `[[ node_sources ]]` and real unit and integration tests. Native
-CI invokes Biome, TypeScript and selected
+CI invokes Biome, pinned Oxlint, Lizard, TypeScript and selected
 `[[ node_test_runner ]]` runner with source coverage thresholds.
 The product's real `build` script remains mandatory and must
 produce the deployable package. Check HTTP/contract/service behavior,

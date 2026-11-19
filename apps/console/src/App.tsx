@@ -157,6 +157,9 @@ function Handoff({
                 <span>
                   {pr.state}
                   {pr.isDraft ? " · 草稿" : ""}
+                  {pr.headRefOid === work.sha
+                    ? " · 对应当前提交"
+                    : " · 历史提交（不能证明当前质量）"}
                 </span>
                 <small>{formatTime(pr.updatedAt)}</small>
               </li>

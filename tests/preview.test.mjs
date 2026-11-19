@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { request } from "node:http";
@@ -164,6 +165,27 @@ test("HTML endpoint is isolated from repository source and refuses writes", asyn
     outgoing.end();
   });
   assert.equal(invalidHost, 403);
+});
+
+test("static assets cannot follow symlinks outside the built console", async () => {
+  const secret = join(directory, "outside-private.css");
+  const asset = join(
+    repository,
+    "apps/console/dist/assets",
+    "escape-private.css",
+  );
+  await writeFile(secret, "LOCAL_PRIVATE_DATA_NEVER_SERVE");
+  try {
+    await symlink(secret, asset);
+    const response = await fetch(origin + "/assets/escape-private.css");
+    assert.equal(response.status, 404);
+    assert.doesNotMatch(
+      await response.text(),
+      /LOCAL_PRIVATE_DATA_NEVER_SERVE/,
+    );
+  } finally {
+    await rm(asset, { force: true });
+  }
 });
 
 test("native issue feed has read-only, auditable schema", async () => {
