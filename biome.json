@@ -16,6 +16,9 @@
   "formatter": {
     "indentStyle": "space"
   },
+  "html": {
+    "experimentalFullSupportEnabled": true
+  },
   "linter": {
     "rules": {
       "preset": "recommended",
@@ -24,6 +27,9 @@
       },
       "suspicious": {
         "noDebugger": "error"
+      },
+      "nursery": {
+        "useTailwindSortedClasses": "error"
       }
     }
   },
@@ -41,6 +47,15 @@
     {
       "includes": ["**/*.md"],
       "formatter": {
+        "enabled": true
+      }
+    },
+    {
+      "includes": ["**/*.html"],
+      "formatter": {
+        "enabled": true
+      },
+      "linter": {
         "enabled": true
       }
     }

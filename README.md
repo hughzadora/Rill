@@ -1,5 +1,8 @@
 # Rill
 
+See [QUALITY_STANDARD.md](QUALITY_STANDARD.md) for the provisional design,
+measured gaps, and acceptance blockers.
+
 ## Quality commands
 
 Install the project tool versions resolved in the committed Mise lock:

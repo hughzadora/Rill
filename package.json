@@ -1,0 +1,23 @@
+{
+  "name": "rill-quality-standard-profile",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "quality": "tsx tools/quality-cli.ts",
+    "test": "vitest run tests quality-fixtures/node",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "^24.10.0",
+    "husky": "9.1.7",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

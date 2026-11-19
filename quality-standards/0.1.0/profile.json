@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "release": "0.1.0",
+  "stage": "candidate",
+  "policy": {
+    "commit": "lint",
+    "pullRequest": "full-spec-ci",
+    "unverified": "blocked"
+  },
+  "stacks": [
+    {
+      "id": "node-typescript",
+      "markers": ["package.json", "tsconfig.json"],
+      "gates": [
+        "lint",
+        "typecheck",
+        "test",
+        "build",
+        "metrics",
+        "secret-scan",
+        "audit"
+      ]
+    },
+    {
+      "id": "react-tailwind",
+      "markers": ["package.json", "src"],
+      "gates": [
+        "lint",
+        "typecheck",
+        "test",
+        "build",
+        "metrics",
+        "secret-scan",
+        "audit",
+        "a11y-if-ui"
+      ]
+    },
+    {
+      "id": "python",
+      "markers": ["pyproject.toml"],
+      "gates": [
+        "ruff",
+        "mypy",
+        "pytest",
+        "lizard",
+        "tokei",
+        "secret-scan",
+        "audit"
+      ]
+    },
+    {
+      "id": "markdown",
+      "markers": ["README.md"],
+      "gates": ["markdownlint-cli2", "secret-scan", "links-if-published"]
+    },
+    {
+      "id": "shell",
+      "markers": ["*.sh"],
+      "gates": ["shellcheck", "shfmt", "bats-if-executable", "secret-scan"]
+    }
+  ]
+}
