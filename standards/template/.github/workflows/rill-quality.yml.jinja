@@ -40,16 +40,46 @@ jobs:
       - name: Install frozen workspace dependencies
         run: pnpm install --frozen-lockfile
       - name: Verify install did not mutate tracked product source
-        run: git -C "$(git rev-parse --show-toplevel)" diff HEAD --exit-code -- .
+        shell: bash
+        run: |
+          root=$(git rev-parse --show-toplevel)
+          git -C "$root" diff --cached HEAD --exit-code -- .
+          git -C "$root" diff --exit-code -- .
 {% if react %}
       - name: Verify tracked React application and test source
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
         run: |
           test -f package.json
-          test -n "$(git ls-files -- [[ react_sources | tojson ]] | grep -E '\.(js|jsx|ts|tsx|mjs|cjs)$' | grep -Ev '(\.d\.ts$|\.(test|spec)\.)')"
-          test -n "$(git ls-files -- [[ react_sources | tojson ]] tests e2e | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
-          test -n "$(git ls-files -- [[ react_sources | tojson ]] tests e2e | grep -E 'integration.*\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+          inventory=$(mktemp)
+          trap 'rm -f "$inventory"' EXIT
+          git ls-files -z -- [[ react_sources | tojson ]] tests > "$inventory"
+          source_count=0
+          test_count=0
+          integration_count=0
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.d.ts) continue ;;
+              *.test.*|*.spec.*)
+                case "$file" in
+                  *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.mts|*.cts)
+                    test_count=$((test_count + 1))
+                    case "$file" in
+                      *integration*.test.*|*integration*.spec.*)
+                        integration_count=$((integration_count + 1))
+                        ;;
+                    esac
+                    ;;
+                esac
+                ;;
+              *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.mts|*.cts)
+                source_count=$((source_count + 1))
+                ;;
+            esac
+          done < "$inventory"
+          test "$source_count" -gt 0
+          test "$test_count" -gt 0
+          test "$integration_count" -gt 0
       - name: Execute native Vitest source coverage
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
@@ -101,10 +131,10 @@ jobs:
           pnpm exec vitest run --reporter=json --outputFile="$report" "${integration[@]}"
           test -s "$report"
           for file in "${integration[@]}"; do
-            jq -e --arg suffix "/$file" '
+            jq -e --arg expected "$(realpath -- "$file")" '
               .numPassedTests > 0 and
               any(.testResults[]?;
-                (.name | endswith($suffix)) and .status == "passed" and
+                .name == $expected and .status == "passed" and
                 any(.assertionResults[]?; .status == "passed")
               )
             ' "$report" >/dev/null
@@ -130,10 +160,24 @@ jobs:
 
       - name: React security and correctness lint with Oxlint
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
-        run: mise exec aqua:oxc-project/oxc/oxlint@1.94.0 -- oxlint -D correctness --deny-warnings [[ react_sources | tojson ]]
+        run: mise exec aqua:oxc-project/oxc/oxlint@1.94.0 -- oxlint -D correctness -D complexity --deny-warnings [[ react_sources | tojson ]]
       - name: React source complexity with Lizard
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
-        run: mise exec pypi:lizard@1.26.1 -- lizard -i 0 [[ react_sources | tojson ]]
+        shell: bash
+        run: |
+          inventory=$(mktemp)
+          trap 'rm -f "$inventory"' EXIT
+          git ls-files -z -- [[ react_sources | tojson ]] > "$inventory"
+          sources=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts)
+                sources+=("$file")
+                ;;
+            esac
+          done < "$inventory"
+          test -n "${sources[0]:-}"
+          mise exec pypi:lizard@1.26.1 -- lizard -l typescript -l tsx -l javascript -i 0 "${sources[@]}"
       - name: React source lint with Biome
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         run: pnpm exec biome check [[ react_sources | tojson ]]
@@ -156,9 +200,35 @@ jobs:
         shell: bash
         run: |
           test -f package.json
-          test -n "$(git ls-files -- [[ node_sources | tojson ]] | grep -E '\.(js|jsx|ts|tsx|mjs|cjs)$' | grep -Ev '(\.d\.ts$|\.(test|spec)\.)')"
-          test -n "$(git ls-files -- [[ node_sources | tojson ]] tests | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
-          test -n "$(git ls-files -- [[ node_sources | tojson ]] tests | grep -E 'integration(/|.*\.(test|spec)\.)' | grep -E '\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$')"
+          inventory=$(mktemp)
+          trap 'rm -f "$inventory"' EXIT
+          git ls-files -z -- [[ node_sources | tojson ]] tests > "$inventory"
+          source_count=0
+          test_count=0
+          integration_count=0
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.d.ts) continue ;;
+              *.test.*|*.spec.*)
+                case "$file" in
+                  *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.mts|*.cts)
+                    test_count=$((test_count + 1))
+                    case "$file" in
+                      *integration*.test.*|*integration*.spec.*)
+                        integration_count=$((integration_count + 1))
+                        ;;
+                    esac
+                    ;;
+                esac
+                ;;
+              *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.mts|*.cts)
+                source_count=$((source_count + 1))
+                ;;
+            esac
+          done < "$inventory"
+          test "$source_count" -gt 0
+          test "$test_count" -gt 0
+          test "$integration_count" -gt 0
 {% if node_test_runner == "node" %}
       - name: Execute native Node test runner with full-source coverage
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
@@ -189,8 +259,14 @@ jobs:
             esac
           done < "$inventory"
           test -n "${integration[0]:-}"
-          node --experimental-strip-types --test --test-reporter=tap "${integration[@]}" > "$report"
-          grep -Eq '^# pass [1-9][0-9]*$' "$report"
+          for file in "${integration[@]}"; do
+            node --experimental-strip-types --test --test-reporter=tap "$file" > "$report"
+            grep -Eq '^# pass [1-9][0-9]*$' "$report"
+            if grep -Eq '^# Subtest: .*/[^/]+\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$' "$report"; then
+              printf 'No registered test case in %s\n' "$file" >&2
+              exit 1
+            fi
+          done
 {% else %}
       - name: Execute native Vitest source coverage for Node
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
@@ -243,10 +319,10 @@ jobs:
           pnpm exec vitest run --reporter=json --outputFile="$report" "${integration[@]}"
           test -s "$report"
           for file in "${integration[@]}"; do
-            jq -e --arg suffix "/$file" '
+            jq -e --arg expected "$(realpath -- "$file")" '
               .numPassedTests > 0 and
               any(.testResults[]?;
-                (.name | endswith($suffix)) and .status == "passed" and
+                .name == $expected and .status == "passed" and
                 any(.assertionResults[]?; .status == "passed")
               )
             ' "$report" >/dev/null
@@ -254,10 +330,24 @@ jobs:
 {% endif %}
       - name: Node security and correctness lint with Oxlint
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
-        run: mise exec aqua:oxc-project/oxc/oxlint@1.94.0 -- oxlint -D correctness --deny-warnings [[ node_sources | tojson ]]
+        run: mise exec aqua:oxc-project/oxc/oxlint@1.94.0 -- oxlint -D correctness -D complexity --deny-warnings [[ node_sources | tojson ]]
       - name: Node source complexity with Lizard
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
-        run: mise exec pypi:lizard@1.26.1 -- lizard -i 0 [[ node_sources | tojson ]]
+        shell: bash
+        run: |
+          inventory=$(mktemp)
+          trap 'rm -f "$inventory"' EXIT
+          git ls-files -z -- [[ node_sources | tojson ]] > "$inventory"
+          sources=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts)
+                sources+=("$file")
+                ;;
+            esac
+          done < "$inventory"
+          test -n "${sources[0]:-}"
+          mise exec pypi:lizard@1.26.1 -- lizard -l typescript -l tsx -l javascript -i 0 "${sources[@]}"
       - name: Node source lint with Biome
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
         run: pnpm exec biome check [[ node_sources | tojson ]]
@@ -405,7 +495,11 @@ jobs:
           test -s rill-python-licenses.json
 {% endif %}
       - name: Verify supply-chain installs preserved tracked source
-        run: git -C "$(git rev-parse --show-toplevel)" diff HEAD --exit-code -- .
+        shell: bash
+        run: |
+          root=$(git rev-parse --show-toplevel)
+          git -C "$root" diff --cached HEAD --exit-code -- .
+          git -C "$root" diff --exit-code -- .
       - name: Record complete license classifications, including unknown
         run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --config="" --ignorefile="" --secret-config="" --scanners license --include-dev-deps --format json --output rill-license-classifications.json --skip-dirs .venv .
       - name: Generate CycloneDX software bill of materials

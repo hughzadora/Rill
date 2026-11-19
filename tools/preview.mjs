@@ -12,17 +12,17 @@ const buildRoot = join(root, "apps/console/dist");
 // Resolve before reading so a symlink cannot turn an allowlisted path
 // into a read of files outside the authorized project or build root.
 const confinedPath = async (base, requested) => {
-  const [trustedRoot, candidate] = await Promise.all([
+  const [projectRoot, trustedRoot, candidate] = await Promise.all([
+    realpath(root),
     realpath(base),
     realpath(requested),
   ]);
-  const subpath = relative(trustedRoot, candidate);
-  if (
-    subpath === ".." ||
-    subpath.startsWith(".." + sep) ||
-    isAbsolute(subpath)
-  ) {
-    throw new Error("Resolved file escapes the authorized root");
+  const inside = (directory, file) => {
+    const part = relative(directory, file);
+    return part !== ".." && !part.startsWith(".." + sep) && !isAbsolute(part);
+  };
+  if (!inside(projectRoot, trustedRoot) || !inside(trustedRoot, candidate)) {
+    throw new Error("Resolved file escapes the authorized project root");
   }
   return candidate;
 };

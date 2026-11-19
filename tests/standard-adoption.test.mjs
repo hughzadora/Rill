@@ -612,6 +612,7 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
       "",
     ].join("\n"),
   );
+  git(project, ["add", "src/complexity-failure.ts"]);
   executeGeneratedStep(
     workflow,
     "Node source complexity with Lizard",
@@ -619,6 +620,30 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     { mustFail: true },
   );
   rmSync(badNodeSource);
+  git(project, ["reset", "--", "src/complexity-failure.ts"]);
+  const alternateModule = join(project, "src/complexity-failure.mts");
+  writeFileSync(
+    alternateModule,
+    [
+      "export function bad(value: number): number {",
+      ...Array.from(
+        { length: 23 },
+        (_, index) => "if (value === " + index + ") return " + index + ";",
+      ),
+      "return -1;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  git(project, ["add", "src/complexity-failure.mts"]);
+  executeGeneratedStep(
+    workflow,
+    "Node security and correctness lint with Oxlint",
+    project,
+    { mustFail: true },
+  );
+  rmSync(alternateModule);
+  git(project, ["reset", "--", "src/complexity-failure.mts"]);
   executeGeneratedStep(
     workflow,
     "Execute actual Node integration tests",
@@ -632,6 +657,17 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
       'test("HTTP health',
       'test.skip("HTTP health',
     ),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute actual Node integration tests",
+    project,
+    { mustFail: true },
+  );
+  writeFileSync(nodeIntegrationFile, nodeIntegrationSource);
+  writeFileSync(
+    nodeIntegrationFile,
+    "export const noRegisteredCases = true;\n",
   );
   executeGeneratedStep(
     workflow,
@@ -1138,7 +1174,18 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     { mustFail: true },
   );
   writeFileSync(readme, readmeOriginal);
+  executeGeneratedStep(
+    workflow,
+    "Verify install did not mutate tracked product source",
+    project,
+    { mustFail: true },
+  );
   git(project, ["reset", "--", "README.md"]);
+  executeGeneratedStep(
+    workflow,
+    "Verify install did not mutate tracked product source",
+    project,
+  );
 
   assert.match(workflow, /^ {2}typescript:/m);
   assert.match(workflow, /^ {2}security:/m);
@@ -1258,6 +1305,7 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     { mustFail: true },
   );
   rmSync(untestedModule);
+  git(project, ["reset", "--", "src/unloaded.mjs"]);
   const quotedModule = join(project, "src/非ASCII模块.ts");
   writeFileSync(
     quotedModule,
