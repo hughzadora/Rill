@@ -12,7 +12,8 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: "PORT=8766 node tools/preview.mjs 22 23",
+    command:
+      "pnpm --dir apps/console run build && PORT=8766 node tools/preview.mjs 22 23",
     url: "http://127.0.0.1:8766/rill-journey.html",
     reuseExistingServer: false,
     timeout: 15000,

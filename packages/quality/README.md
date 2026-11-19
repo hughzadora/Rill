@@ -1,41 +1,29 @@
-# Quality gates package
+# Rill Quality Profiles
 
-This package holds reusable upstream quality checks for Rill's projects. It is
-not a second standard registrar, distribution runtime, or MCP server. The native
-Rill plugin at the Workspace root owns project enrollment, version selection,
-release integrity and rollout state.
+This package executes maintained upstream quality checks against current
+standard **fixtures**, and contains candidates for adoption by real new and
+existing repositories. It is not a registrar, plugin runtime or published
+industrial standard. Fixture success does not prove another project is tested.
 
-The repository uses a single pnpm Workspace and shared root pnpm lock.
-The root plugin, this package, and the React web fixture are distinct package
-members because each has actual dependencies and checks. Do not publish
-this package as a trusted standard release until distribution and
-independent review have passed #18 acceptance.
+The repository uses one pnpm workspace and a locked Mise toolchain. From
+the root use `just workspace-install` and `just workspace-ci`. This
+package provides `just lint`, `just typecheck`, `just test`,
+`just build`, `just metrics`, `just secret-scan`, `just audit`,
+and `just full-spec-ci`.
 
-From the repository root use just workspace-install and just workspace-ci.
-From this package use just lint, just typecheck, just test, just build,
-just metrics, just secret-scan, just audit, or just full-spec-ci.
-The project-metrics recipe measures the exact target's
-TS/TSX source files against the candidate JSON profile using upstream Lizard
-and Tokei; it does not modify the target or waive existing violations.
+Native gates include Biome, Oxlint, Markdownlint, Ruff, mypy, pytest,
+Taplo, ShellCheck, shfmt, Bats, Vitest, Trivy, Gitleaks, Lizard and Tokei.
+The React/Vite, Python and Shell fixtures demonstrate command compatibility,
+not user-facing products. The project-metrics recipe audits specified TS/TSX
+source inventory with Lizard and Tokei without mutating its target.
 
-The package owns upstream Biome/Oxlint, Markdown, Ruff/mypy/pytest, Taplo,
-ShellCheck/shfmt, Vitest, Trivy, Gitleaks, Lizard and Tokei integrations.
-The real React, Python and shell fixtures exercise compatible commands; they
-are test sources, not applications shipped to end users. Code checks use the
-exact source inventory. New unlisted TS paths must fail instead of being
-mistaken for a clean project.
+Trivy excludes Mise platform-specific installation sidecar locks while
+checking the workspace/Python dependency locks; Mise upstream downloads
+remain checksum-locked. This does not waive actual vulnerabilities or certify
+the whole software supply chain.
 
-Trivy's product dependency and license audit scans the root pnpm lock and
-Python fixture uv lock but excludes Mise's generated .mise/locks sidecar
-directories. Those lockfiles describe external tool installation variants,
-not dependencies executed by this project. A known pygments@2.19.2 advisory
-in Lizard's sidecar applies to Python below 3.9 only; the pinned runtime is
-Python 3.15.2 and that same lock selects pygments@2.21.0 on this platform.
-External tool downloads remain governed separately by mise.lock checksums
-and mise install --locked. This is an audited scope boundary, not a blanket
-vulnerability waiver or proof that the entire supply chain is vulnerability
-free.
-
-The package's unit checks and local CI are not proof that project-native CI,
-new-project enrollment, managed upgrades or rollback have been delivered.
-Issue #18 remains the delivery and acceptance authority.
+Read the [full four-stack quality matrix](../../QUALITY_STANDARD.md).
+Actual React/Node/Python/Shell product integration, accessibility, coverage,
+new/existing project adoption, independent review and rollback remain open
+until observed. Current engineering authority is [#22](https://github.com/hughzadora/Rill/issues/22),
+not superseded #18.

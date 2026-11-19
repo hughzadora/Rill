@@ -1,11 +1,24 @@
 # Project-scoped native Codex defaults; the host retains approval authority.
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 model_reasoning_effort = "low"
 
 [agents]
+enabled = true
 max_concurrent_threads_per_session = 2
 default_subagent_model = "gpt-6-luna"
 default_subagent_reasoning_effort = "high"
+
+[agents.default]
+description = "Bounded native general-purpose execution."
+config_file = "./agents/default.toml"
+
+[agents.explorer]
+description = "Read-only source and official upstream exploration."
+config_file = "./agents/explorer.toml"
+
+[agents.risk_reviewer]
+description = "Independent trust, migration and security review."
+config_file = "./agents/risk-reviewer.toml"
 
 [agents.worker]
 description = "Bounded implementation and native tool execution."

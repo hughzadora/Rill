@@ -21,6 +21,7 @@ test:
     MISE_QUIET=1 mise exec --locked cargo:tokei pypi:lizard pnpm -- pnpm test
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run test
     MISE_QUIET=1 mise exec --locked pypi:pytest -- pytest -q quality-fixtures/python
+    MISE_QUIET=1 mise exec --locked aqua:bats-core/bats-core -- bats --tap quality-fixtures/shell/check-env.bats
 
 build:
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run build

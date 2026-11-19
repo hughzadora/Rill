@@ -21,5 +21,10 @@
       "!!.agents",
       "!!.playwright-cli"
     ]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

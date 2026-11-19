@@ -15,7 +15,12 @@ workspace-install:
 workspace-ci:
     pnpm exec biome check .
     cd packages/quality && just full-spec-ci
+    pnpm --dir apps/console run typecheck
+    pnpm --dir apps/console run test:coverage
+    pnpm --dir apps/console run build
+    node --test tests/preview.test.mjs
     pnpm exec playwright test
 
 preview port="8765" parent="22" bugs="23":
+    pnpm --dir apps/console run build
     PORT={{quote(port)}} node tools/preview.mjs {{quote(parent)}} {{quote(bugs)}}

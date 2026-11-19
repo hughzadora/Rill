@@ -1,26 +1,42 @@
-# Rill
+# Rill — Reusable Software Factory
 
-Rill is a **Codex-native development workspace**, not another agent orchestration product. The owner defines the outcome and essential decisions; Codex and established tools implement, inspect and verify it.
+Rill is a **versioned industrial software-delivery standard for new and existing projects**, not one business application, an issue viewer, or a replacement agent runtime. Its output is working software with reproducible testing, independent review, security and delivery evidence. The owner decides product outcomes and protected choices; native agents and maintained tools execute the engineering work.
 
-[Engineering work and scope](https://github.com/hughzadora/Rill/issues/22) · [Permanent bug ledger](https://github.com/hughzadora/Rill/issues/23) · [Current HTML prototype](prototype/rill-journey.html)
+Default stacks: **React + Tailwind CSS, Node.js + TypeScript, Python, and Shell**. Every real project must run its complete applicable quality gates. Rill's fixture tests do not certify other products.
 
-## Working with Rill
+## Engineering sources
 
-Open the checkout with Codex. Native project instructions are in [AGENTS.md](AGENTS.md), and native agent settings are in [.codex/config.toml](.codex/config.toml). Start from the relevant GitHub child issue and actual worktree, not a generated conversation summary. Codex handles session compaction and approvals; no custom Rill Hook, MCP server, recovery database or issue-comment stream is involved.
+| Area                                            | Versioned source                            |
+| ----------------------------------------------- | ------------------------------------------- |
+| Product outcome, constraints, acceptance        | [PRD](PRD.md)                               |
+| Architecture, system and authority boundaries   | [ARCHITECTURE](ARCHITECTURE.md)             |
+| Interactive console product design              | [DESIGN](DESIGN.md)                         |
+| Engineering and human checkpoint policy         | [POLICY](POLICY.md)                         |
+| Native Issue relationships, planning and status | [PROJECT_MANAGEMENT](PROJECT_MANAGEMENT.md) |
+| Fresh-agent recovery and delivery receipts      | [HANDOFF](HANDOFF.md)                       |
+| Native Codex agents and independence            | [MULTI_AGENT](MULTI_AGENT.md)               |
+| Four-stack testing and security gate matrix     | [QUALITY_STANDARD](QUALITY_STANDARD.md)     |
+| Adoption and delivery roadmap                   | [ROADMAP](ROADMAP.md)                       |
+| Shared terms                                    | [GLOSSARY](GLOSSARY.md)                     |
 
-For substantial features, the owner reviews a clickable prototype, the consequential overall design and the final real behavior. Agents complete implementation, integration, cleanup and tests between those checkpoints. A readable HTML progress/evidence view supplements — but **never substitutes for** — native harness choices and approvals.
+Current task authority: [Issue #22](https://github.com/hughzadora/Rill/issues/22) and native sub-issues, plus permanent [bug parent #23](https://github.com/hughzadora/Rill/issues/23). Closed #10/#18 remain historical evidence. Source and decisions live in issue **bodies**, Git/PR and these docs — not an agent transcript database or Issue comments log.
 
-The included [prototype](prototype/rill-journey.html) is a **read-only interactive HTML view**. `just preview` serves it on localhost and reads the current GitHub parent/sub-issue state through the already authenticated GitHub CLI whenever the page opens or the owner clicks Refresh. A failed request is explicitly identified as stale rather than silently claiming current status. The preview never transmits the GitHub credential to the browser, writes a task database, issues commands to Codex, makes GitHub changes, or stores approvals. A project-specific native harness selection remains unverified under [#25](https://github.com/hughzadora/Rill/issues/25).
+The agent entry is [AGENTS.md](AGENTS.md); native role config is in [.codex/](.codex/config.toml). Configuration does not prove real agent delegation.
 
-## Upstream tools
+## Software-delivery console
 
-- The native Codex config retains a bounded worker and independent reviewer; the upstream Impeccable skill is installed at the native user level, with no custom hooks.
-- GoogleChrome [Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance) is the installed global frontend reference. Impeccable handles design and visual QA. The two remain upstream-owned; Rill does not reproduce their internal rules.
-- [Playwright CLI](https://playwright.dev/agent-cli/configuration) selects the **system Google Chrome** through native configuration. No browser installation or Chromium download is part of the project setup.
-- The [quality package](packages/quality/README.md) owns the actual frontend/backend linters, tests, source metrics, dependency/license audits and security checks. The root and package share one pnpm lock and the existing Mise lock.
+The [React + Tailwind console](apps/console/) replaces the rejected static Issue-title prototype. It includes engineering overview, searchable native child tasks, task acceptance and dependencies, eight-stage workflow, declared-versus-executed quality, versioned engineering documents, and explicit handoff gaps.
+
+The preview uses a **loopback-only read-only adapter** and the already-authenticated GitHub CLI / local Git. It does not export credentials into a browser, write task state, create a second issue database, schedule agents, or simulate owner approval. Unknown or stale external facts must stay visible. Consequential decisions need real harness-native controls.
 
 ## Commands
 
-Run `just workspace-install` once after checkout (locked upstream tools and dependencies), `just lint` for quick checks, and `just workspace-ci` before reviewing the PR. `just preview` provides the private localhost HTML at `http://127.0.0.1:8765/rill-journey.html`. The preview service requires an authenticated GitHub CLI to show current private issue state; without it, the page remains a clearly dated static fallback. `pnpm exec playwright-cli open http://127.0.0.1:8765/rill-journey.html --browser=chrome` opens system Chrome for real snapshot, click and screenshot checks.
+- `just workspace-install` — locked upstream tool and package installation, without downloading Chromium.
+- `just lint` — fast lint / language native checks.
+- `just workspace-ci` — configured source lint, type, React unit/component, Node HTTP integration, Shell, quality fixtures, security, production build and installed-Google-Chrome E2E. This **does not** certify separate target-project adoption.
+- `just preview` — build and serve locally at http://127.0.0.1:8765/ on the authorized Arch host.
+- `pnpm exec playwright-cli open http://127.0.0.1:8765/ --browser=chrome` — inspect through system Chrome.
 
-The GitHub Actions [quality workflow](.github/workflows/quality.yml) runs the same locked commands on PRs. This verifies engineering gates, not user acceptance, native harness selection, or branch protection. Current work and unresolved capabilities are in #22 and its children. No unattended merge or release is enabled.
+The [hosted quality workflow](.github/workflows/quality.yml) runs the same locked checks on PRs. Owner prototype/design/final experience, independent review, native delegation, real new/existing project installation, version upgrade/rollback and trusted release remain distinct acceptance gates.
+
+**Current status:** Rill is a candidate software factory, not a published industrial standard. Passing local fixtures or one console does not prove project enrollment, production safety or release readiness. No unattended merge, payment, production deployment or privilege escalation is authorized.
