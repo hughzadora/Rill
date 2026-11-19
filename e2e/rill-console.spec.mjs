@@ -20,6 +20,8 @@ test("the owner sees actual project and verification boundaries", async ({
   page,
 }) => {
   await expect(page.getByText("开放工程任务")).toBeVisible();
+  await expect(page.getByText("GITHUB SUB-ISSUES")).toBeVisible();
+  await expect(page.getByText("IN PROGRESS")).toHaveCount(0);
   await expect(page.getByText("待解决 Bug")).toBeVisible();
   await expect(page.getByText("未达到正式工业交付标准")).toBeVisible();
   await expect(

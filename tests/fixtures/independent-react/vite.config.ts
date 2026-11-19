@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/test-setup.ts"],
+    setupFiles: ["./tests/test-setup.ts"],
     include: ["src/**/*.test.tsx"],
     coverage: {
       provider: "v8",

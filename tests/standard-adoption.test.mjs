@@ -603,6 +603,18 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     project,
     { mustFail: true },
   );
+  const maliciousCoverage = join(project, ".c8rc.json");
+  writeFileSync(
+    maliciousCoverage,
+    JSON.stringify({ exclude: ["src/unloaded.ts"] }),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+    { mustFail: true },
+  );
+  rmSync(maliciousCoverage);
   rmSync(unloaded);
   const sourcePath = join(project, "src/server.ts");
   const healthy = readFileSync(sourcePath, "utf8");
@@ -731,6 +743,40 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   );
   assert.equal(git(project, ["status", "--porcelain"]), "");
   assert.ok(original["AGENTS.md"].includes("Existing native agent rules"));
+});
+
+test("Git history scan ignores project-supplied secret rule overrides", () => {
+  const project = join(sandbox, "neutral-secret-scan");
+  newProduct(project);
+  git(project, ["add", "."]);
+  git(project, ["commit", "-qm", "Harmless product baseline"]);
+  file(
+    project,
+    "local-test-token.txt",
+    'key = "ghp_' + "Ak5b7Cd2Ef9Gh4Jk1Lm8Np3Qr6St0Uv2Wx5Z" + '"\n',
+  );
+  git(project, ["add", "local-test-token.txt"]);
+  git(project, ["commit", "-qm", "Synthetic test token"]);
+  file(
+    project,
+    ".gitleaks.toml",
+    'title = "Inert local rules"\n[[rules]]\nid = "ignore-all"\nregex = "NO_MATCH"\n',
+  );
+  copyStandard(project, {
+    project_name: "Source scan policy control",
+    react: false,
+    node: true,
+    node_root: ".",
+    python: false,
+    shell: false,
+  });
+  const workflow = verifyWorkflow(project);
+  executeGeneratedStep(
+    workflow,
+    "Scan committed Git history before dependency installation",
+    project,
+    { mustFail: true, env: { GITHUB_WORKSPACE: project } },
+  );
 });
 
 test("missing Copier source fails without mutating an enrolled product", () => {
@@ -1018,18 +1064,24 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     python: false,
     shell: false,
     react_root: ".",
+    react_coverage: 75,
   });
   const workflow = verifyWorkflow(project);
   assert.match(workflow, /^ {2}typescript:/m);
   assert.match(workflow, /^ {2}security:/m);
   assert.doesNotMatch(workflow, /^ {2}python:/m);
   assert.doesNotMatch(workflow, /^ {2}shell:/m);
+  assert.match(workflow, /PLAYWRIGHT_BROWSERS_PATH:/);
+  assert.match(workflow, /jq -e/);
   assert.match(workflow, /playwright test --project=chrome --grep '@e2e'/);
   assert.match(workflow, /playwright test --project=chrome --grep '@a11y'/);
   assert.match(workflow, /vitest run --coverage/);
   assert.match(workflow, /^ {2}merge_group:/m);
   assert.match(workflow, /rill-sbom\.cdx\.json/);
   assert.match(workflow, /--scanners license --include-dev-deps/);
+  assert.match(workflow, /--scanners vuln,secret,misconfig --include-dev-deps/);
+  assert.match(workflow, /run: pnpm audit\n/);
+  assert.match(workflow, /unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML/);
   assert.equal(
     workflow.match(/trivy fs --config="" --ignorefile="" --secret-config=""/g)
       ?.length,
@@ -1078,16 +1130,60 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     "Execute native Vitest source coverage",
     project,
   );
+  const untestedModule = join(project, "src/unloaded.mjs");
+  writeFileSync(untestedModule, "export function untested() { return 42; }\n");
+  git(project, ["add", "src/unloaded.mjs"]);
+  executeGeneratedStep(
+    workflow,
+    "Execute native Vitest source coverage",
+    project,
+    { mustFail: true },
+  );
+  rmSync(untestedModule);
+  executeGeneratedStep(workflow, "Verify system Google Chrome", project);
+  const browserIsolated = {
+    env: {
+      PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+    },
+  };
   executeGeneratedStep(
     workflow,
     "Execute native Chrome E2E test cases",
     project,
+    browserIsolated,
   );
   executeGeneratedStep(
     workflow,
     "Execute native Chrome accessibility test cases",
     project,
+    browserIsolated,
   );
+  const chromeConfig = join(project, "playwright.config.mjs");
+  const baselineChromeConfig = readFileSync(chromeConfig, "utf8");
+  assert.match(baselineChromeConfig, /channel: "chrome"/);
+  writeFileSync(
+    chromeConfig,
+    baselineChromeConfig.replace('channel: "chrome"', 'channel: "chromium"'),
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Chrome E2E test cases",
+    project,
+    { ...browserIsolated, mustFail: true },
+  );
+  writeFileSync(chromeConfig, baselineChromeConfig);
+
+  const e2eFile = join(project, "e2e/inventory.spec.mjs");
+  const baselineE2eFile = readFileSync(e2eFile, "utf8");
+  writeFileSync(e2eFile, baselineE2eFile.replace("@e2e", "@nonexistent-e2e"));
+  executeGeneratedStep(
+    workflow,
+    "Execute native Chrome E2E test cases",
+    project,
+    { ...browserIsolated, mustFail: true },
+  );
+  writeFileSync(e2eFile, baselineE2eFile);
   executeGeneratedStep(workflow, "React production build", project);
   const silentBuild = JSON.parse(originalManifest);
   silentBuild.scripts.build = "node -e 'process.exit(0)'";

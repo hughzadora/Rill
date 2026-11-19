@@ -92,7 +92,7 @@ export function Overview({
         <section className="simple-panel">
           <div className="section-bar">
             <div>
-              <p className="eyebrow">IN PROGRESS</p>
+              <p className="eyebrow">GITHUB SUB-ISSUES</p>
               <h3>正在处理的工作流</h3>
             </div>
             <button
