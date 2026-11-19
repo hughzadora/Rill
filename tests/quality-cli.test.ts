@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +20,10 @@ function gitProject() {
   const root = mkdtempSync(join(tmpdir(), "rill-quality-cli-"));
   roots.push(root);
   writeFileSync(join(root, "README.md"), "fixture\n");
+  writeFileSync(
+    join(root, "justfile"),
+    "lint:\n    @echo lint\n\nquality:\n    @echo quality\n",
+  );
   execFileSync("git", ["init", "--quiet", "--initial-branch=main", root]);
   execFileSync("git", [
     "-C",
@@ -28,7 +33,7 @@ function gitProject() {
     "fixture@example.test",
   ]);
   execFileSync("git", ["-C", root, "config", "user.name", "CLI fixture"]);
-  execFileSync("git", ["-C", root, "add", "README.md"]);
+  execFileSync("git", ["-C", root, "add", "README.md", "justfile"]);
   execFileSync("git", [
     "-c",
     "core.hooksPath=/dev/null",
@@ -112,9 +117,7 @@ test("audit does not run gates unless execution is explicitly requested", () => 
     { operation: "audit", root, mode: "baseline", execute: true },
     { runCommand },
   );
-  expect(commands).toEqual([
-    ["mise", "exec", "--locked", "just", "--", "just", "quality"],
-  ]);
+  expect(commands).toEqual([["just", "quality"]]);
   expect(executed.gateResults[0]?.status).toBe("pass");
   expect(executed.gateResults[0]?.exitCode).toBe(0);
 });
@@ -162,7 +165,7 @@ test("run accepts only the fixed project gate IDs and records argv without a she
   expect(calls).toEqual([
     {
       cwd: root,
-      argv: ["mise", "exec", "--locked", "just", "--", "just", "lint"],
+      argv: ["just", "lint"],
     },
   ]);
   expect(result.gateResults[0]).toMatchObject({
@@ -175,6 +178,31 @@ test("run accepts only the fixed project gate IDs and records argv without a she
   expect(() =>
     runQualityCommand({ operation: "run", root, gate: "../../anything" }),
   ).toThrow(/unknown gate/i);
+});
+
+test("gate reports blocked if project source changes during execution", () => {
+  const root = gitProject();
+  const result = runQualityCommand(
+    { operation: "run", root, gate: "lint" },
+    {
+      runCommand: () => {
+        writeFileSync(join(root, "README.md"), "modified while executing\\n");
+        return {
+          exitCode: 0,
+          signal: null,
+          error: null,
+          stdout: "pass",
+          stderr: "",
+        };
+      },
+    },
+  );
+  expect(result.gateResults[0]).toMatchObject({
+    id: "lint",
+    status: "blocked",
+    exitCode: 0,
+    reason: "Project candidate changed while gate was running.",
+  });
 });
 
 test("a new project can preview and explicitly apply a profile binding", () => {
@@ -249,6 +277,117 @@ test("setup refuses a profile file that appeared or changed after planning", () 
   expect(
     readFileSync(join(root, ".quality-standard", "profile.json"), "utf8"),
   ).toBe("owner data\n");
+});
+
+test("bound proposed audit composes native full-spec and versioned metrics", () => {
+  const root = gitProject();
+  const plan = runQualityCommand({ operation: "plan", root, release: "0.1.0" });
+  const setup = runQualityCommand(
+    {
+      operation: "setup",
+      root,
+      release: "0.1.0",
+      planId: plan.plan?.planId,
+    },
+    { allowLocalApply: true },
+  );
+  expect(setup.execution?.started).toBe(true);
+  const commands: Array<{ cwd: string; argv: string[] }> = [];
+  const audit = runQualityCommand(
+    { operation: "audit", root, mode: "proposed", execute: true },
+    {
+      runCommand: (cwd, argv) => {
+        commands.push({ cwd, argv });
+        return {
+          exitCode: 0,
+          signal: null,
+          error: null,
+          stdout: "ok",
+          stderr: "",
+        };
+      },
+    },
+  );
+  expect(audit.gateResults.map((gate) => [gate.id, gate.status])).toEqual([
+    ["quality", "pass"],
+    ["profile-metrics", "pass"],
+  ]);
+  expect(commands[0]?.argv).toEqual(["just", "quality"]);
+  expect(commands[1]?.argv).toContain("project-metrics");
+  expect(audit.readiness).toMatchObject({
+    ready: false,
+    state: "profiled-unverified",
+  });
+});
+
+test("stale plan detects a same-count worktree content mutation", () => {
+  const root = gitProject();
+  writeFileSync(join(root, "README.md"), "first change\\n");
+  const before = runQualityCommand({
+    operation: "plan",
+    root,
+    release: "0.1.0",
+  });
+  writeFileSync(join(root, "README.md"), "other change\\n");
+  const after = runQualityCommand({
+    operation: "plan",
+    root,
+    release: "0.1.0",
+  });
+  expect(after.workingTree.changedFiles).toBe(before.workingTree.changedFiles);
+  expect(after.workingTree.contentSha256).not.toBe(
+    before.workingTree.contentSha256,
+  );
+  expect(after.plan?.planId).not.toBe(before.plan?.planId);
+  const setup = runQualityCommand(
+    {
+      operation: "setup",
+      root,
+      release: "0.1.0",
+      planId: before.plan?.planId,
+    },
+    { allowLocalApply: true },
+  );
+  expect(setup.execution?.started).toBe(false);
+  expect(setup.conflicts.map((item) => item.code)).toContain("stale-plan");
+  expect(existsSync(join(root, ".quality-standard", "profile.json"))).toBe(
+    false,
+  );
+});
+
+test("native CLI returns success for an applied binding without claiming gate readiness", () => {
+  const root = gitProject();
+  const args = [
+    resolve("node_modules/tsx/dist/cli.mjs"),
+    resolve("tools/quality-cli.ts"),
+  ];
+  const plan = spawnSync(
+    process.execPath,
+    [...args, "plan", "--root", root, "--release", "0.1.0"],
+    { encoding: "utf8" },
+  );
+  expect(plan.status).toBe(0);
+  const planId = JSON.parse(plan.stdout).plan.planId as string;
+  const setup = spawnSync(
+    process.execPath,
+    [
+      ...args,
+      "setup",
+      "--root",
+      root,
+      "--release",
+      "0.1.0",
+      "--plan",
+      planId,
+      "--apply",
+    ],
+    { encoding: "utf8" },
+  );
+  expect(setup.status).toBe(0);
+  expect(JSON.parse(setup.stdout)).toMatchObject({
+    execution: { started: true, error: null },
+    readiness: { ready: false, state: "profiled-unverified" },
+  });
 });
 
 test("official MCP stdio exposes the shared read-only service and blocks setup", async () => {

@@ -77,37 +77,58 @@ surfaces; absence must be recorded as not-applicable, not passed.
   binding preview, explicit binding, conflict rejection and an MCP read-only
   adapter. Binding **only writes a marker**; it does not install project
   gates or certify readiness.
-- `just metrics` previously reported zero Lizard files due to incorrect
-  `--languages` argument. Corrected to per-language `-l`; 12 source files
-  were measured. Complexity failures remain open, and Tokei size
-  enforcement/source inventory parity are not yet implemented.
+- Lizard and Tokei use real source inventory. The profile's own
+  TypeScript inventory is 16/16, including fixture source and config;
+  missing or newly introduced paths outside declared roots fail closed.
+  Function complexity, function length and 500-code-line limits are active.
+- The candidate release verifies per-file SHA-256 of 19 tools,
+  configurations, and lock files before resolving a bound version.
+  A changed source invalidates prior bindings. Release publishing,
+  authenticity and trusted cross-project distribution remain incomplete.
+- The proposed local audit composes target-native full-spec CI and the
+  external versioned metrics without overwriting the target's tools.
+  Both gates were actually executed against Rill #18. Failed gates
+  remain failures, and a profile marker does not certify readiness.
 - `just lint`, TypeScript typecheck, Vite build and sample test suites
   passed on the local dirty worktree. Gitleaks history found no leaks. Trivy
   secret scanner returned exit 0 but lockfile rows showed `not scanned`;
   coverage must not be claimed from that result.
-- Dependency audit failed on `graceful-fs` with a BlueOak-1.0.0 license
-  classified unknown. Neither a blanket allowlist nor a waived exit code is
-  acceptable; determine dependency path and policy eligibility first.
-- PR workflow now invokes `full-spec-ci`, but hosted CI, clean clone,
-  negative fixtures, full gate coverage, availability, plugin distribution,
-  and rollback have not been independently verified. The candidate is not
-  merge-ready.
+- Dependency audit first flagged `graceful-fs@4.2.12` through
+  `@tailwindcss/vite` as a development dependency. Its SPDX-listed,
+  OSI-approved `BlueOak-1.0.0` license is now explicitly accepted;
+  distribution requires the license or a link to it. Unknown new licenses
+  still fail. See [SPDX BlueOak-1.0.0][blueoak-spdx]. Neither a blanket
+  allowlist nor a waived exit code is acceptable; verify the dependency path.
+- A scoped PNPM build-script permission for esbuild 0.28.2
+  enables locked clean installation without disabling strict build
+  checks. The profile's local full-spec run passed; hosted PR CI
+  is not yet verified.
+- The real Rill #18 trial is documented in
+  [Rill #18 pilot evidence](docs/quality/rill-18-pilot.md). On a
+  current integrity-valid candidate, its native full-spec CI and
+  measured complexity gate both returned exit code 1.
+- Controlled negative scans detected a synthetic credential fixture:
+  Trivy reported two findings and Gitleaks one. No real credential
+  was used, and the temporary fixture was deleted. This is a
+  sampled negative check, not proof of complete secret coverage.
+
+Installed dependency directories and generated `.venv` are omitted from
+Trivy filesystem scanning because committed PNPM and uv dependency
+locks supply the vulnerability/license inventory; authored files remain
+covered. This exclusion must be included in source-coverage validation.
 
 ## Remaining acceptance blockers
 
-1. Review upstream/tool matrix with actual version/maintenance/license
-   compatibility and remove redundant checks, without shrinking Issue #19
-   requirements.
-2. Rework oversized CLI functions or deliberately document exceptional
-   legacy debt; retain complexity and size gates that reject real defects.
-3. Resolve dependency-license finding through traceable dependency
-   classification, not suppressions; verify secret/vulnerability scans cover
-   expected inputs.
-4. Add honest negative cases, coverage/source inventory validation,
-   end-to-end new and legacy pilots, build/package and applicable
-   UI/accessibility tests.
-5. Implement managed configuration rollout/drift/upgrade/rollback, real
-   release provenance and safe CI/hook/MCP distribution; verify in
-   independent projects.
-6. Run full-spec on a clean clone, capture revision/exit/duration receipts,
-   then verify the actual PR workflow. Obtain separate review before merge.
+1. Rill #18's committed Vitest suite and its established code-size and
+   complexity violations remain failing. No exception has been approved.
+2. Native Just and hosted PR CI wiring on Rill #18 is not yet installed;
+   the local external CLI invocation is not automatic repository enforcement.
+3. Managed upgrades, rollback, drift reconciliation, release provenance,
+   signing and trusted distribution are not implemented.
+4. The full upstream plugin/tool matrix and a separate production-quality
+   new-project pilot are incomplete. Framework E2E, accessibility,
+   container and IaC gates remain subject to actual project applicability.
+5. Reproduce full-spec on a clean clone, verify hosted PR CI and obtain
+   independent review before merge or final owner acceptance.
+
+[blueoak-spdx]: https://spdx.org/licenses/BlueOak-1.0.0.html

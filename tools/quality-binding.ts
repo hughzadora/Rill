@@ -4,9 +4,10 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
@@ -14,6 +15,7 @@ const releaseSchema = z.object({
   schemaVersion: z.literal(1),
   release: z.string().regex(/^\d+\.\d+\.\d+$/),
   stage: z.literal("candidate"),
+  fileSha256: z.record(z.string(), z.string().regex(/^[0-9a-f]{64}$/)),
   policy: z.object({
     commit: z.literal("lint"),
     pullRequest: z.literal("full-spec-ci"),
@@ -54,6 +56,33 @@ function sha256(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+export function verifyReleaseFiles(
+  root: string,
+  files: Record<string, string>,
+): boolean {
+  try {
+    const sourceRoot = realpathSync(root);
+    if (Object.keys(files).length === 0) return false;
+    for (const [relativePath, expected] of Object.entries(files)) {
+      if (
+        !/^[a-zA-Z0-9_.\\/-]+$/.test(relativePath) ||
+        relativePath.startsWith("/") ||
+        relativePath.split("/").some((piece) => piece === ".." || piece === ".")
+      ) {
+        return false;
+      }
+      const path = realpathSync(resolve(sourceRoot, relativePath));
+      if (!path.startsWith(sourceRoot + sep)) return false;
+      if (!lstatSync(path).isFile()) return false;
+      if (sha256(readFileSync(path).toString("utf8")) !== expected)
+        return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function qualityRelease(version: string) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) return null;
   const filename = fileURLToPath(
@@ -63,6 +92,8 @@ export function qualityRelease(version: string) {
   const raw = readFileSync(filename, "utf8");
   const manifest = releaseSchema.parse(JSON.parse(raw));
   if (manifest.release !== version) return null;
+  const releaseRoot = fileURLToPath(new URL("../", import.meta.url));
+  if (!verifyReleaseFiles(releaseRoot, manifest.fileSha256)) return null;
   return { manifest, digest: sha256(raw) };
 }
 
@@ -109,6 +140,27 @@ function targetState(root: string) {
   };
 }
 
+function planIdentity(
+  root: string,
+  revision: string,
+  releaseName: string,
+  workingTreeState: unknown,
+  releaseDigest: string | null,
+  target: ReturnType<typeof targetState>,
+) {
+  return sha256(
+    JSON.stringify({
+      root,
+      revision,
+      workingTreeState,
+      releaseName,
+      releaseDigest,
+      target: target.contents === null ? null : sha256(target.contents),
+      unsafe: target.unsafe,
+    }),
+  );
+}
+
 export function bindingPlan(
   root: string,
   revision: string,
@@ -117,16 +169,13 @@ export function bindingPlan(
 ): BindingPlan {
   const release = qualityRelease(releaseName);
   const target = targetState(root);
-  const planId = sha256(
-    JSON.stringify({
-      root,
-      revision,
-      workingTreeState,
-      releaseName,
-      releaseDigest: release?.digest ?? null,
-      target: target.contents === null ? null : sha256(target.contents),
-      unsafe: target.unsafe,
-    }),
+  const planId = planIdentity(
+    root,
+    revision,
+    releaseName,
+    workingTreeState,
+    release?.digest ?? null,
+    target,
   );
   if (!release) {
     return {
