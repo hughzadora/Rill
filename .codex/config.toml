@@ -14,3 +14,7 @@ config_file = "./agents/worker.toml"
 [agents.reviewer]
 description = "Independent evidence-based review of a completed candidate."
 config_file = "./agents/reviewer.toml"
+
+# Disable the superseded user-installed 0.1.2 runtime only in Rill.
+[plugins."rill@rill-local"]
+enabled = false
