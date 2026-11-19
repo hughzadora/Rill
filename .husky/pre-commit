@@ -1,0 +1,1 @@
+mise exec --locked just -- just lint
