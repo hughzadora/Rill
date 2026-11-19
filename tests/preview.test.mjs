@@ -191,9 +191,20 @@ test("malformed absolute request target cannot terminate the preview server", as
   assert.match(reply, /^HTTP\/1\.1 (400|404)/);
   assert.equal((await fetch(origin + "/")).status, 200);
   const recovered = await fetch(origin + "/api/dashboard");
-  assert.ok([200, 206].includes(recovered.status));
+  const currentBranch = execFileSync("git", ["branch", "--show-current"], {
+    cwd: repository,
+    encoding: "utf8",
+  }).trim();
+  assert.equal(recovered.status, currentBranch ? 200 : 206);
   const body = await recovered.json();
   assert.match(body.workspace.sha, /^[0-9a-f]{40}$/);
+  assert.equal(body.issueData.nameWithOwner, "hughzadora/Rill");
+  assert.deepEqual(
+    body.errors,
+    currentBranch
+      ? []
+      : ["GitHub PR state unavailable", "GitHub CI run state unavailable"],
+  );
 });
 
 test("static assets cannot follow symlinks outside the built console", async () => {
