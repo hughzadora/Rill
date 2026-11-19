@@ -133,6 +133,7 @@ const documents = [
   ["Roadmap", "ROADMAP.md"],
   ["Glossary", "GLOSSARY.md"],
   ["README", "README.md"],
+  ["Standard Adoption", "standards/README.md"],
 ];
 
 const headers = (type) => ({
@@ -222,10 +223,7 @@ createServer(async (request, response) => {
       );
       return;
     }
-    const pathname =
-      url.pathname === "/" || url.pathname === "/rill-journey.html"
-        ? "/index.html"
-        : url.pathname;
+    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
     const target = resolve(buildRoot, "." + pathname);
     const within = relative(buildRoot, target);
     if (

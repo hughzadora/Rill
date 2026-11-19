@@ -66,3 +66,23 @@ a running work log, no separate agent-owned database, no ungrounded
 
 Reverify this section at every handoff; current GitHub/Git wins over
 its prose when they disagree.
+
+## Candidate standard adoption handoff
+
+Current #32 implementation lives in `copier.yml`,
+`standards/template/` and `standards/README.md`, not in the
+old retired Rill runtime. `node --test tests/standard-adoption.test.mjs`
+generates temporary tagged sources and a synthetic independent real
+Node HTTP application, an independent React/Tailwind Chrome UI and a
+Python/Shell service to prove source-level quality and failing
+regressions in all four stacks. It also validates brownfield file
+preservation, upgrade and rollback.
+The temp tags are **not** trusted Rill releases.
+
+Use native Copier answers at `.rill/copier-answers.yml` for each
+target project. `copier update` requires the explicit
+`--answers-file .rill/copier-answers.yml` argument with this
+non-default path. Check the target's complete applicable source gates
+and leave non-synthetic hosted target-project acceptance open.
+Never mistake existing sample fixtures or a local actionlint pass
+for hosted product CI and human acceptance.

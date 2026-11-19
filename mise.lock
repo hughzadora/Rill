@@ -74,6 +74,17 @@ checksum = "sha256:fc1a189a35417ebda77cac83b8bfe9e9d10a7eb27e0d2fe005d222fa01261
 url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.94.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/754765229"
 
+[[tools."aqua:rhysd/actionlint"]]
+version = "1.7.12"
+backend = "aqua:rhysd/actionlint"
+specifiers = ["1.7.12"]
+
+[tools."aqua:rhysd/actionlint"."platforms.linux-x64"]
+checksum = "sha256:8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924896"
+provenance = "github-attestations"
+
 [[tools."aqua:tamasfe/taplo"]]
 version = "0.10.0"
 backend = "aqua:tamasfe/taplo"
@@ -134,6 +145,15 @@ url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-linux-x64.ta
 url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505542"
 provenance = "github-attestations"
 
+[[tools."pypi:copier"]]
+version = "9.19.1"
+backend = "pypi:copier"
+specifiers = ["9.19.1"]
+uv = { path = ".mise/locks/pypi-copier/9.19.1~15b02c5e", digest = "sha256:550033bdf49f4fee368823bf2df64a8e30934e7ec5ddb85b9a6d857620d475e9" }
+
+[tools."pypi:copier".options]
+python = "3.14.8"
+
 [[tools."pypi:lizard"]]
 version = "1.26.1"
 backend = "pypi:lizard"
@@ -157,6 +177,16 @@ version = "9.2.0"
 backend = "pypi:pytest"
 specifiers = ["latest"]
 uv = { path = ".mise/locks/pypi-pytest/9.2.0", digest = "sha256:f430bf52b7733dbfcd1e0660c22b3904e34c683f5c6d5cffc885dec9f5e816d8" }
+
+[[tools.python]]
+version = "3.14.8"
+backend = "core:python"
+specifiers = ["3.14.8"]
+
+[tools.python."platforms.linux-x64"]
+checksum = "sha256:b88a4ac994ac55c35a03a3672103618d5c5d5bf342db7b2093b8d328b6516b42"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261020/cpython-3.14.8+20261020-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+provenance = "github-attestations"
 
 [[tools.python]]
 version = "3.15.2"

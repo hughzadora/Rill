@@ -1,0 +1,688 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { after, before, test } from "node:test";
+
+const repository = resolve(import.meta.dirname, "..");
+let sandbox;
+let template;
+
+function execute(program, args, options = {}) {
+  const environment = { ...process.env, MISE_QUIET: "1" };
+  // Test subprocesses must not inherit the parent node:test harness context,
+  // otherwise Node silently skips recursive tests and produces a false pass.
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(program, args, {
+    cwd: options.cwd ?? repository,
+    encoding: "utf8",
+    env: environment,
+    timeout: 120_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  if (options.mustFail) {
+    assert.notEqual(
+      result.status,
+      0,
+      "Unexpected success: " +
+        program +
+        " " +
+        args.join(" ") +
+        "\n" +
+        result.stdout +
+        "\n" +
+        result.stderr,
+    );
+  } else {
+    assert.equal(
+      result.status,
+      0,
+      [program, ...args, result.stdout, result.stderr].join("\n"),
+    );
+  }
+  return result.stdout + result.stderr;
+}
+
+function pinned(tools, command, args, options = {}) {
+  return execute(
+    "mise",
+    ["-C", repository, "exec", "--locked", ...tools, "--", command, ...args],
+    options,
+  );
+}
+
+function git(directory, args) {
+  return execute("git", [
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Rill tests",
+    "-c",
+    "user.email=rill-tests@example.test",
+    "-C",
+    directory,
+    ...args,
+  ]).trim();
+}
+
+function file(directory, name, content) {
+  const destination = join(directory, name);
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, content, "utf8");
+}
+
+function copyStandard(destination, answers) {
+  const args = [
+    "copy",
+    "--defaults",
+    "--vcs-ref",
+    "v0.1.0",
+    ...Object.entries(answers).flatMap(([key, value]) => [
+      "--data",
+      key + "=" + value,
+    ]),
+    template,
+    destination,
+  ];
+  return pinned(["pypi:copier"], "copier", args);
+}
+
+function verifyWorkflow(destination) {
+  const generated = join(destination, ".github/workflows/rill-quality.yml");
+  pinned(["aqua:rhysd/actionlint"], "actionlint", [generated]);
+  return readFileSync(generated, "utf8");
+}
+
+function newProduct(directory) {
+  const files = {
+    "package.json":
+      JSON.stringify(
+        {
+          name: "independent-http-service",
+          private: true,
+          type: "module",
+          packageManager: "pnpm@12.18.0",
+          scripts: {
+            lint: "biome check src tests",
+            typecheck: "tsc --noEmit",
+            "test:unit":
+              "node --experimental-strip-types --test tests/unit.test.ts",
+            "test:integration":
+              "node --experimental-strip-types --test tests/integration/health.test.ts",
+            "test:coverage":
+              "node --experimental-strip-types --test --experimental-test-coverage --test-coverage-lines=70 --test-coverage-include=src/server.ts tests/unit.test.ts tests/integration/health.test.ts",
+            build: "tsc --outDir dist",
+          },
+          devDependencies: {
+            typescript: "7.0.2",
+            "@types/node": "24.19.2",
+            "@biomejs/biome": "2.6.8",
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    "tsconfig.json":
+      JSON.stringify(
+        {
+          compilerOptions: {
+            target: "ES2024",
+            module: "NodeNext",
+            moduleResolution: "NodeNext",
+            strict: true,
+            types: ["node"],
+            outDir: "dist",
+            rootDir: "src",
+          },
+          include: ["src/**/*.ts"],
+        },
+        null,
+        2,
+      ) + "\n",
+    "biome.json":
+      JSON.stringify(
+        {
+          $schema: "https://biomejs.dev/schemas/2.6.8/schema.json",
+          files: { includes: ["src/**", "tests/**"] },
+          linter: { enabled: true, rules: { recommended: true } },
+        },
+        null,
+        2,
+      ) + "\n",
+    "src/server.ts": [
+      'import { createServer } from "node:http";',
+      "",
+      "export function sum(left: number, right: number): number {",
+      "  return left + right;",
+      "}",
+      "",
+      "export function app() {",
+      "  return createServer((request, response) => {",
+      '    if (request.url === "/health") {',
+      '      response.writeHead(200, { "content-type": "application/json" });',
+      "      response.end(JSON.stringify({ ready: true }));",
+      "      return;",
+      "    }",
+      "    response.writeHead(404);",
+      '    response.end("Not found");',
+      "  });",
+      "}",
+      "",
+    ].join("\n"),
+    "tests/unit.test.ts": [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'import { sum } from "../src/server.ts";',
+      "",
+      'test("adding negative and positive values preserves the contract", () => {',
+      "  assert.equal(sum(-3, 5), 2);",
+      "  assert.equal(sum(7, 2), 9);",
+      "});",
+      "",
+    ].join("\n"),
+    "tests/integration/health.test.ts": [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'import { app } from "../../src/server.ts";',
+      "",
+      'test("HTTP health and failure routes", async () => {',
+      '  const server = app().listen(0, "127.0.0.1");',
+      "  try {",
+      "    await new Promise((resolve) => server.once('listening', resolve));",
+      "    const address = server.address();",
+      '    if (address === null || typeof address === "string") throw new Error("Missing address");',
+      '    const base = "http://127.0.0.1:" + address.port;',
+      '    const healthy = await fetch(base + "/health");',
+      "    assert.equal(healthy.status, 200);",
+      "    assert.deepEqual(await healthy.json(), { ready: true });",
+      '    const missing = await fetch(base + "/missing");',
+      "    assert.equal(missing.status, 404);",
+      "  } finally {",
+      "    server.close();",
+      "  }",
+      "});",
+      "",
+    ].join("\n"),
+    "README.md":
+      "# Pre-existing independent API\n\nDo not erase this application's scope.\n",
+    "AGENTS.md":
+      "# Existing native agent rules\n\nPreserve product-specific standards.\n",
+    ".github/workflows/existing.yml":
+      "name: Existing quality\non: [pull_request]\njobs:\n  original:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo original-quality\n",
+    "docs/product.md":
+      "# Independent product requirements\n\nProtected unrelated work.\n",
+    ".gitignore": "node_modules/\ndist/\n",
+  };
+  for (const [name, content] of Object.entries(files))
+    file(directory, name, content);
+  git(directory, ["init", "-q", "-b", "main"]);
+  return files;
+}
+
+before(() => {
+  sandbox = mkdtempSync(join(tmpdir(), "rill-adoption-regression-"));
+  template = join(sandbox, "template");
+  mkdirSync(join(template, "standards"), { recursive: true });
+  cpSync(join(repository, "copier.yml"), join(template, "copier.yml"));
+  cpSync(
+    join(repository, "standards/template"),
+    join(template, "standards/template"),
+    { recursive: true },
+  );
+  git(template, ["init", "-q", "-b", "main"]);
+  git(template, ["add", "."]);
+  git(template, ["commit", "-qm", "Versioned Rill profile template"]);
+  git(template, ["tag", "v0.1.0"]);
+});
+
+after(() => {
+  if (sandbox) rmSync(sandbox, { recursive: true, force: true });
+});
+
+test("greenfield four-stack profile has pinned native provenance and valid Actions", () => {
+  const project = join(sandbox, "greenfield");
+  mkdirSync(project);
+  copyStandard(project, { project_name: "New Product" });
+  const receipt = readFileSync(
+    join(project, ".rill/copier-answers.yml"),
+    "utf8",
+  );
+  assert.match(receipt, /_commit: v0.1.0/);
+  assert.match(receipt, /_src_path:/);
+  const workflow = verifyWorkflow(project);
+  for (const job of ["typescript", "python", "shell", "security"]) {
+    assert.match(workflow, new RegExp("^  " + job + ":", "m"));
+  }
+  for (const gate of [
+    "test:coverage",
+    "test:integration",
+    "test:unit",
+    "test:e2e",
+    "test:a11y",
+    "ruff check",
+    "mypy --strict",
+    "bats --tap",
+    "gitleaks git",
+    "trivy fs",
+  ]) {
+    assert.ok(workflow.includes(gate), gate + " is missing");
+  }
+  assert.ok(!existsSync(join(project, "package.json")));
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:coverage"], {
+    mustFail: true,
+  });
+});
+
+test("invalid profiles and paths cannot silently create a passing workflow", () => {
+  const empty = join(sandbox, "invalid-empty");
+  mkdirSync(empty);
+  const noStack = pinned(
+    ["pypi:copier"],
+    "copier",
+    [
+      "copy",
+      "--defaults",
+      "--vcs-ref",
+      "v0.1.0",
+      "-d",
+      "react=false",
+      "-d",
+      "node=false",
+      "-d",
+      "python=false",
+      "-d",
+      "shell=false",
+      template,
+      empty,
+    ],
+    { mustFail: true },
+  );
+  assert.match(noStack, /Select at least one real product stack/);
+
+  const outside = join(sandbox, "invalid-path");
+  mkdirSync(outside);
+  const escaped = pinned(
+    ["pypi:copier"],
+    "copier",
+    [
+      "copy",
+      "--defaults",
+      "--vcs-ref",
+      "v0.1.0",
+      "-d",
+      "node_root=../outside",
+      template,
+      outside,
+    ],
+    { mustFail: true },
+  );
+  assert.match(escaped, /Use a path inside the product repository/);
+
+  const sourceInjection = join(sandbox, "invalid-shell-expansion");
+  mkdirSync(sourceInjection);
+  const rejected = pinned(
+    ["pypi:copier"],
+    "copier",
+    [
+      "copy",
+      "--defaults",
+      "--vcs-ref",
+      "v0.1.0",
+      "-d",
+      "shell_sources=$(touch /tmp/rill-should-not-exist)",
+      template,
+      sourceInjection,
+    ],
+    { mustFail: true },
+  );
+  assert.match(rejected, /Use a path inside the product repository/);
+  assert.ok(!existsSync("/tmp/rill-should-not-exist"));
+
+  const nestedTraversal = join(sandbox, "invalid-nested-traversal");
+  mkdirSync(nestedTraversal);
+  const rejectedTraversal = pinned(
+    ["pypi:copier"],
+    "copier",
+    [
+      "copy",
+      "--defaults",
+      "--vcs-ref",
+      "v0.1.0",
+      "-d",
+      "node_root=apps/../outside",
+      template,
+      nestedTraversal,
+    ],
+    { mustFail: true },
+  );
+  assert.match(rejectedTraversal, /Use a path inside the product repository/);
+});
+
+test("brownfield source, tests and unrelated workflows survive adoption and native rollback", () => {
+  const project = join(sandbox, "brownfield");
+  mkdirSync(project);
+  const original = newProduct(project);
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "install"]);
+  pinned(["node", "pnpm"], "pnpm", [
+    "--dir",
+    project,
+    "exec",
+    "biome",
+    "check",
+    "--write",
+    "src",
+    "tests",
+  ]);
+  git(project, ["add", "."]);
+  git(project, ["commit", "-qm", "Existing product baseline"]);
+  const originalPaths = [
+    "AGENTS.md",
+    "README.md",
+    "docs/product.md",
+    ".github/workflows/existing.yml",
+    "src/server.ts",
+  ];
+  const before = Object.fromEntries(
+    originalPaths.map((name) => [
+      name,
+      readFileSync(join(project, name), "utf8"),
+    ]),
+  );
+
+  copyStandard(project, {
+    project_name: "Existing API",
+    react: false,
+    node: true,
+    python: false,
+    shell: false,
+    node_root: ".",
+  });
+  const workflow = verifyWorkflow(project);
+  assert.match(workflow, /^ {2}typescript:/m);
+  assert.doesNotMatch(workflow, /^ {2}python:/m);
+  assert.doesNotMatch(workflow, /^ {2}shell:/m);
+  assert.match(workflow, /^ {2}security:/m);
+  assert.equal(git(project, ["diff", "--name-only"]), "");
+  for (const name of originalPaths) {
+    assert.equal(readFileSync(join(project, name), "utf8"), before[name], name);
+  }
+
+  pinned(["node", "pnpm"], "pnpm", [
+    "--dir",
+    project,
+    "install",
+    "--frozen-lockfile",
+  ]);
+  for (const gate of [
+    "lint",
+    "typecheck",
+    "test:unit",
+    "test:integration",
+    "test:coverage",
+    "build",
+  ]) {
+    const output = pinned(["node", "pnpm"], "pnpm", [
+      "--dir",
+      project,
+      "run",
+      gate,
+    ]);
+    if (gate.startsWith("test:")) assert.match(output, /pass [1-9]/);
+  }
+  const sourcePath = join(project, "src/server.ts");
+  const healthy = readFileSync(sourcePath, "utf8");
+  assert.ok(healthy.includes("return left + right;"));
+  writeFileSync(
+    sourcePath,
+    healthy.replace("return left + right;", "return left - right;"),
+  );
+  const negative = pinned(
+    ["node", "pnpm"],
+    "pnpm",
+    ["--dir", project, "run", "test:unit"],
+    {
+      mustFail: true,
+    },
+  );
+  assert.match(negative, /fail [1-9]/);
+  git(project, ["restore", "--", "src/server.ts"]);
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
+
+  git(project, ["add", ".rill", ".github/workflows/rill-quality.yml"]);
+  git(project, [
+    "commit",
+    "-qm",
+    "Adopt Rill without removing existing quality checks",
+  ]);
+  const adoptedSha = git(project, ["rev-parse", "HEAD"]);
+
+  const doc = join(template, "standards/template/.rill/STANDARD.md.jinja");
+  writeFileSync(
+    doc,
+    readFileSync(doc, "utf8") +
+      "\nVerified upstream update remains transparent.\n",
+  );
+  git(template, ["add", "."]);
+  git(template, ["commit", "-qm", "Revised source standard"]);
+  git(template, ["tag", "v0.2.0"]);
+
+  pinned(["pypi:copier"], "copier", [
+    "update",
+    "--defaults",
+    "--answers-file",
+    ".rill/copier-answers.yml",
+    "--vcs-ref",
+    "v0.2.0",
+    project,
+  ]);
+  const updated = readFileSync(
+    join(project, ".rill/copier-answers.yml"),
+    "utf8",
+  );
+  assert.match(updated, /_commit: v0.2.0/);
+  assert.match(
+    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
+    /Verified upstream update/,
+  );
+  const changed = git(project, ["diff", "--name-only"])
+    .split("\n")
+    .filter(Boolean);
+  assert.ok(
+    changed.every((name) => name.startsWith(".rill/")),
+    changed.join(", "),
+  );
+  for (const name of originalPaths) {
+    assert.equal(readFileSync(join(project, name), "utf8"), before[name]);
+  }
+  verifyWorkflow(project);
+  assert.equal(
+    readdirSync(project).filter((name) => name.endsWith(".rej")).length,
+    0,
+  );
+
+  git(project, ["add", ".rill"]);
+  git(project, ["commit", "-qm", "Update reviewed Rill profile"]);
+  const updateSha = git(project, ["rev-parse", "HEAD"]);
+  git(project, ["revert", "--no-edit", updateSha]);
+  assert.equal(git(project, ["diff", adoptedSha, "--name-only"]), "");
+  const rolledBack = readFileSync(
+    join(project, ".rill/copier-answers.yml"),
+    "utf8",
+  );
+  assert.match(rolledBack, /_commit: v0.1.0/);
+  assert.equal(git(project, ["status", "--porcelain"]), "");
+  assert.ok(original["AGENTS.md"].includes("Existing native agent rules"));
+});
+
+test("independent Python/Shell project executes actual source gates and rejects broken behavior", () => {
+  const project = join(sandbox, "new-python-shell");
+  const fixture = join(repository, "tests/fixtures/independent-python-shell");
+  cpSync(fixture, project, { recursive: true });
+  const pythonRoot = join(project, "services/python");
+  const script = join(project, "scripts/health.sh");
+  const bats = join(project, "tests/shell/health.bats");
+  const sourcePath = join(pythonRoot, "src/independent_service/core.py");
+  const originalPython = readFileSync(sourcePath, "utf8");
+  const originalShell = readFileSync(script, "utf8");
+
+  git(project, ["init", "-q", "-b", "main"]);
+  copyStandard(project, {
+    project_name: "Independent Python and Shell",
+    react: false,
+    node: false,
+    python: true,
+    shell: true,
+    python_root: "services/python",
+  });
+  const workflow = verifyWorkflow(project);
+  assert.doesNotMatch(workflow, /^ {2}typescript:/m);
+  assert.match(workflow, /^ {2}python:/m);
+  assert.match(workflow, /^ {2}shell:/m);
+  assert.match(workflow, /^ {2}security:/m);
+  assert.match(workflow, /working-directory: "services\/python"/);
+  assert.match(workflow, /uv sync --locked --dev/);
+  assert.match(workflow, /pytest -q --cov="src"/);
+
+  const uv = (...args) =>
+    pinned(["uv"], "uv", ["--directory", pythonRoot, ...args]);
+  uv("sync", "--locked", "--dev");
+  uv("run", "--locked", "ruff", "check", "src", "tests");
+  uv("run", "--locked", "ruff", "format", "--check", "src", "tests");
+  uv("run", "--locked", "mypy", "--strict", "src");
+  uv(
+    "run",
+    "--locked",
+    "pytest",
+    "-q",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+    "tests",
+  );
+  uv("run", "--locked", "pytest", "-q", "tests/integration");
+  uv("build");
+
+  pinned(["aqua:koalaman/shellcheck"], "shellcheck", [
+    "--severity=style",
+    script,
+  ]);
+  pinned(["aqua:mvdan/sh"], "shfmt", ["-d", "-i", "2", script]);
+  pinned(["aqua:bats-core/bats-core"], "bats", ["--tap", bats]);
+
+  assert.match(originalPython, /return cleaned\.casefold\(\)/);
+  writeFileSync(
+    sourcePath,
+    originalPython.replace("return cleaned.casefold()", "return cleaned"),
+  );
+  const failure = execute(
+    "mise",
+    [
+      "-C",
+      repository,
+      "exec",
+      "--locked",
+      "uv",
+      "--",
+      "uv",
+      "--directory",
+      pythonRoot,
+      "run",
+      "--locked",
+      "pytest",
+      "-q",
+      "tests/test_core.py",
+    ],
+    { mustFail: true },
+  );
+  assert.match(failure, /failed|AssertionError|FAIL/i);
+  writeFileSync(sourcePath, originalPython);
+  uv("run", "--locked", "pytest", "-q", "tests/test_core.py");
+
+  assert.match(originalShell, /healthy %s/);
+  writeFileSync(script, originalShell.replace("healthy %s", "broken %s"));
+  const brokenShell = pinned(
+    ["aqua:bats-core/bats-core"],
+    "bats",
+    ["--tap", bats],
+    { mustFail: true },
+  );
+  assert.match(brokenShell, /not ok/);
+  writeFileSync(script, originalShell);
+  pinned(["aqua:bats-core/bats-core"], "bats", ["--tap", bats]);
+});
+
+test("independent React/Tailwind project executes actual Chrome/UI and CI source gates", () => {
+  const project = join(sandbox, "new-react");
+  const fixture = join(repository, "tests/fixtures/independent-react");
+  cpSync(fixture, project, { recursive: true });
+  const component = join(project, "src/Counter.tsx");
+  const original = readFileSync(component, "utf8");
+  const originalManifest = readFileSync(join(project, "package.json"), "utf8");
+
+  git(project, ["init", "-q", "-b", "main"]);
+  copyStandard(project, {
+    project_name: "Independent Inventory",
+    react: true,
+    node: false,
+    python: false,
+    shell: false,
+    react_root: ".",
+  });
+  const workflow = verifyWorkflow(project);
+  assert.match(workflow, /^ {2}typescript:/m);
+  assert.match(workflow, /^ {2}security:/m);
+  assert.doesNotMatch(workflow, /^ {2}python:/m);
+  assert.doesNotMatch(workflow, /^ {2}shell:/m);
+  assert.match(workflow, /run test:e2e/);
+  assert.match(workflow, /run test:a11y/);
+  assert.match(workflow, /run test:coverage/);
+  assert.equal(
+    readFileSync(join(project, "package.json"), "utf8"),
+    originalManifest,
+  );
+
+  const pnpm = (...args) =>
+    pinned(["node", "pnpm"], "pnpm", ["--dir", project, ...args]);
+  pnpm("install", "--frozen-lockfile");
+  for (const command of [
+    "lint",
+    "typecheck",
+    "test:unit",
+    "test:integration",
+    "test:coverage",
+    "build",
+    "test:e2e",
+    "test:a11y",
+  ]) {
+    pnpm("run", command);
+  }
+
+  assert.ok(original.includes("setItems((value) => value + 1)"));
+  writeFileSync(
+    component,
+    original.replace(
+      "setItems((value) => value + 1)",
+      "setItems((value) => value - 1)",
+    ),
+  );
+  const failure = pinned(
+    ["node", "pnpm"],
+    "pnpm",
+    ["--dir", project, "run", "test:unit"],
+    { mustFail: true },
+  );
+  assert.match(failure, /failed|expected/i);
+  writeFileSync(component, original);
+  pnpm("run", "test:unit");
+});

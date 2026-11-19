@@ -23,6 +23,23 @@ Current task authority: [Issue #22](https://github.com/hughzadora/Rill/issues/22
 
 The agent entry is [AGENTS.md](AGENTS.md); native role config is in [.codex/](.codex/config.toml). Configuration does not prove real agent delegation.
 
+## Versioned standard adoption
+
+The first **candidate** project distribution lives in
+[standards/README.md](standards/README.md) with the actual native
+[Copier template](copier.yml). It generates project-specific
+GitHub Actions quality gates without cloning Codex, storing transcript
+state or replacing unrelated product files. The committed
+[temporary-pilot tests](tests/standard-adoption.test.mjs) exercise
+fresh generation, isolated independent React/Node/Python/Shell
+applications, intentional source-test failures, Copier update,
+and native Git rollback.
+
+A successful local pilot is not an approved SemVer release or proof of
+full hosted React/Python/Shell adoption. That work is tracked in
+[Issue #32](https://github.com/hughzadora/Rill/issues/32), an active
+child of #22. Do not use a test-only tag to install into production.
+
 ## Software-delivery console
 
 The [React + Tailwind console](apps/console/) replaces the rejected static Issue-title prototype. It includes engineering overview, searchable native child tasks, task acceptance and dependencies, eight-stage workflow, declared-versus-executed quality, versioned engineering documents, and explicit handoff gaps.
@@ -37,6 +54,6 @@ The preview uses a **loopback-only read-only adapter** and the already-authentic
 - `just preview` — build and serve locally at http://127.0.0.1:8765/ on the authorized Arch host.
 - `pnpm exec playwright-cli open http://127.0.0.1:8765/ --browser=chrome` — inspect through system Chrome.
 
-The [hosted quality workflow](.github/workflows/quality.yml) runs the same locked checks on PRs. Owner prototype/design/final experience, independent review, native delegation, real new/existing project installation, version upgrade/rollback and trusted release remain distinct acceptance gates.
+The [hosted quality workflow](.github/workflows/quality.yml) runs the same locked checks on PRs. Owner prototype/design/final experience, independent review, native delegation, real new/existing project installation, published version provenance, real external target-project hosted pilots and trusted release remain distinct acceptance gates.
 
 **Current status:** Rill is a candidate software factory, not a published industrial standard. Passing local fixtures or one console does not prove project enrollment, production safety or release readiness. No unattended merge, payment, production deployment or privilege escalation is authorized.

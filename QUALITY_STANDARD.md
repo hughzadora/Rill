@@ -71,13 +71,27 @@ Tokei/Lizard, Trivy, Gitleaks, dependency/license/SBOM, Vitest fixture
 tests, Python pytest, production Vite fixture build and Chrome E2E
 for the prototype. These apply only to inspected current source.
 
-Not yet verified as a complete cross-project factory: React component
-testing on the **real management console**, axe-core accessibility,
-backend service/contract integration, Bats behavior regression,
-production source coverage thresholds, actual per-stack installation
-in a clean new and existing project, complete native multiagent
-delegation, versioned standard provenance/migration/rollback, hosted
-current-candidate CI and final owner acceptance.
+On the exact local console candidate, React component tests,
+axe-core six-page Chrome accessibility, backend Node HTTP contract
+tests, Bats behavior tests and full-source coverage thresholds were
+observed. This still certifies **only the Rill project itself**.
+
+The native Copier 9.19.1 candidate produces source-specific GitHub
+workflow profiles using the target's actual package roots. Synthetic
+greenfield, independent React/Tailwind Chrome/axe,
+Node HTTP brownfield, and Python/Shell application tests cover
+frozen dependencies, actual source checks, intentionally failing
+business regressions, non-destructive adoption, versioned upgrade
+and native Git rollback.
+The templates have no arbitrary task hooks, migration code or
+user-independent permissions.
+
+**Still open under #32:** hosted checks in an actual owner's new
+and existing external product repositories (rather than isolated
+test repositories), production startup/resilience, approved standard
+version provenance, independent current-SHA review, human approval,
+upgrade of a genuinely deployed product and complete release acceptance. No fixture, CI configuration or green
+local test should be described as universal standard enforcement.
 
 ## Review and release authority
 

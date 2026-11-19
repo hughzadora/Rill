@@ -1,0 +1,94 @@
+_min_copier_version: "9.19.1"
+_subdirectory: standards/template
+_answers_file: .rill/copier-answers.yml
+_envops:
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  keep_trailing_newline: true
+
+project_name:
+  type: str
+  default: "Software project"
+  help: "Name of the independent product repository."
+react:
+  type: bool
+  default: true
+  help: "Does this product contain a React/Tailwind UI?"
+node:
+  type: bool
+  default: true
+  help: "Does this product contain a Node.js/TypeScript backend?"
+python:
+  type: bool
+  default: true
+  help: "Does this product contain Python application code?"
+shell:
+  type: bool
+  default: true
+  validator: "{% if not (react or node or python or shell) %}Select at least one real product stack{% endif %}"
+  help: "Does this product include Shell scripts and executable Bats tests?"
+js_workspace:
+  type: str
+  default: "."
+  when: "[[ react or node ]]"
+  validator: "{% if js_workspace.startswith('/') or js_workspace.startswith('..') or '/..' in js_workspace or not (js_workspace | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "pnpm workspace directory (relative to product root)."
+react_root:
+  type: str
+  default: "apps/web"
+  when: "[[ react ]]"
+  validator: "{% if react_root.startswith('/') or react_root.startswith('..') or '/..' in react_root or not (react_root | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "React package directory relative to the pnpm workspace."
+node_root:
+  type: str
+  default: "apps/api"
+  when: "[[ node ]]"
+  validator: "{% if node_root.startswith('/') or node_root.startswith('..') or '/..' in node_root or not (node_root | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Node.js package directory relative to the pnpm workspace."
+node_version:
+  type: str
+  default: "24.22.3"
+  when: "[[ react or node ]]"
+  help: "Product-supported Node.js version."
+python_root:
+  type: str
+  default: "."
+  when: "[[ python ]]"
+  validator: "{% if python_root.startswith('/') or python_root.startswith('..') or '/..' in python_root or not (python_root | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing pyproject.toml and uv.lock."
+python_sources:
+  type: str
+  default: "src"
+  when: "[[ python ]]"
+  validator: "{% if python_sources.startswith('/') or python_sources.startswith('..') or '/..' in python_sources or not (python_sources | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python source directory relative to the Python project."
+python_tests:
+  type: str
+  default: "tests"
+  when: "[[ python ]]"
+  validator: "{% if python_tests.startswith('/') or python_tests.startswith('..') or '/..' in python_tests or not (python_tests | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python tests directory relative to the Python project."
+python_integration:
+  type: str
+  default: "tests/integration"
+  when: "[[ python ]]"
+  validator: "{% if python_integration.startswith('/') or python_integration.startswith('..') or '/..' in python_integration or not (python_integration | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python integration test directory relative to the Python project; must exist."
+python_coverage:
+  type: int
+  default: 80
+  when: "[[ python ]]"
+  validator: "{% if python_coverage < 0 or python_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Project-reviewed minimum Python coverage percentage."
+shell_sources:
+  type: str
+  default: "scripts"
+  when: "[[ shell ]]"
+  validator: "{% if shell_sources.startswith('/') or shell_sources.startswith('..') or '/..' in shell_sources or not (shell_sources | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing product Shell scripts."
+shell_tests:
+  type: str
+  default: "tests/shell"
+  when: "[[ shell ]]"
+  validator: "{% if shell_tests.startswith('/') or shell_tests.startswith('..') or '/..' in shell_tests or not (shell_tests | regex_search('^[A-Za-z0-9_./-]+$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing executable Bats tests."

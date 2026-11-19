@@ -7,7 +7,7 @@ lint:
 
 # Locked upstream tool installations; no unpinned global fallback.
 workspace-install:
-    MISE_QUIET=1 mise install --locked node pnpm just python uv aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks cargo:tokei aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard
+    MISE_QUIET=1 mise install --locked node pnpm just python uv aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks cargo:tokei aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard pypi:copier aqua:rhysd/actionlint
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 HUSKY=0 MISE_QUIET=1 mise exec --locked pnpm -- pnpm install --frozen-lockfile
     cd packages/quality && just install
 
@@ -19,6 +19,7 @@ workspace-ci:
     pnpm --dir apps/console run test:coverage
     pnpm --dir apps/console run build
     node --test tests/preview.test.mjs
+    node --test tests/standard-adoption.test.mjs
     pnpm exec playwright test
 
 preview port="8765" parent="22" bugs="23":

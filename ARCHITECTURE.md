@@ -42,8 +42,11 @@ version control, product requirements and deployments.
 
 - Native role declaration: .codex/config.toml and .codex/agents.
 - Stack quality toolchain: packages/quality and committed native locks.
-- Delivery console: current prototype and local read-only tools/preview.mjs;
-  current project-specific implementation is not factory-wide acceptance.
+- Delivery console: React/Tailwind apps/console and read-only tools/preview.mjs;
+  this repository's UI is not factory-wide acceptance.
+- Cross-project standard: native Copier configuration at copier.yml and
+  versioned standard source in standards/template; generated CI executes
+  against product files and never replaces the harness. Candidate only.
 - Pipeline entry: justfile and .github/workflows/quality.yml.
 - Product documentation: PRD, DESIGN, POLICY, PROJECT_MANAGEMENT, HANDOFF,
   MULTI_AGENT and QUALITY_STANDARD; all must remain discoverable.
@@ -66,10 +69,13 @@ uniformity.
 
 ## Release and failure model
 
-A Rill standard release should contain versioned stack profiles, executable
-gates, compatibility, migration, provenance and rollback. **Current release
-distribution/adoption is unverified**; local quality fixtures are not a
-trusted standard release. On an unknown result, failed API, broken native
+The untagged candidate uses Copier's version-aware answers, generated
+applicable per-stack GitHub workflows and native Git update/rollback.
+Temporary new-project generation, independent React/Node/Python/Shell
+source and Chrome/CLI checks, and Node brownfield recovery are automated.
+The actual standard release tag, hosted non-synthetic target checks,
+and owner acceptance **remain unverified**.
+Local fixture success is not a trusted standard release. On an unknown result, failed API, broken native
 hook or stale test, show an explicit blocker rather than an optimistic badge.
 
 Dependencies should form an acyclic graph; packages exist for real independent

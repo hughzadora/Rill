@@ -1,0 +1,78 @@
+# [[ project_name ]] / Rill Delivery Profile
+
+This directory is managed by **Copier** and native Git. Its
+`copier-answers.yml` records the originating Rill template and selected
+revision. Do not edit it manually or claim a standard release without
+verified provenance and review.
+
+## Actual product (not a Rill fixture)
+
+Enabled profiles:
+{% if react %}
+- React/Tailwind UI: `[[ react_root ]]`, pnpm workspace `[[ js_workspace ]]`.
+{% endif %}
+{% if node %}
+- Node.js/TypeScript API: `[[ node_root ]]`, pnpm workspace `[[ js_workspace ]]`.
+{% endif %}
+{% if python %}
+- Python project: `[[ python_root ]]`, with sources `[[ python_sources ]]`,
+  tests `[[ python_tests ]]` and `[[ python_integration ]]` relative to that project;
+  project-reviewed coverage floor [[ python_coverage ]]%.
+{% endif %}
+{% if shell %}
+- Shell scripts: `[[ shell_sources ]]`, Bats `[[ shell_tests ]]`.
+{% endif %}
+
+The workflow at `.github/workflows/rill-quality.yml` executes actual
+product-source quality checks. Missing scripts, absent tests, incompatible
+dependency locks, analyzer errors and insecure dependencies **fail**.
+Do not weaken existing checks or claim fixtures as production evidence.
+
+{% if react %}
+### Mandatory React package scripts
+
+At `[[ react_root ]]`: lint, typecheck, test:unit, test:integration,
+test:coverage, test:e2e, test:a11y and build.
+Use React Testing Library, Vitest, Playwright with system Google Chrome,
+axe-core, and a meaningful enforced project-specific coverage threshold.
+{% endif %}
+{% if node %}
+### Mandatory Node package scripts
+
+At `[[ node_root ]]`: lint, typecheck, test:unit, test:integration,
+test:coverage and build. Test actual HTTP/contract/service behavior,
+including negative and recovery paths.
+{% endif %}
+{% if python %}
+### Python quality contracts
+
+Locked uv project includes Ruff, mypy, pytest/pytest-cov and the
+application dependencies. Static checks, unit and integration tests,
+coverage and native package build must execute successfully.
+{% endif %}
+{% if shell %}
+### Shell quality contracts
+
+ShellCheck, shfmt and Bats operate on actual scripts and executable
+behavior. Missing source and tests are errors, not an implicit skip.
+{% endif %}
+
+## Owner and agent authority
+
+GitHub parent/sub-issues, actual Git/PR and current build logs own
+execution facts. No second task database, made-up agent runtime or
+transcript-copying handoff. Prototype, design and final owner
+interaction checks are separate from technical CI; only native harness
+approval controls can authorize consequential actions.
+
+## Standard updates and rollback
+
+Use Copier's own version-aware update functionality against a reviewed
+Rill source ref. Copier merges template diffs and product evolution;
+unresolved conflicts stay visible. Keep the product in an isolated,
+clean Git branch or worktree and test before merging. Standard rollback
+is native Git revert/restore of this scoped change.
+
+The Rill template contains **no** arbitrary template tasks or migrations
+and must not need the Copier unsafe switch. A copied workflow without
+executed checks and a real product review is **not** verified adoption.

@@ -19,3 +19,5 @@ uv = "latest"
 "pypi:pytest" = "latest"
 "pypi:pip-licenses" = "latest"
 "pypi:lizard" = "latest"
+"pypi:copier" = { version = "9.19.1", python = "3.14.8" }
+"aqua:rhysd/actionlint" = "1.7.12"

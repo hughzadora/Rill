@@ -12,9 +12,13 @@ Current implementation authority is native parent Issue #22.
 3. **Complete per-stack quality standard.** Real React/Node/Python/Shell
    project source, unit/component/API/CLI/integration, axe/Chrome,
    security/coverage/build and artifact evidence.
-4. **New- and existing-project pilot.** Non-destructive audit, stack
-   choice, native tool preservation, standard application, real checks
-   and rollback.
+4. **New- and existing-project pilot — partial candidate.** Native
+   Copier template, locked tools and generated GitHub checks now
+   have isolated React/Tailwind, Node/TypeScript, Python and Shell
+   product behavior tests, intentional regression failures, sandbox
+   greenfield/brownfield adoption and Git update/rollback evidence.
+   Hosted non-synthetic target projects, owner interaction acceptance
+   and release provenance remain OPEN in #32.
 5. **Prove genuine multiagent and handoff.** Fresh native Codex
    session, actual delegated roles and independent review; task handoff
    from GitHub/PR and docs without transcript state copies.

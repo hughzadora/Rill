@@ -120,6 +120,11 @@ test("read-only document endpoint returns allowlisted project documentation", as
   const response = await fetch(origin + "/api/document?path=PRD.md");
   assert.equal(response.status, 200);
   assert.match(await response.text(), /reusable/i);
+  const adoption = await fetch(
+    origin + "/api/document?path=standards%2FREADME.md",
+  );
+  assert.equal(adoption.status, 200);
+  assert.match(await adoption.text(), /Copier\s+9\.19\.1/);
   const invalid = await fetch(origin + "/api/document?path=../.git/config");
   assert.equal(invalid.status, 404);
 });
@@ -128,6 +133,7 @@ test("HTML endpoint is isolated from repository source and refuses writes", asyn
   const valid = await fetch(origin + "/");
   assert.equal(valid.status, 200);
   assert.match(await valid.text(), /Rill \/ Delivery Console/);
+  assert.equal((await fetch(origin + "/rill-journey.html")).status, 404);
   assert.equal((await fetch(origin + "/package.json")).status, 404);
   assert.equal(
     (await fetch(origin + "/api/dashboard", { method: "POST" })).status,
