@@ -99,7 +99,7 @@ function Handoff({
               )}
             </li>
             <li>
-              <strong>安全的下一步</strong>
+              <strong>未标记阻塞的开放事项（仍需验收与授权核对）</strong>
               <span>
                 {nextIssue
                   ? "#" + nextIssue.number + " · " + nextIssue.title

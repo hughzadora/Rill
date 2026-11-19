@@ -61,6 +61,12 @@ The generated files have distinct authority:
 | `.rill/STANDARD.md`                  | Stack requirements   |
 | `.github/workflows/rill-quality.yml` | PR checks and audits |
 
+`github_parent_issue` is an optional numeric pointer to the actual
+native engineering parent of the target repository. The generated
+standard explicitly marks unbound projects as `NOT ENROLLED` and
+requires a fresh agent to verify the repository and issue tree via
+native GitHub access; recording a number is not proof of enrollment.
+
 `copier-answers.yml` is required for future version updates. Do not
 remove it to create false "stateless" compliance, and do not treat
 a successful copy as verified project adoption.
@@ -76,7 +82,14 @@ thresholds directly, rather than trusting package scripts that may
 be no-ops. React additionally executes real Chrome-tagged `@e2e` and
 `@a11y` Playwright tests directly; the target project's native
 `build` script remains required. Tests or real source missing
-from the checked-out Git tree cause CI to fail. The reporter still
+from the checked-out Git tree cause CI to fail. The selected
+`node:test` runner requires locked `c8@12.0.0` and uses
+`--all --per-file` coverage to count even unloaded source modules.
+React requires a Playwright project named `chrome` configured
+with the system `channel: "chrome"`. Each native build must
+freshly produce the configured output file. Trivy security checks
+disable checkout-controlled configs and ignore files; exceptions
+require an explicit reviewed source policy. The reporter still
 requires human review of test quality and deployment artifacts.
 
 Python runs inside the configured `python_root`, with a locked uv

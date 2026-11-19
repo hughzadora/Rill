@@ -13,7 +13,7 @@ const currentIssue: Issue = {
   updatedAt: "2026-11-19T08:00:00Z",
   labels: { nodes: [] },
   assignees: { nodes: [] },
-  blockedBy: { nodes: [] },
+  blockedBy: { pageInfo: { hasNextPage: false }, nodes: [] },
   blocking: { nodes: [] },
   closedByPullRequestsReferences: { nodes: [] },
 };

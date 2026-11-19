@@ -78,8 +78,20 @@ a meaningful click path.
 
 ## Current versus desired state
 
-The currently committed HTML reads one Rill issue tree live and supports
-basic stages, filters and stale-state presentation. It is **not**
-the comprehensive project management product described here, has no
-cross-repository onboarding and is not implemented in React/Tailwind.
-This is a known product gap, not a successfully delivered final UI.
+The current candidate **is implemented in React + Tailwind** at
+`apps/console/` with a read-only local API at `tools/preview.mjs`.
+It shows one real GitHub engineering and bug parent tree, task
+acceptance and dependencies, the quality matrix, eight lifecycle
+stages, versioned documents, PRs and SHA-bound CI evidence. A
+clickable architecture-route comparison gives inspectable tradeoffs
+without pretending the HTML can authorize a design decision.
+
+This is a functioning **Rill factory engineering console**, not a
+finished multi-repository product-delivery service. The current
+candidate does not enroll other repositories automatically,
+host approval controls, schedule autonomous work, synchronize
+a portfolio, or record actual owner click acceptance. The
+eight-stage pipeline is a declared engineering contract; task
+progress still comes from native GitHub records and verified
+checks. Missing owner acceptance, deployed recovery and external
+project proof remain explicit blockers to the industrial standard.

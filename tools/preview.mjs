@@ -27,7 +27,7 @@ const query =
   "query($owner:String!,$name:String!,$parent:Int!,$bugs:Int!){repository(owner:$owner,name:$name){" +
   "nameWithOwner url parent:issue(number:$parent){number title body state updatedAt url subIssues(first:100){" +
   "pageInfo{hasNextPage} nodes{number title body state updatedAt url labels(first:20){nodes{name}}" +
-  "assignees(first:20){nodes{login}} blockedBy(first:30){nodes{number title state url}}" +
+  "assignees(first:20){nodes{login}} blockedBy(first:100){pageInfo{hasNextPage} nodes{number title state url}}" +
   "blocking(first:30){nodes{number title state url}}" +
   "closedByPullRequestsReferences(first:20){nodes{number title state url}}}}}" +
   "bugs:issue(number:$bugs){number title state url subIssues(first:100){" +
@@ -74,7 +74,10 @@ const github = async () => {
     !result?.parent?.subIssues ||
     !result?.bugs?.subIssues ||
     result.parent.subIssues.pageInfo.hasNextPage ||
-    result.bugs.subIssues.pageInfo.hasNextPage
+    result.bugs.subIssues.pageInfo.hasNextPage ||
+    result.parent.subIssues.nodes.some(
+      (issue) => issue.blockedBy?.pageInfo?.hasNextPage !== false,
+    )
   ) {
     throw new Error("Incomplete authoritative GitHub issue tree");
   }

@@ -42,7 +42,10 @@ source-coverage threshold, Playwright `@e2e` and `@a11y`
 real Chrome scenarios directly. The product's native `build` script
 must produce its actual deployment artifact. Do not replace a native
 tool with green shell-echo scripts or skip component/API failure paths.
-Playwright must use system Google Chrome, never auto-download Chromium.
+The Playwright project must be named `chrome` with
+`use: { channel: "chrome" }`; generated CI selects that specific
+project. The build must freshly emit `[[ react_build_artifact ]]`.
+Never use downloaded Chromium in place of system Google Chrome.
 {% endif %}
 {% if node %}
 ### Mandatory Node product contracts
@@ -54,7 +57,10 @@ CI invokes Biome, TypeScript and selected
 The product's real `build` script remains mandatory and must
 produce the deployable package. Check HTTP/contract/service behavior,
 negative cases and recovery. No-op test scripts cannot replace
-native source checks.
+native source checks. The Node `node:test` profile requires
+a locked `c8@12.0.0` development dependency. `c8 --all` checks
+unloaded source files against the per-file coverage floor.
+The build must freshly emit `[[ node_build_artifact ]]`.
 {% endif %}
 {% if python %}
 ### Python quality contracts
@@ -72,6 +78,21 @@ Static checks, unit/integration tests, coverage and build must pass.
 ShellCheck and shfmt audit `.sh` and extensionless Bash/sh shebang
 scripts from one inventory. Bats tests real executable behavior.
 Missing source and tests are errors, not an implicit skip.
+{% endif %}
+
+## Native project issue enrollment
+
+{% if github_parent_issue > 0 %}
+Configured engineering parent: GitHub issue # [[ github_parent_issue ]].
+This is a recorded owner-provided pointer, **not a runtime verification**.
+A fresh agent must confirm `gh repo view` matches this repository and
+`gh issue view [[ github_parent_issue ]]` actually resolves, then
+read its real sub-issues before suggesting work.
+{% else %}
+Status: **NOT ENROLLED**. There is no verified engineering parent Issue
+for this product. Do not guess a GitHub issue, fake task state or auto-create
+a replacement. Bind an actual owner-approved parent through the supported
+native GitHub workflow before claiming new-agent task discovery.
 {% endif %}
 
 ## Owner and agent authority
@@ -102,6 +123,10 @@ licenses and records a CycloneDX SBOM plus dependency-license reports
 as short-lived GitHub Actions artifacts. Trivy cannot determine uv.lock
 package licenses by reading that file alone: the Python license inventory
 uses the locked `pip-licenses` tool on installed project dependencies.
+Trivy uses native `--config="" --ignorefile="" --secret-config=""`
+to prevent checkout-controlled scan configuration/ignore files
+from silently overriding Rill policy. Explicit human review
+is required for a justified exception.
 Unknown licenses require explicit human review, never a silent PASS.
 Source and lockfile scans occur before installation; generated license
 and SBOM reports are uploaded before a blocking classification check.

@@ -178,6 +178,21 @@ test("native issue feed has read-only, auditable schema", async () => {
   assert.equal(payload.bugs.subIssues.nodes.length, 2);
 });
 
+test("truncated native blockedBy dependencies never turn into a recommended task", async () => {
+  const altered = structuredClone(dashboard.issueData);
+  altered.parent.subIssues.nodes[0].blockedBy.pageInfo.hasNextPage = true;
+  const { child, base } = await runServer(altered);
+  try {
+    const reply = await fetch(base + "/api/dashboard");
+    assert.equal(reply.status, 206);
+    const result = await reply.json();
+    assert.equal(result.issueData, null);
+    assert.ok(result.errors.includes("GitHub issue tree unavailable"));
+  } finally {
+    child.kill();
+  }
+});
+
 test("incomplete GitHub pagination is surfaced as unavailable, not a successful issue tree", async () => {
   const altered = structuredClone(dashboard.issueData);
   altered.parent.subIssues.pageInfo.hasNextPage = true;

@@ -34,7 +34,7 @@ const makeIssue = (number: number, options: Partial<Issue> = {}): Issue => ({
   updatedAt: "2026-11-19T08:40:00Z",
   labels: { nodes: [] },
   assignees: { nodes: [] },
-  blockedBy: { nodes: [] },
+  blockedBy: { pageInfo: { hasNextPage: false }, nodes: [] },
   blocking: { nodes: [] },
   closedByPullRequestsReferences: { nodes: [] },
   ...options,
@@ -48,7 +48,10 @@ const parent: IssueParent = {
     nodes: [
       makeIssue(24),
       makeIssue(25, {
-        blockedBy: { nodes: [reference(31, "Retired plugin bug")] },
+        blockedBy: {
+          pageInfo: { hasNextPage: false },
+          nodes: [reference(31, "Retired plugin bug")],
+        },
       }),
     ],
   },

@@ -51,10 +51,10 @@ jobs:
         run: pnpm exec vitest run --coverage --coverage.include=[[ (react_sources ~ "/**/*.{ts,tsx,js,jsx}") | tojson ]] --coverage.thresholds.statements=[[ react_coverage ]]
       - name: Execute native Chrome E2E test cases
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
-        run: pnpm exec playwright test --grep '@e2e'
+        run: pnpm exec playwright test --project=chrome --grep '@e2e'
       - name: Execute native Chrome accessibility test cases
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
-        run: pnpm exec playwright test --grep '@a11y'
+        run: pnpm exec playwright test --project=chrome --grep '@a11y'
 
       - name: React source lint with Biome
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
@@ -64,7 +64,15 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: React production build
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
-        run: pnpm run build
+        shell: bash
+        run: |
+          marker=$(mktemp)
+          trap 'rm -f "$marker"' EXIT
+          pnpm run build
+          artifact=[[ react_build_artifact | tojson ]]
+          test -f "$artifact"
+          test -s "$artifact"
+          test "$artifact" -nt "$marker"
 {% endif %}
 {% if node %}
       - name: Verify tracked Node application and test source
@@ -78,7 +86,7 @@ jobs:
 {% if node_test_runner == "node" %}
       - name: Execute native Node test runner with full-source coverage
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
-        run: pnpm exec node --experimental-strip-types --test --experimental-test-coverage --test-coverage-include=[[ (node_sources ~ "/**/*") | tojson ]] --test-coverage-lines=[[ node_coverage ]]
+        run: pnpm exec c8 --all --src [[ node_sources | tojson ]] --include [[ (node_sources ~ "/**/*.{ts,tsx,js,jsx,mjs,cjs}") | tojson ]] --check-coverage --per-file --lines=[[ node_coverage ]] node --experimental-strip-types --test
 {% else %}
       - name: Execute native Vitest source coverage for Node
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
@@ -92,7 +100,15 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: Node production build
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
-        run: pnpm run build
+        shell: bash
+        run: |
+          marker=$(mktemp)
+          trap 'rm -f "$marker"' EXIT
+          pnpm run build
+          artifact=[[ node_build_artifact | tojson ]]
+          test -f "$artifact"
+          test -s "$artifact"
+          test "$artifact" -nt "$marker"
 {% endif %}
       - name: Audit production Node dependencies
         run: pnpm audit --prod
@@ -187,7 +203,7 @@ jobs:
       - name: Scan committed Git history before dependency installation
         run: mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --redact --exit-code 1
       - name: Scan original source and lockfiles before dependency installation
-        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --scanners vuln,secret,misconfig --exit-code 1 --skip-dirs node_modules --skip-dirs .venv .
+        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --config="" --ignorefile="" --secret-config="" --scanners vuln,secret,misconfig --exit-code 1 --skip-dirs node_modules --skip-dirs .venv .
 {% if react or node %}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
@@ -218,9 +234,9 @@ jobs:
       - name: Verify supply-chain installs preserved tracked source
         run: git diff --exit-code -- .
       - name: Record complete license classifications, including unknown
-        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --scanners license --include-dev-deps --format json --output rill-license-classifications.json --skip-dirs .venv .
+        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --config="" --ignorefile="" --secret-config="" --scanners license --include-dev-deps --format json --output rill-license-classifications.json --skip-dirs .venv .
       - name: Generate CycloneDX software bill of materials
-        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --include-dev-deps --format cyclonedx --output rill-sbom.cdx.json --skip-dirs node_modules --skip-dirs .venv .
+        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --config="" --ignorefile="" --secret-config="" --include-dev-deps --format cyclonedx --output rill-sbom.cdx.json --skip-dirs node_modules --skip-dirs .venv .
       - name: Validate supply-chain evidence files
         run: |
           test -s rill-license-classifications.json
@@ -242,4 +258,4 @@ jobs:
         run: uv run --locked pip-licenses --fail-on "GPL;AGPL;GPL-2.0;GPL-2.0-only;GPL-2.0-or-later;GPL-3.0;GPL-3.0-only;GPL-3.0-or-later;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU General Public License;GNU Affero General Public License"
 {% endif %}
       - name: Block forbidden or restricted license classifications
-        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --scanners license --include-dev-deps --severity HIGH,CRITICAL --exit-code 1 --skip-dirs .venv .
+        run: mise exec aqua:aquasecurity/trivy@0.76.2 -- trivy fs --config="" --ignorefile="" --secret-config="" --scanners license --include-dev-deps --severity HIGH,CRITICAL --exit-code 1 --skip-dirs .venv .

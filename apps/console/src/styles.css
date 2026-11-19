@@ -1128,6 +1128,81 @@ a {
   color: #81a99f;
   font-size: 20px;
 }
+.decision-comparison {
+  border: 1px solid #d6e2e5;
+  background: #fff;
+  padding: 22px 24px;
+}
+
+.decision-comparison-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.decision-comparison-options button {
+  display: grid;
+  gap: 2px;
+  min-width: 166px;
+  border: 1px solid #c8d8dd;
+  background: #f7fafb;
+  color: #234451;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.decision-comparison-options button:hover {
+  background: #eaf4f2;
+}
+
+.decision-comparison-options button[aria-pressed="true"] {
+  border-color: #17625b;
+  background: #164f4a;
+  color: #fff;
+}
+
+.decision-comparison-options button strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.decision-comparison-options button span {
+  font-size: 11px;
+}
+
+.decision-comparison-detail {
+  border-top: 1px solid #e2eaed;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.decision-comparison-detail dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.decision-comparison-detail dt {
+  color: #4f6570;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.decision-comparison-detail dd {
+  color: #233d46;
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.decision-comparison-detail > p {
+  color: #14564f;
+  font-size: 13px;
+  font-weight: 650;
+  margin: 16px 0 0;
+}
+
 .phase-detail {
   border-radius: 10px;
   background: #173b47;

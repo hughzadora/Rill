@@ -148,3 +148,51 @@ The adoption test harness now executes generated Node/React commands through
 the _same Mise-locked Node and pnpm_ and then changes to the isolated target
 project directory before execution. The fix passed its seven adoption cases
 locally but requires a **new exact-SHA hosted run** before any PASS claim.
+
+## Full-diff independent review and strengthened candidate — 2026-11-19
+
+Two **separate fresh read-only reviewer sessions** completed at
+`df636a4` against `origin/main` and #22/#32. Standards reported
+five defects, Spec reported five overlapping findings. Fixes in
+the next candidate include:
+
+- Node 24's coverage omits never-loaded source. The generated Node
+  profile now uses locked `c8@12.0.0 --all --per-file`; injected
+  unused source fails at zero coverage, while covered source passes.
+- Target-controlled Trivy settings/ignore files are disabled using
+  official CLI flags; all four generated scans are checked.
+- Copier rejects leading CLI-option-like path answers such as `-h`.
+- GraphQL blocker page metadata are mandatory and partial results
+  fail closed instead of recommending blocked tasks.
+- The React profile selects an explicit Playwright `chrome` project;
+  React and Node builds demand freshly emitted non-empty output files.
+- The pipeline displays real clickable architecture alternatives
+  without substituting a handmade HTML choice for Harness approval.
+- An isolated missing-source update test proves an existing project's
+  Git HEAD and product rules remain intact. Native two-version Copier
+  update modifies generated CI and standard docs, and Git revert
+  restores both.
+
+One reviewer assertion was **disproved by the actual CLI**:
+`gh run list --workflow .github/workflows/quality.yml` works on this
+host. No spurious compatibility workaround was added.
+
+A genuinely fresh native Codex session, with no copied transcript
+and no specified issue ID, recovered #22/#32, the exact Git SHA and
+draft PR #33, and actually delegated one independent Explorer task.
+Project configuration reports the legacy Rill plugin disabled.
+No Rill-specific hook execution was observed, but normal Codex
+Hook events did occur. True autocompaction continuity is unverified.
+
+Local verification after the edits: 9/9 isolated adoption regressions,
+6/6 preview API contracts, 9/9 Chrome E2E, five real GitHub-data
+Chrome/axe views with zero automated A/AA findings. Agent Desktop
+reported Linux accessibility granted, but real OS window interaction
+is blocked by absent DISPLAY/WAYLAND_DISPLAY in this host session.
+
+Not yet completed: independent whole-branch final-SHA review,
+new exact-SHA hosted PR CI, owner-selected external new/old product
+pilots with their own hosted checks, genuine Owner prototype/design/
+final Chrome clicks, approved SemVer and real deployed rollback,
+license exceptions, authorized merge and user-wide plugin cleanup.
+Do not mark any of these as completed by local fixtures.

@@ -51,13 +51,42 @@ const phases = [
   },
 ];
 
+const designRoutes = [
+  {
+    name: "原生交付标准",
+    status: "当前采用",
+    source: "Codex Harness + GitHub 原生 Issue/PR + Copier 版本化标准",
+    evidence: "任务来源唯一；CI 绑定精确 SHA；安装和回滚都由 Git 记录。",
+    limitation: "原生授权及 Owner 最终点击仍需真实平台交互。",
+    verdict: "减少维护的自建状态；风险和版本归属可以独立审查。",
+  },
+  {
+    name: "自建 Agent 运行时",
+    status: "已废弃",
+    source: "自定义 Hook、任务快照、上下文恢复与并行状态服务",
+    evidence: "以前曾有实现，但与 Harness 的会话和授权事实重叠。",
+    limitation: "第二份任务真相、升级负担和权限边界无法自动验证。",
+    verdict: "原生功能已覆盖的部分直接删除，不保留兼容层。",
+  },
+  {
+    name: "复制文档模板",
+    status: "不满足验收",
+    source: "仅在项目中放置 Markdown 说明与 Prompt",
+    evidence: "入门简单，但规范没有落实到真实源码、测试和构建。",
+    limitation: "不能证明代码通过质量门禁，也不产生可复测的交付记录。",
+    verdict: "文档只能解释标准；实际约束由语言工具和托管 CI 强制执行。",
+  },
+];
+
 export function Pipeline({
   onNavigate,
 }: {
   onNavigate: (view: "quality" | "docs") => void;
 }) {
   const [selected, setSelected] = useState(0);
+  const [compared, setCompared] = useState(0);
   const current = phases[selected];
+  const route = designRoutes[compared];
   return (
     <div className="page-grid">
       <div className="content-heading">
@@ -119,6 +148,52 @@ export function Pipeline({
           </div>
         </div>
       </div>
+      {selected === 2 && (
+        <section
+          className="decision-comparison"
+          aria-labelledby="route-comparison-title"
+        >
+          <div className="section-bar">
+            <div>
+              <h3 id="route-comparison-title">架构方案对照</h3>
+              <p>
+                这是 Rill 已确定架构的设计依据。切换只改变解释，不会替代 Harness
+                原生选择、保存决定或触发 Agent。
+              </p>
+            </div>
+          </div>
+          <div className="decision-comparison-options">
+            {designRoutes.map((alternative, index) => (
+              <button
+                key={alternative.name}
+                type="button"
+                aria-pressed={compared === index}
+                onClick={() => setCompared(index)}
+              >
+                <strong>{alternative.name}</strong>
+                <span>{alternative.status}</span>
+              </button>
+            ))}
+          </div>
+          <div className="decision-comparison-detail" aria-live="polite">
+            <dl>
+              <div>
+                <dt>实现边界</dt>
+                <dd>{route.source}</dd>
+              </div>
+              <div>
+                <dt>可验证的收益</dt>
+                <dd>{route.evidence}</dd>
+              </div>
+              <div>
+                <dt>代价与局限</dt>
+                <dd>{route.limitation}</dd>
+              </div>
+            </dl>
+            <p>{route.verdict}</p>
+          </div>
+        </section>
+      )}
       <section
         className="checkpoints-section"
         aria-labelledby="checkpoints-title"

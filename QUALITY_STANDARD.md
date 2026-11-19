@@ -154,3 +154,20 @@ The unsupported `--test-coverage-include-all` flag was removed; the
 corrected adoption harness uses the real pinned runtime to prevent this
 class of false positive. Current-SHA hosted success is required and
 cannot be inferred from a prior green run.
+
+## Independent reviewer findings and latest gate corrections
+
+Separate Standards and Spec review sessions completed for the full
+`origin/main...df636a4` diff. Their high-impact findings were:
+Node coverage omitting unloaded source, Trivy checkout configuration
+overriding license policy, GitHub blocker pagination false readiness,
+and a build/Chrome check dependent on unverified project scripts.
+Generated source gates now use upstream `c8@12.0.0 --all --per-file`
+with pinned Node 24, disable target-controlled Trivy config/ignore
+files, reject CLI-option-like source paths, check blocker pagination,
+select an explicit system Chrome project and require freshly built
+output files. Independent negative tests exercise missing sources,
+no-op builds, workflow upgrade plus native Git rollback, and missing
+upstream source without altering the existing product.
+These local results do not certify external owner products or
+authorize a Rill release, a PR merge or permission escalation.

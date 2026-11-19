@@ -12,7 +12,10 @@ export interface Issue extends IssueRef {
   updatedAt: string;
   labels: { nodes: { name: string }[] };
   assignees: { nodes: { login: string }[] };
-  blockedBy: { nodes: IssueRef[] };
+  blockedBy: {
+    nodes: IssueRef[];
+    pageInfo: { hasNextPage: boolean };
+  };
   blocking: { nodes: IssueRef[] };
   closedByPullRequestsReferences: { nodes: IssueRef[] };
 }
@@ -214,6 +217,7 @@ export function validateDashboard(value: unknown): value is Dashboard {
           typeof issue.url === "string" &&
           issue.url.startsWith("https://github.com/") &&
           Array.isArray(issue.blockedBy?.nodes) &&
+          issue.blockedBy.pageInfo?.hasNextPage === false &&
           Array.isArray(issue.assignees?.nodes) &&
           Array.isArray(issue.labels?.nodes),
       )

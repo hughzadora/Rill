@@ -10,7 +10,7 @@ const issue = (number, title, body, state = "OPEN", blockers = []) => ({
   updatedAt: "2026-11-19T08:40:00Z",
   labels: { nodes: [] },
   assignees: { nodes: number === 25 ? [{ login: "agent-owner" }] : [] },
-  blockedBy: { nodes: blockers },
+  blockedBy: { pageInfo: { hasNextPage: false }, nodes: blockers },
   blocking: { nodes: [] },
   closedByPullRequestsReferences: { nodes: [] },
 });

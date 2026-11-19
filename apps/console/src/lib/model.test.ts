@@ -17,6 +17,7 @@ const issue = (blocks: string[]) => ({
   labels: { nodes: [] },
   assignees: { nodes: [] },
   blockedBy: {
+    pageInfo: { hasNextPage: false },
     nodes: blocks.map((state, index) => ({
       number: index + 1,
       title: "Blocker",

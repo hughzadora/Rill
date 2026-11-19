@@ -6,9 +6,9 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:4178",
-    channel: "chrome",
     headless: true,
   },
+  projects: [{ name: "chrome", use: { channel: "chrome" } }],
   webServer: {
     command: "pnpm run dev",
     url: "http://127.0.0.1:4178",

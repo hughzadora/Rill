@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -19,7 +20,7 @@ let sandbox;
 let template;
 
 function execute(program, args, options = {}) {
-  const environment = { ...process.env, MISE_QUIET: "1" };
+  const environment = { ...process.env, ...options.env, MISE_QUIET: "1" };
   // Test subprocesses must not inherit the parent node:test harness context,
   // otherwise Node silently skips recursive tests and produces a false pass.
   delete environment.NODE_TEST_CONTEXT;
@@ -104,6 +105,10 @@ function verifyWorkflow(destination) {
   return readFileSync(generated, "utf8");
 }
 
+const pinnedNodeDirectory = dirname(
+  execute("mise", ["-C", repository, "which", "node"]).trim(),
+);
+
 function executeGeneratedStep(workflow, label, cwd, options = {}) {
   const section = workflow.split("      - name: " + label + "\n")[1];
   assert.ok(section, "Missing generated step: " + label);
@@ -126,7 +131,13 @@ function executeGeneratedStep(workflow, label, cwd, options = {}) {
     ["node", "pnpm"],
     "bash",
     ["-e", "-c", 'cd "$1"\n' + script, "rill-step", cwd],
-    options,
+    {
+      ...options,
+      env: {
+        ...options.env,
+        PATH: pinnedNodeDirectory + ":" + process.env.PATH,
+      },
+    },
   );
 }
 
@@ -154,6 +165,7 @@ function newProduct(directory) {
             typescript: "7.0.2",
             "@types/node": "24.19.2",
             "@biomejs/biome": "2.6.8",
+            c8: "12.0.0",
           },
         },
         null,
@@ -248,7 +260,7 @@ function newProduct(directory) {
       "name: Existing quality\non: [pull_request]\njobs:\n  original:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo original-quality\n",
     "docs/product.md":
       "# Independent product requirements\n\nProtected unrelated work.\n",
-    ".gitignore": "node_modules/\ndist/\n",
+    ".gitignore": "node_modules/\ndist/\ncoverage/\n.nyc_output/\n",
   };
   for (const [name, content] of Object.entries(files))
     file(directory, name, content);
@@ -286,6 +298,10 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
   );
   assert.match(receipt, /_commit: v0.1.0/);
   assert.match(receipt, /_src_path:/);
+  assert.match(
+    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
+    /NOT ENROLLED/,
+  );
   const workflow = verifyWorkflow(project);
   for (const job of ["typescript", "python", "shell", "security"]) {
     assert.match(workflow, new RegExp("^  " + job + ":", "m"));
@@ -353,6 +369,19 @@ test("nested pnpm projects use repository-relative action inputs and merge-queue
     workflow.match(/package_json_file: "frontend\/package\.json"/g)?.length,
     2,
   );
+});
+
+test("native project parent is recorded or remains explicitly unbound", () => {
+  const project = join(sandbox, "issue-enrollment");
+  mkdirSync(project);
+  copyStandard(project, {
+    project_name: "Native project enrollment",
+    github_parent_issue: 22,
+  });
+  const doc = readFileSync(join(project, ".rill/STANDARD.md"), "utf8");
+  assert.match(doc, /GitHub issue # 22/);
+  assert.doesNotMatch(doc, /NOT ENROLLED/);
+  assert.match(doc, /not a runtime verification/i);
 });
 
 test("native Node Vitest profile is selected without trusting package scripts", () => {
@@ -457,6 +486,24 @@ test("invalid profiles and paths cannot silently create a passing workflow", () 
     { mustFail: true },
   );
   assert.match(rejectedTraversal, /Use a path inside the product repository/);
+  const optionPath = join(sandbox, "invalid-option-path");
+  mkdirSync(optionPath);
+  const rejectedOption = pinned(
+    ["pypi:copier"],
+    "copier",
+    [
+      "copy",
+      "--defaults",
+      "--vcs-ref",
+      "v0.1.0",
+      "-d",
+      "python_integration=-h",
+      template,
+      optionPath,
+    ],
+    { mustFail: true },
+  );
+  assert.match(rejectedOption, /Use a path inside the product repository/);
 });
 
 test("brownfield source, tests and unrelated workflows survive adoption and native rollback", () => {
@@ -499,6 +546,10 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     node_root: ".",
   });
   const workflow = verifyWorkflow(project);
+  assert.match(
+    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
+    /NOT ENROLLED/,
+  );
   assert.match(workflow, /^ {2}typescript:/m);
   assert.doesNotMatch(workflow, /^ {2}python:/m);
   assert.doesNotMatch(workflow, /^ {2}shell:/m);
@@ -541,6 +592,18 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     project,
   );
 
+  const unloaded = join(project, "src/unloaded.ts");
+  writeFileSync(
+    unloaded,
+    "export function untested(): number { return 42; }\n",
+  );
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+    { mustFail: true },
+  );
+  rmSync(unloaded);
   const sourcePath = join(project, "src/server.ts");
   const healthy = readFileSync(sourcePath, "utf8");
   assert.ok(healthy.includes("return left + right;"));
@@ -571,6 +634,14 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     { mustFail: true },
   );
   writeFileSync(manifest, originalPackage);
+  executeGeneratedStep(workflow, "Node production build", project);
+  const emptyBuild = JSON.parse(originalPackage);
+  emptyBuild.scripts.build = "node -e 'process.exit(0)'";
+  writeFileSync(manifest, JSON.stringify(emptyBuild, null, 2) + "\n");
+  executeGeneratedStep(workflow, "Node production build", project, {
+    mustFail: true,
+  });
+  writeFileSync(manifest, originalPackage);
   git(project, ["restore", "--", "src/server.ts"]);
   pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
 
@@ -587,6 +658,19 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     doc,
     readFileSync(doc, "utf8") +
       "\nVerified upstream update remains transparent.\n",
+  );
+  const templateWorkflow = join(
+    template,
+    "standards/template/.github/workflows/rill-quality.yml.jinja",
+  );
+  const workflowOriginal = readFileSync(templateWorkflow, "utf8");
+  assert.match(workflowOriginal, /^name: Rill Quality$/m);
+  writeFileSync(
+    templateWorkflow,
+    workflowOriginal.replace(
+      /^name: Rill Quality$/m,
+      "name: Rill Quality v0.2.0",
+    ),
   );
   git(template, ["add", "."]);
   git(template, ["commit", "-qm", "Revised source standard"]);
@@ -613,9 +697,14 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   const changed = git(project, ["diff", "--name-only"])
     .split("\n")
     .filter(Boolean);
-  assert.ok(
-    changed.every((name) => name.startsWith(".rill/")),
-    changed.join(", "),
+  assert.deepEqual(changed.sort(), [
+    ".github/workflows/rill-quality.yml",
+    ".rill/STANDARD.md",
+    ".rill/copier-answers.yml",
+  ]);
+  assert.match(
+    readFileSync(join(project, ".github/workflows/rill-quality.yml"), "utf8"),
+    /^name: Rill Quality v0.2.0$/m,
   );
   for (const name of originalPaths) {
     assert.equal(readFileSync(join(project, name), "utf8"), before[name]);
@@ -626,7 +715,7 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     0,
   );
 
-  git(project, ["add", ".rill"]);
+  git(project, ["add", ".rill", ".github/workflows/rill-quality.yml"]);
   git(project, ["commit", "-qm", "Update reviewed Rill profile"]);
   const updateSha = git(project, ["rev-parse", "HEAD"]);
   git(project, ["revert", "--no-edit", updateSha]);
@@ -636,8 +725,68 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     "utf8",
   );
   assert.match(rolledBack, /_commit: v0.1.0/);
+  assert.match(
+    readFileSync(join(project, ".github/workflows/rill-quality.yml"), "utf8"),
+    /^name: Rill Quality$/m,
+  );
   assert.equal(git(project, ["status", "--porcelain"]), "");
   assert.ok(original["AGENTS.md"].includes("Existing native agent rules"));
+});
+
+test("missing Copier source fails without mutating an enrolled product", () => {
+  const project = join(sandbox, "missing-upstream");
+  const source = join(sandbox, "isolated-upstream");
+  const hiddenSource = join(sandbox, "isolated-upstream-unavailable");
+  const original = newProduct(project);
+  git(project, ["add", "."]);
+  git(project, ["commit", "-qm", "Independent product baseline"]);
+  cpSync(template, source, { recursive: true });
+  pinned(["pypi:copier"], "copier", [
+    "copy",
+    "--defaults",
+    "--vcs-ref",
+    "v0.1.0",
+    "-d",
+    "react=false",
+    "-d",
+    "node=true",
+    "-d",
+    "python=false",
+    "-d",
+    "shell=false",
+    "-d",
+    "node_root=.",
+    source,
+    project,
+  ]);
+  git(project, ["add", ".rill", ".github/workflows/rill-quality.yml"]);
+  git(project, ["commit", "-qm", "Enroll offline-safe product"]);
+  const before = git(project, ["rev-parse", "HEAD"]);
+  renameSync(source, hiddenSource);
+  try {
+    pinned(
+      ["pypi:copier"],
+      "copier",
+      [
+        "update",
+        "--defaults",
+        "--answers-file",
+        ".rill/copier-answers.yml",
+        "--vcs-ref",
+        "v0.2.0",
+        project,
+      ],
+      { mustFail: true },
+    );
+  } finally {
+    renameSync(hiddenSource, source);
+  }
+  assert.equal(git(project, ["status", "--porcelain"]), "");
+  assert.equal(git(project, ["rev-parse", "HEAD"]), before);
+  assert.equal(
+    readFileSync(join(project, "AGENTS.md"), "utf8"),
+    original["AGENTS.md"],
+  );
 });
 
 test("independent Python/Shell project executes actual source gates and rejects broken behavior", () => {
@@ -875,12 +1024,17 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   assert.match(workflow, /^ {2}security:/m);
   assert.doesNotMatch(workflow, /^ {2}python:/m);
   assert.doesNotMatch(workflow, /^ {2}shell:/m);
-  assert.match(workflow, /playwright test --grep '@e2e'/);
-  assert.match(workflow, /playwright test --grep '@a11y'/);
+  assert.match(workflow, /playwright test --project=chrome --grep '@e2e'/);
+  assert.match(workflow, /playwright test --project=chrome --grep '@a11y'/);
   assert.match(workflow, /vitest run --coverage/);
   assert.match(workflow, /^ {2}merge_group:/m);
   assert.match(workflow, /rill-sbom\.cdx\.json/);
   assert.match(workflow, /--scanners license --include-dev-deps/);
+  assert.equal(
+    workflow.match(/trivy fs --config="" --ignorefile="" --secret-config=""/g)
+      ?.length,
+    4,
+  );
   const security = workflow.slice(workflow.indexOf("  security:"));
   assert.ok(
     security.indexOf("Scan original source and lockfiles") <
@@ -934,6 +1088,17 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     "Execute native Chrome accessibility test cases",
     project,
   );
+  executeGeneratedStep(workflow, "React production build", project);
+  const silentBuild = JSON.parse(originalManifest);
+  silentBuild.scripts.build = "node -e 'process.exit(0)'";
+  writeFileSync(
+    join(project, "package.json"),
+    JSON.stringify(silentBuild, null, 2) + "\n",
+  );
+  executeGeneratedStep(workflow, "React production build", project, {
+    mustFail: true,
+  });
+  writeFileSync(join(project, "package.json"), originalManifest);
   const trivy = (...args) => pinned(["aqua:aquasecurity/trivy"], "trivy", args);
   const classifications = join(project, "rill-license-classifications.json");
   const sbom = join(project, "rill-sbom.cdx.json");

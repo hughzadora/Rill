@@ -94,6 +94,17 @@ test("pipeline supports stage selection without impersonating approval", async (
   ).toBeVisible();
   await page.getByRole("button", { name: /03 完整设计与取舍/ }).click();
   await expect(page.locator(".phase-detail")).toContainText("Harness 原生选项");
+  await expect(
+    page.getByRole("heading", { name: "架构方案对照" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "自建 Agent 运行时 已废弃" }).click();
+  await expect(
+    page.getByText("第二份任务真相", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "原生交付标准 当前采用" }).click();
+  await expect(
+    page.getByText("GitHub 原生 Issue/PR", { exact: false }),
+  ).toBeVisible();
   await expect(page.locator("form")).toHaveCount(0);
 });
 
