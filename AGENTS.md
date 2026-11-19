@@ -8,4 +8,6 @@ GitHub remains authoritative: [approved design and decisions #17](https://github
 
 Use [README commands](README.md#commands) for setup and checks; `just --list` is the executable command index. Commit runs lint only. Select development checks by risk under [personal CI policy](skills/rill-preferences/references/personal-policy.md); run `just full-spec-ci` at the batch pre-PR checkpoint, not after every edit.
 
+For major owner-facing overall-design or delivery-route decisions where visual comparison adds value, include a standalone interactive HTML review companion with options, consequences, and a copy-to-chat fallback. Routine reviews need no extra artifact. The companion does not record approval; use the host's native control for consequential decisions.
+
 For GitHub collaboration read [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md); for hook/MCP trust, task-data exposure or vulnerability reporting read [.github/SECURITY.md](.github/SECURITY.md). Preserve pending recovery work and the incomplete gates in #18.
