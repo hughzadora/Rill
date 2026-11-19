@@ -151,6 +151,31 @@ test("a new chat without a precompact checkpoint actually refreshes task and nat
   expect(report.workingTree.contentSha256).toMatch(/^[a-f0-9]{64}$/);
 });
 
+test("SessionStart lifecycle preserves the pinned-standard block and recovery context", async () => {
+  writeFileSync(
+    join(fixture.root, ".rill/project.json"),
+    JSON.stringify({
+      schemaVersion: 2,
+      repository: "example/project",
+      standard: { version: "1.2.3", digest: "a".repeat(64) },
+      tools: [],
+      exceptions: [],
+    }),
+  );
+  const response = await restore();
+  expect(response).toMatchObject({
+    hookSpecificOutput: {
+      additionalContext: expect.stringContaining(
+        "Rill standard activation is blocked",
+      ),
+    },
+  });
+  const context = JSON.stringify(response);
+  expect(context).toContain("Rill recovery report at");
+  expect(context).toContain("diagnostics and recovery remain available");
+  expect(context).not.toContain("Owner working agreements");
+});
+
 test("bootstrap leaves diagnostics available while edits stay gated until real recovery", async () => {
   rmSync(join(projectContext(fixture.root).recoveryRoot, "active.json"));
   const response = await restore();

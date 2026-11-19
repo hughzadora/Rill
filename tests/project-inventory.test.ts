@@ -231,6 +231,36 @@ test("discovers every linked worktree from the registered primary root", () => {
   );
 });
 
+test("rejects a committed metadata-directory symlink that escapes the project root", () => {
+  const root = gitProject("metadata-symlink");
+  const outsideMetadata = join(root, "..", "external-metadata");
+  mkdirSync(outsideMetadata);
+  writeFileSync(
+    join(outsideMetadata, "project.json"),
+    JSON.stringify({
+      schemaVersion: 2,
+      repository: "owner/external",
+      standard: { version: "1.0.0", digest: "a".repeat(64) },
+    }),
+  );
+  symlinkSync(outsideMetadata, join(root, ".rill"), "dir");
+  execFileSync("git", ["-C", root, "add", ".rill"]);
+  execFileSync("git", ["-C", root, "commit", "--quiet", "-m", "metadata link"]);
+
+  const result = inventory(
+    {
+      registeredProjects: [{ name: "metadata-symlink", path: root }],
+      explicitRoots: [],
+      runtimeFacts,
+    },
+    { resolveProject: resolver },
+  );
+
+  expect(result.entries[0]?.classification).toBe("invalid");
+  expect(result.coverage.gapCount).toBe(1);
+  expect(result.entries[0]?.issues.join(" ")).toMatch(/symlink|symbolic/i);
+});
+
 test("reports project states and never treats trust paths as enrollment", () => {
   const legacy = gitProject("legacy");
   const disabled = gitProject("disabled");

@@ -88,6 +88,15 @@ describe("official SDK stdio boundary", () => {
       taskUrl,
       revision: null,
       revisionState: "unborn",
+      effectiveStandard: {
+        status: "legacy",
+        dependentActivation: "available",
+        version: null,
+        digest: null,
+        policyEntry: null,
+        bindingDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        exceptionDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
     });
   });
   test("actual repair exits remain errors and public MCP facts cannot forge a passing executor record", async () => {

@@ -205,9 +205,12 @@ export async function enrollProject(
     throw new Error("Cannot resolve GitHub publisher identity");
   if (
     existsSync(authority) &&
-    !trustedPublisherIds({ root, repository, recoveryRoot: "" }).includes(
-      principal.id,
-    )
+    !trustedPublisherIds({
+      root,
+      repository,
+      recoveryRoot: "",
+      schemaVersion: 1,
+    }).includes(principal.id)
   )
     throw new Error(
       "Existing authorized publisher conflicts; owner decision required",

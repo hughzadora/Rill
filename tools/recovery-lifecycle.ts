@@ -13,6 +13,7 @@ import type { ControlEvent } from "./control-input.ts";
 import { deliveryTarget, isDeliveryTool } from "./delivery-evidence.ts";
 import { recoverTask } from "./recover-task.ts";
 import { saveRecoveryGap, saveRecoveryReport } from "./recovery-state.ts";
+import type { PackagedRuntime } from "./standard-runtime.ts";
 import {
   activeTask,
   atomicJson,
@@ -48,7 +49,11 @@ const savedTaskSchema = z.object({
 const treeSchema = z.object({ contentSha256: z.string() });
 
 // Codex owns sessions and compaction. Reports are derived recovery data, not approval or semantic coverage proof.
-export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
+export async function lifecycleEvent(
+  event: ControlEvent,
+  signal: AbortSignal,
+  runtime?: PackagedRuntime,
+) {
   if (
     event.hook_event_name === "PreToolUse" &&
     isDeliveryTool(event.tool_name)
@@ -70,17 +75,17 @@ export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
         `Final delivery precondition unavailable: ${String(error)}`,
       );
     }
-    return evaluateEvent(event);
+    return evaluateEvent(event, runtime);
   }
   if (!["PreCompact", "SessionStart"].includes(event.hook_event_name))
-    return evaluateEvent(event);
+    return evaluateEvent(event, runtime);
   try {
     if (!enrolled(event.cwd)) return {};
     const context = projectContext(event.cwd);
     let remoteStatus = "last-synchronized-snapshot";
     if (event.hook_event_name === "SessionStart")
       remoteStatus = (await syncTask(context, activeTask(context))).status;
-    const state = taskStatus(event.cwd);
+    const state = taskStatus(event.cwd, runtime);
     if (!state.enrolled) return {};
     const path = checkpointPath(event.cwd, event.session_id);
     if (event.hook_event_name === "PreCompact") {
@@ -197,7 +202,7 @@ export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
       remoteStatus,
       mechanicalGaps,
     });
-    const response = evaluateEvent(event),
+    const response = evaluateEvent(event, runtime),
       output = response.hookSpecificOutput;
     if (
       !output ||
@@ -205,19 +210,12 @@ export async function lifecycleEvent(event: ControlEvent, signal: AbortSignal) {
       !("additionalContext" in output)
     )
       return response;
-    const preferences = readFileSync(
-      new URL(
-        "../skills/rill-preferences/references/personal-policy.md",
-        import.meta.url,
-      ),
-      "utf8",
-    );
     const checkpointStatus = String(checkpoint.status);
     return {
       ...response,
       hookSpecificOutput: {
         ...output,
-        additionalContext: `${preferences}\n\nRill recovery report at ${reportPath}. Authority: ${remoteStatus}. Previous checkpoint: ${checkpointStatus} at ${path}. Mechanical gaps: ${mechanicalGaps.length}. Read the report and reconcile before dependent edits; semantic completeness remains requires-reconciliation.`,
+        additionalContext: `${output.additionalContext}\n\nRill recovery report at ${reportPath}. Authority: ${remoteStatus}. Previous checkpoint: ${checkpointStatus} at ${path}. Mechanical gaps: ${mechanicalGaps.length}. Read the report and reconcile before dependent edits; semantic completeness remains requires-reconciliation.`,
       },
     };
   } catch (error) {

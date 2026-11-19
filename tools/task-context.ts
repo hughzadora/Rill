@@ -19,6 +19,15 @@ import formats from "ajv-formats";
 import recordSchema from "../schemas/task-record.schema.json" with {
   type: "json",
 };
+import type {
+  ProjectEnrollmentV2,
+  ProjectStandardException,
+  ProjectToolBinding,
+} from "./project-enrollment.ts";
+import {
+  isSchema1Enrollment,
+  validateProjectEnrollment,
+} from "./project-enrollment.ts";
 
 export interface TaskRecord {
   schemaVersion: 1;
@@ -59,6 +68,10 @@ export interface ProjectContext {
   root: string;
   repository: string;
   recoveryRoot: string;
+  schemaVersion: 1 | 2;
+  standard?: ProjectEnrollmentV2["standard"];
+  tools?: ProjectToolBinding[];
+  exceptions?: ProjectStandardException[];
 }
 
 export function repositoryRevision(root: string) {
@@ -135,19 +148,6 @@ const validateSnapshot = ajv.compile<TaskSnapshot>({
     comments: { type: "array", items: commentSchema },
   },
 });
-const validateProject = ajv.compile<{ schemaVersion: 1; repository: string }>({
-  type: "object",
-  additionalProperties: false,
-  required: ["schemaVersion", "repository"],
-  properties: {
-    schemaVersion: { const: 1 },
-    repository: {
-      type: "string",
-      pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
-    },
-  },
-});
-
 export function projectContext(cwd = process.cwd()): ProjectContext {
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
     cwd,
@@ -156,10 +156,13 @@ export function projectContext(cwd = process.cwd()): ProjectContext {
   const project: unknown = JSON.parse(
     readFileSync(join(root, ".rill/project.json"), "utf8"),
   );
-  if (!validateProject(project))
+  if (!isSchema1Enrollment(project) && !validateProjectEnrollment(project))
     throw new Error(
-      `Invalid project enrollment: ${ajv.errorsText(validateProject.errors)}`,
+      "Invalid project enrollment: schema 1 or schema 2 is required",
     );
+  const identity = project as
+    | { schemaVersion: 1; repository: string }
+    | ProjectEnrollmentV2;
   const gitPath = execFileSync(
     "git",
     ["rev-parse", "--git-path", "rill-recovery"],
@@ -167,8 +170,16 @@ export function projectContext(cwd = process.cwd()): ProjectContext {
   ).trim();
   return {
     root,
-    repository: project.repository.toLowerCase(),
+    repository: identity.repository.toLowerCase(),
     recoveryRoot: resolve(root, gitPath),
+    schemaVersion: identity.schemaVersion,
+    ...(identity.schemaVersion === 2
+      ? {
+          standard: identity.standard,
+          tools: identity.tools,
+          exceptions: identity.exceptions,
+        }
+      : {}),
   };
 }
 

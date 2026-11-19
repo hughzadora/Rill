@@ -62,7 +62,7 @@ server.registerTool(
   "task_status",
   {
     description:
-      "Read the enrolled task, pending facts, actual Git state and implemented control coverage.",
+      "Read the enrolled task, pending facts, actual Git state, effective pinned standard and implemented control coverage.",
     inputSchema: z.object({ cwd: z.string().min(1) }),
     annotations: { readOnlyHint: true, idempotentHint: true },
   },

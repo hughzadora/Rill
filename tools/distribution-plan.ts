@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   migrateSchema1Enrollment,
   type ProjectEnrollmentV2,
@@ -14,6 +13,7 @@ import type {
   ProjectInventory,
 } from "./project-inventory.ts";
 import { readGitFacts } from "./project-inventory.ts";
+import { checkedProjectPath } from "./project-path-boundary.ts";
 import type { LoadedStandardRelease } from "./standard-release.ts";
 import {
   type RuntimeFacts,
@@ -52,6 +52,7 @@ export interface DistributionPlanTarget {
   repository: string | null;
   classification: InventoryEntry["classification"];
   gitBaseline: (InventoryGitFacts & { statusSha256: string }) | null;
+  enrollmentBaseline: ProjectFileBaseline | null;
   action: "update" | "unchanged" | "blocked";
   changes: DistributionFileChange[];
   conflicts: DistributionConflict[];
@@ -101,6 +102,15 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
+export function distributionPlanId(plan: DistributionPlan): string {
+  const {
+    planId: _planId,
+    nativeConfigEffects: _nativeConfigEffects,
+    ...content
+  } = plan;
+  return sha256(stableJson(content));
+}
+
 function fileState(
   path: string,
   bytes: string,
@@ -112,13 +122,11 @@ function fileState(
 function currentFile(entry: InventoryEntry): ProjectFileBaseline | null {
   const baseline = entry.enrollment;
   if (!baseline || !entry.canonicalRoot) return null;
-  const stat = lstatSync(join(entry.canonicalRoot, ".rill", "project.json"));
+  const path = checkedProjectPath(entry.canonicalRoot, ".rill/project.json");
+  if (path !== baseline.path) return null;
+  const stat = lstatSync(path);
   if (!stat.isFile() || stat.isSymbolicLink()) return null;
-  return fileState(
-    baseline.path,
-    readFileSync(baseline.path, "utf8"),
-    stat.mode & 0o777,
-  );
+  return fileState(path, readFileSync(path, "utf8"), stat.mode & 0o777);
 }
 
 function selectTargets(inventory: ProjectInventory, requested: string[]) {
@@ -202,6 +210,7 @@ function targetPlan(
     gitBaseline: entry.git
       ? { ...entry.git, statusSha256: sha256(entry.git.status) }
       : null,
+    enrollmentBaseline: entry.enrollment,
     action: "blocked",
     changes: [],
     conflicts,

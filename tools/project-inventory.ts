@@ -8,7 +8,11 @@ import {
   realpathSync,
   statSync,
 } from "node:fs";
-import { basename, isAbsolute, join, resolve } from "node:path";
+import { basename, isAbsolute, resolve } from "node:path";
+import {
+  checkedProjectPath,
+  ProjectPathBoundaryError,
+} from "./project-path-boundary.ts";
 import {
   type ProjectResolution,
   type RuntimeFacts,
@@ -178,7 +182,7 @@ export function readGitFacts(root: string): InventoryGitFacts {
 }
 
 function enrollmentBaseline(root: string): ProjectFileBaseline | null {
-  const path = join(root, ".rill", "project.json");
+  const path = checkedProjectPath(root, ".rill/project.json");
   let stat: ReturnType<typeof lstatSync>;
   try {
     stat = lstatSync(path);
@@ -366,8 +370,8 @@ export function inventory(
       continue;
     }
 
-    const enrollment = join(gitRoot, ".rill", "project.json");
-    const disabled = join(gitRoot, ".rill", "project.disabled.json");
+    let enrollment: string;
+    let disabled: string;
     let resolution: ProjectResolution | null = null;
     let enrollmentState: ProjectFileBaseline | null = null;
     let classification: InventoryClassification;
@@ -375,6 +379,8 @@ export function inventory(
     let activeStat: ReturnType<typeof lstatSync> | null = null;
     let disabledStat: ReturnType<typeof lstatSync> | null = null;
     try {
+      enrollment = checkedProjectPath(gitRoot, ".rill/project.json");
+      disabled = checkedProjectPath(gitRoot, ".rill/project.disabled.json");
       try {
         activeStat = lstatSync(enrollment);
       } catch (error) {
@@ -388,7 +394,8 @@ export function inventory(
           throw error;
       }
     } catch (error) {
-      classification = "inaccessible";
+      classification =
+        error instanceof ProjectPathBoundaryError ? "invalid" : "inaccessible";
       issues.push(error instanceof Error ? error.message : String(error));
       entriesByIdentity.set(gitRoot, {
         canonicalRoot: gitRoot,

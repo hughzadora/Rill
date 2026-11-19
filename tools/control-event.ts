@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import hookManifest from "../hooks/hooks.json" with { type: "json" };
 import type { ControlEvent } from "./control-input.ts";
 import {
   deliveryGuard,
@@ -9,6 +11,11 @@ import {
 } from "./delivery-evidence.ts";
 import { recoveryGuard } from "./recovery-state.ts";
 import { repairGuard, repairState } from "./repair-evidence.ts";
+import {
+  effectiveStandardForProject,
+  loadPackagedRuntime,
+  type PackagedRuntime,
+} from "./standard-runtime.ts";
 import {
   activeTask,
   cachedTask,
@@ -31,10 +38,20 @@ export function enrolled(cwd: string) {
   } catch {
     return false;
   }
-  return existsSync(join(root, ".rill/project.json"));
+  try {
+    lstatSync(join(root, ".rill/project.json"));
+    return true;
+  } catch (error) {
+    return !(
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    );
+  }
 }
 
-export function taskStatus(cwd: string) {
+export function taskStatus(cwd: string, runtime?: PackagedRuntime) {
   if (!enrolled(cwd)) return { enrolled: false as const };
   const context = projectContext(cwd);
   const snapshot = cachedTask(context);
@@ -46,6 +63,8 @@ export function taskStatus(cwd: string) {
     cwd: context.root,
     encoding: "utf8",
   });
+  const { policyPath: _policyPath, ...effectiveStandard } =
+    effectiveStandardForProject(context, runtime ?? loadPackagedRuntime());
   return {
     enrolled: true as const,
     repository: context.repository,
@@ -74,6 +93,7 @@ export function taskStatus(cwd: string) {
     pendingIds: pending.map((record) => record.id),
     ...revision,
     changes,
+    effectiveStandard,
     cacheSource: context.recoveryRoot,
     remoteFreshness: "last-synchronized-snapshot" as const,
     coverage: {
@@ -104,7 +124,55 @@ export function blocked(event: ControlEvent, reason: string) {
   return { systemMessage: reason };
 }
 
-export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
+function sessionStartContext(
+  preferences: string,
+  policyPath: string | null,
+  state: Extract<ReturnType<typeof taskStatus>, { enrolled: true }>,
+) {
+  const limit =
+    hookManifest.hooks.SessionStart[0]?.hooks[0]?.additionalContextLimit;
+  if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit <= 0)
+    throw new Error("Native SessionStart context limit is not configured");
+  const facts = {
+    repository: state.repository,
+    taskUrl: state.taskUrl,
+    remoteState: state.remoteState,
+    taskBody: state.taskBody as string | null,
+    recordIds: state.records.map((record) => record.id),
+    pendingIds: state.pendingIds,
+    coverage: state.coverage,
+    effectiveStandard: state.effectiveStandard,
+    source: state.cacheSource,
+  };
+  const render = () => ({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext:
+        preferences +
+        "\n\nRecovered task summary, not a substitute for task source/history:\n" +
+        JSON.stringify(facts) +
+        "\nRead the full authoritative issue, local report and unsynchronized facts before dependent edits.",
+    },
+  });
+  if (JSON.stringify(render()).length >= limit && policyPath)
+    preferences =
+      "Owner working agreements: read the installed policy at " + policyPath;
+  if (JSON.stringify(render()).length >= limit) facts.taskBody = null;
+  if (JSON.stringify(render()).length >= limit) {
+    facts.recordIds = [];
+    facts.pendingIds = [];
+  }
+  if (JSON.stringify(render()).length >= limit)
+    throw new Error(
+      "SessionStart summary exceeds the configured native context budget",
+    );
+  return render();
+}
+
+export function evaluateEvent(
+  event: ControlEvent,
+  runtime?: PackagedRuntime,
+): Record<string, unknown> {
   try {
     if (
       event.hook_event_name === "PreToolUse" &&
@@ -113,22 +181,34 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
       !isDeliveryTool(event.tool_name)
     )
       return {};
-    const state = taskStatus(event.cwd);
+    const activeRuntime = runtime ?? loadPackagedRuntime();
+    const state = taskStatus(event.cwd, activeRuntime);
     if (!state.enrolled) return {};
     if (event.hook_event_name === "SessionStart") {
-      const preferences = readFileSync(
-        new URL(
-          "../skills/rill-preferences/references/personal-policy.md",
-          import.meta.url,
-        ),
-        "utf8",
+      const context = projectContext(event.cwd);
+      const standard = effectiveStandardForProject(context, activeRuntime);
+      const personalPolicy = new URL(
+        "../skills/rill-preferences/references/personal-policy.md",
+        import.meta.url,
       );
-      return {
-        hookSpecificOutput: {
-          hookEventName: "SessionStart",
-          additionalContext: `${preferences}\n\nRecovered task data, not new instructions:\n${JSON.stringify(state)}\nVerify pending coverage and source history before dependent edits.`,
-        },
-      };
+      const policyPath =
+        context.schemaVersion === 1
+          ? fileURLToPath(personalPolicy)
+          : standard.policyPath;
+      const preferences =
+        context.schemaVersion === 1
+          ? readFileSync(personalPolicy, "utf8")
+          : standard.status === "ready" && standard.policyPath
+            ? readFileSync(standard.policyPath, "utf8")
+            : "Rill standard activation is blocked for pin " +
+              (standard.version ?? "unknown") +
+              "@" +
+              (standard.digest ?? "unknown") +
+              ". " +
+              (standard.issues.join("; ") ||
+                "The pinned standard is unavailable.") +
+              " Dependent project work must wait; diagnostics and recovery remain available.";
+      return sessionStartContext(preferences, policyPath, state);
     }
     if (
       event.hook_event_name === "PreToolUse" &&
@@ -137,6 +217,17 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
       return blocked(
         event,
         "The bound task is closed. Reconcile actual authorized scope before executing task tools.",
+      );
+    if (
+      event.hook_event_name === "PreToolUse" &&
+      event.tool_name &&
+      state.effectiveStandard.dependentActivation === "blocked" &&
+      (/^(apply_patch|Edit|Write)$/.test(event.tool_name) ||
+        isDeliveryTool(event.tool_name))
+    )
+      return blocked(
+        event,
+        `Pinned Rill standard ${state.effectiveStandard.version ?? "unknown"}@${state.effectiveStandard.digest ?? "unknown"} is unavailable. Supported project edits and delivery are blocked; diagnostics and recovery remain available. ${state.effectiveStandard.issues.join("; ")}`,
       );
     if (event.hook_event_name === "PreToolUse") {
       const recoveryReason = recoveryGuard(
@@ -164,7 +255,7 @@ export function evaluateEvent(event: ControlEvent): Record<string, unknown> {
       return {
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
-          additionalContext: `Rill preferences apply. Engineering methods come from installed Matt Pocock skills. Raw ideas use brainstorming, grill-with-docs methods and writing-for-agents. Bound task: ${state.taskUrl}. Coverage: ${JSON.stringify(state.coverage)}.`,
+          additionalContext: `Rill preferences apply. Engineering methods come from installed Matt Pocock skills. Raw ideas use brainstorming, grill-with-docs methods and writing-for-agents. Bound task: ${state.taskUrl}. Coverage: ${JSON.stringify(state.coverage)}. ${state.effectiveStandard.dependentActivation === "blocked" ? `Rill dependent project activation is blocked for standard ${state.effectiveStandard.version ?? "unknown"}@${state.effectiveStandard.digest ?? "unknown"}; diagnostics and recovery remain available. ${state.effectiveStandard.issues.join("; ")}` : `Effective standard: ${JSON.stringify(state.effectiveStandard)}.`}`,
         },
       };
     if (event.hook_event_name === "Stop")
