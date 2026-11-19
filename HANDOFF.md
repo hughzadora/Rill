@@ -86,3 +86,15 @@ non-default path. Check the target's complete applicable source gates
 and leave non-synthetic hosted target-project acceptance open.
 Never mistake existing sample fixtures or a local actionlint pass
 for hosted product CI and human acceptance.
+
+## Independent review corrections
+
+The initial independent review of `40f616e` found five concrete
+correctness gaps: nested pnpm workspace manifest path, merge queues,
+extensionless Shell scripts, Python build backend reproducibility and
+license/SBOM evidence. Inspect the subsequent corrective commit and
+the six independent adoption regression tests before PR review.
+The follow-up also excludes generated Python `.venv` and build
+artifacts when copying fixtures; otherwise the harness may report
+coverage on the wrong environment. Final acceptance is bound to the
+latest commit, not the reviewed ancestor.

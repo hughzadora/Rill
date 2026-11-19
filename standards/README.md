@@ -67,19 +67,34 @@ a successful copy as verified project adoption.
 
 ## Actual enforcement
 
-GitHub Actions run at `pull_request` and, where explicitly invoked,
-`workflow_dispatch`. JavaScript gates require a frozen pnpm lock,
+GitHub Actions run at `pull_request` and `merge_group` to support
+required merge-queue checks, and at `workflow_dispatch` when invoked.
+JavaScript gates require a frozen pnpm lock,
 source lint, strict types, unit, service integration, source coverage,
 a build, Chrome E2E and accessibility if React is enabled. Required
 product scripts must exist, or the workflow fails.
 
 Python runs inside the configured `python_root`, with a locked uv
 environment, Ruff, strict mypy, pytest + pytest-cov, real integration
-tests, coverage floor and package build. Its source and test paths are
-relative to that Python project. Shell runs ShellCheck, shfmt and
-Bats on actual scripts, fails without source, and tests command behavior.
-Every project runs secrets and dependency/configuration security gates
-through pinned Gitleaks and Trivy.
+tests, coverage floor and `uv build --no-build-isolation`. Include the
+build backend in locked dev dependencies as well as the exact
+PEP 517 build requirement. An uninstalled backend fails instead of
+resolving a different build-time version. Its source and test paths are
+relative to that Python project. Shell runs ShellCheck and shfmt over
+both `.sh` files and extensionless Bash/sh shebang entry points using
+the same source inventory; Bats verifies actual CLI behavior. A missing
+shell source fails.
+
+Every project runs pinned Gitleaks and Trivy vulnerability, secret and
+configuration checks. The security job installs the real locked
+JavaScript/Python dependencies before collecting license data; Trivy
+blocks forbidden and restricted license classes and records all classes.
+Python uses `pip-licenses` from its locked development dependencies to
+record installed package licenses and block a conservative set of
+prohibited GPL/AGPL families. CycloneDX SBOM and license inventories are
+uploaded as short-lived GitHub Actions artifacts for review. Unknown
+license classes and incomplete classification remain explicit manual
+review conditions, **not** automatically approved licenses.
 
 Project-specific business paths, test fixtures, failure cases, coverage
 thresholds and runtime startup health must be established and reviewed

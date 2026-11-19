@@ -284,6 +284,30 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
   });
 });
 
+test("nested pnpm projects use repository-relative action inputs and merge-queue checks", () => {
+  const project = join(sandbox, "nested-pnpm-workspace");
+  mkdirSync(project);
+  copyStandard(project, {
+    project_name: "Nested React",
+    react: true,
+    node: false,
+    python: false,
+    shell: false,
+    js_workspace: "frontend",
+    react_root: ".",
+  });
+  assert.ok(!existsSync(join(project, "package.json")));
+  const workflow = verifyWorkflow(project);
+  assert.match(workflow, /^ {2}merge_group:/m);
+  assert.match(workflow, /package_json_file: "frontend\/package\.json"/);
+  assert.match(workflow, /cache-dependency-path: "frontend\/pnpm-lock\.yaml"/);
+  assert.match(workflow, /working-directory: "frontend"/);
+  assert.equal(
+    workflow.match(/package_json_file: "frontend\/package\.json"/g)?.length,
+    2,
+  );
+});
+
 test("invalid profiles and paths cannot silently create a passing workflow", () => {
   const empty = join(sandbox, "invalid-empty");
   mkdirSync(empty);
@@ -528,7 +552,22 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
 test("independent Python/Shell project executes actual source gates and rejects broken behavior", () => {
   const project = join(sandbox, "new-python-shell");
   const fixture = join(repository, "tests/fixtures/independent-python-shell");
-  cpSync(fixture, project, { recursive: true });
+  cpSync(fixture, project, {
+    recursive: true,
+    filter: (path) =>
+      !path
+        .split("/")
+        .some((segment) =>
+          [
+            ".venv",
+            "node_modules",
+            "dist",
+            "coverage",
+            "test-results",
+            "playwright-report",
+          ].includes(segment),
+        ),
+  });
   const pythonRoot = join(project, "services/python");
   const script = join(project, "scripts/health.sh");
   const bats = join(project, "tests/shell/health.bats");
@@ -553,6 +592,27 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(workflow, /working-directory: "services\/python"/);
   assert.match(workflow, /uv sync --locked --dev/);
   assert.match(workflow, /pytest -q --cov="src"/);
+  assert.match(workflow, /uv build --no-build-isolation/);
+  assert.match(workflow, /pip-licenses --format=json/);
+  assert.match(workflow, /--fail-on "GPL;AGPL/);
+  assert.match(workflow, /rill-sbom\.cdx\.json/);
+
+  const shellSourceStep = workflow.match(
+    / {6}- name: Shell source static analysis\n {8}shell: bash\n {8}run: \|\n([\s\S]*?)(?= {6}- name: Bats real CLI behavior)/,
+  );
+  assert.ok(
+    shellSourceStep,
+    "The Shell scanner must use the same tracked inventory",
+  );
+  const shellCheckCommand = shellSourceStep[1]
+    .split("\n")
+    .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
+    .join("\n");
+  const runShellGate = (options = {}) =>
+    execute("bash", ["-e", "-o", "pipefail", "-c", shellCheckCommand], {
+      cwd: project,
+      ...options,
+    });
 
   const uv = (...args) =>
     pinned(["uv"], "uv", ["--directory", pythonRoot, ...args]);
@@ -571,7 +631,39 @@ test("independent Python/Shell project executes actual source gates and rejects 
     "tests",
   );
   uv("run", "--locked", "pytest", "-q", "tests/integration");
-  uv("build");
+  uv("build", "--no-build-isolation");
+  uv(
+    "run",
+    "--locked",
+    "pip-licenses",
+    "--format=json",
+    "--output-file",
+    "rill-python-licenses.json",
+  );
+  const inventory = JSON.parse(
+    readFileSync(join(pythonRoot, "rill-python-licenses.json"), "utf8"),
+  );
+  assert.ok(inventory.length >= 5, "License inventory cannot be empty");
+  uv(
+    "run",
+    "--locked",
+    "pip-licenses",
+    "--partial-match",
+    "--fail-on",
+    "GPL;AGPL;GNU General Public License;GNU Affero General Public License",
+  );
+
+  runShellGate();
+  const extensionless = join(project, "scripts/status");
+  const originalExtensionless = readFileSync(extensionless, "utf8");
+  writeFileSync(extensionless, "#!/usr/bin/env bash\nif [; then\n");
+  const invalidShell = runShellGate({ mustFail: true });
+  assert.match(invalidShell, /error|syntax|SC1/i);
+  writeFileSync(extensionless, originalExtensionless);
+  runShellGate();
+  rmSync(script);
+  runShellGate();
+  writeFileSync(script, originalShell);
 
   pinned(["aqua:koalaman/shellcheck"], "shellcheck", [
     "--severity=style",
@@ -625,7 +717,22 @@ test("independent Python/Shell project executes actual source gates and rejects 
 test("independent React/Tailwind project executes actual Chrome/UI and CI source gates", () => {
   const project = join(sandbox, "new-react");
   const fixture = join(repository, "tests/fixtures/independent-react");
-  cpSync(fixture, project, { recursive: true });
+  cpSync(fixture, project, {
+    recursive: true,
+    filter: (path) =>
+      !path
+        .split("/")
+        .some((segment) =>
+          [
+            ".venv",
+            "node_modules",
+            "dist",
+            "coverage",
+            "test-results",
+            "playwright-report",
+          ].includes(segment),
+        ),
+  });
   const component = join(project, "src/Counter.tsx");
   const original = readFileSync(component, "utf8");
   const originalManifest = readFileSync(join(project, "package.json"), "utf8");
@@ -647,6 +754,13 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   assert.match(workflow, /run test:e2e/);
   assert.match(workflow, /run test:a11y/);
   assert.match(workflow, /run test:coverage/);
+  assert.match(workflow, /^ {2}merge_group:/m);
+  assert.match(workflow, /rill-sbom\.cdx\.json/);
+  assert.match(workflow, /--scanners license --include-dev-deps/);
+  assert.match(
+    workflow,
+    /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/,
+  );
   assert.equal(
     readFileSync(join(project, "package.json"), "utf8"),
     originalManifest,
@@ -667,6 +781,53 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   ]) {
     pnpm("run", command);
   }
+  const trivy = (...args) => pinned(["aqua:aquasecurity/trivy"], "trivy", args);
+  const classifications = join(project, "rill-license-classifications.json");
+  const sbom = join(project, "rill-sbom.cdx.json");
+  trivy(
+    "fs",
+    "--scanners",
+    "license",
+    "--include-dev-deps",
+    "--severity",
+    "HIGH,CRITICAL",
+    "--exit-code",
+    "1",
+    project,
+  );
+  trivy(
+    "fs",
+    "--scanners",
+    "license",
+    "--include-dev-deps",
+    "--format",
+    "json",
+    "--output",
+    classifications,
+    project,
+  );
+  const licenseResults = JSON.parse(readFileSync(classifications, "utf8"));
+  assert.ok(
+    licenseResults.Results?.some((result) => result.Licenses?.length > 0),
+    "The license scanner must inspect installed packages",
+  );
+  trivy(
+    "fs",
+    "--include-dev-deps",
+    "--format",
+    "cyclonedx",
+    "--output",
+    sbom,
+    "--skip-dirs",
+    "node_modules",
+    project,
+  );
+  const bill = JSON.parse(readFileSync(sbom, "utf8"));
+  assert.equal(bill.bomFormat, "CycloneDX");
+  assert.ok(
+    bill.components?.length > 0,
+    "The SBOM must list real dependencies",
+  );
 
   assert.ok(original.includes("setItems((value) => value + 1)"));
   writeFileSync(

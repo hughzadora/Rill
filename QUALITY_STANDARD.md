@@ -86,6 +86,18 @@ and native Git rollback.
 The templates have no arbitrary task hooks, migration code or
 user-independent permissions.
 
+The independent review of candidate 40f616e identified nested pnpm
+manifest resolution, merge-queue triggers, extensionless shell entry
+points, unpinned isolated Python build backends and missing supply-chain
+artifacts. The subsequent candidate addresses these through native
+pnpm/action-setup inputs, `merge_group`, shared ShellCheck/shfmt source
+inventory, `uv build --no-build-isolation` with locked backends,
+actual installed dependency-license checks and a CycloneDX SBOM artifact.
+Trivy does not classify licenses from `uv.lock` alone; the Python
+profile also requires locked `pip-licenses`. Unknown classifications
+remain for independent human assessment; green CI does not grant an
+unrecorded license exception.
+
 **Still open under #32:** hosted checks in an actual owner's new
 and existing external product repositories (rather than isolated
 test repositories), production startup/resilience, approved standard

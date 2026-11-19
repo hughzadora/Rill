@@ -46,15 +46,19 @@ including negative and recovery paths.
 {% if python %}
 ### Python quality contracts
 
-Locked uv project includes Ruff, mypy, pytest/pytest-cov and the
-application dependencies. Static checks, unit and integration tests,
-coverage and native package build must execute successfully.
+Locked uv project includes Ruff, mypy, pytest/pytest-cov,
+`pip-licenses` and the application dependencies. The PEP 517 build
+backend must be pinned in `[build-system]` **and** installed as a
+locked dev dependency: `uv build --no-build-isolation` deliberately
+fails when that backend is missing instead of resolving a new version.
+Static checks, unit/integration tests, coverage and build must pass.
 {% endif %}
 {% if shell %}
 ### Shell quality contracts
 
-ShellCheck, shfmt and Bats operate on actual scripts and executable
-behavior. Missing source and tests are errors, not an implicit skip.
+ShellCheck and shfmt audit `.sh` and extensionless Bash/sh shebang
+scripts from one inventory. Bats tests real executable behavior.
+Missing source and tests are errors, not an implicit skip.
 {% endif %}
 
 ## Owner and agent authority
@@ -76,3 +80,13 @@ is native Git revert/restore of this scoped change.
 The Rill template contains **no** arbitrary template tasks or migrations
 and must not need the Copier unsafe switch. A copied workflow without
 executed checks and a real product review is **not** verified adoption.
+
+## Supply-chain evidence
+
+The generated security job installs actual locked dependencies, scans
+vulnerabilities/secrets/misconfigurations, blocks restricted or forbidden
+licenses and records a CycloneDX SBOM plus dependency-license reports
+as short-lived GitHub Actions artifacts. Trivy cannot determine uv.lock
+package licenses by reading that file alone: the Python license inventory
+uses the locked `pip-licenses` tool on installed project dependencies.
+Unknown licenses require explicit human review, never a silent PASS.
