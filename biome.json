@@ -1,0 +1,48 @@
+{
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**/*.{js,jsx,ts,tsx,json,jsonc,css,scss,html,md,yml,yaml,graphql}",
+      "!node_modules",
+      "!dist",
+      "!vendor",
+      "!.mise"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space"
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUndeclaredVariables": "error"
+      },
+      "suspicious": {
+        "noDebugger": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.md"],
+      "formatter": {
+        "enabled": true
+      }
+    }
+  ]
+}
