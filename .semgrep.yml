@@ -22,3 +22,36 @@ rules:
     languages: [typescript, javascript, python, bash]
     message: Dynamic eval/exec is forbidden.
     pattern-regex: '(?m)(?:\b(?:eval|exec)\s*\(|(?:^|[;&|]\s*|\s+)eval[ \t]+)'
+  - id: rill-no-hardcoded-semantic-version
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Read application versions from the runtime metadata or shared constants registry.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["']v?[0-9]+\.[0-9]+\.[0-9]+(?:[a-z]+[0-9]+)?["']
+  - id: rill-no-inline-state-or-agent-paths
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Resolve Rill runtime and Codex paths from the shared constants registry.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["'](?:\.rill|\.codex)(?:/[^"']*)?["']
+  - id: rill-no-hardcoded-runtime-location
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Runtime addresses and local absolute paths belong in constants or OS-provided paths.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["'](?:/tmp(?:/[^"']*)?|https?://(?:localhost|127\.0\.0\.1):[0-9]+[^"']*)["']

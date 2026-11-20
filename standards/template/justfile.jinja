@@ -2,7 +2,6 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # Rill L2 only: installs local dependencies without browser downloads.
 setup-ci:
-    @neutral="$(mktemp -d)"; trap 'rmdir "$neutral"' EXIT; (cd "$neutral"; unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML; GIT_DIR="{{justfile_directory()}}/.git" GIT_WORK_TREE="{{justfile_directory()}}" mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --gitleaks-ignore-path=/dev/null --ignore-gitleaks-allow --redact --exit-code 1)
     mise install aqua:gitleaks/gitleaks@8.30.1
 {% if react or node %}    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm --dir [[ js_workspace | tojson ]] install --frozen-lockfile
 {% endif %}{% if python %}    uv --directory [[ python_root | tojson ]] sync --locked --dev
@@ -10,6 +9,7 @@ setup-ci:
 {% endif %}
 
 ci:
+    @neutral="$(mktemp -d)"; trap 'rmdir "$neutral"' EXIT; (cd "$neutral"; unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML; GIT_DIR="{{justfile_directory()}}/.git" GIT_WORK_TREE="{{justfile_directory()}}" mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --gitleaks-ignore-path=/dev/null --ignore-gitleaks-allow --redact --exit-code 1)
 {% if react %}    pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run lint
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run typecheck
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run test:unit

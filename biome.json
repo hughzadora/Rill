@@ -48,7 +48,8 @@
         }
       },
       "style": {
-        "noNonNullAssertion": "error"
+        "noNonNullAssertion": "error",
+        "noMagicNumbers": "error"
       },
       "suspicious": {
         "noExplicitAny": "error",

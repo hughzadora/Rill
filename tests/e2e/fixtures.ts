@@ -1,4 +1,5 @@
 import { test as base, expect } from "@playwright/test";
+import { HTTP_SERVER_ERROR_START } from "../../src/ts/lib/constants";
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -15,7 +16,7 @@ export const test = base.extend({
     });
 
     page.on("response", (response) => {
-      if (response.status() >= 500) {
+      if (response.status() >= HTTP_SERVER_ERROR_START) {
         runtimeErrors.push(`HTTP ${response.status()} on ${response.url()}`);
       }
     });

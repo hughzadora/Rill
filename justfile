@@ -32,11 +32,30 @@ setup-ci:
     mise exec --locked -- uv sync --locked --dev --python "$(mise which python)"
 
 pre-commit:
+    mise exec --locked -- uv run rill policy pre-commit
     mise exec --locked -- gitleaks git --staged --redact --no-banner
     mise exec --locked -- pnpm exec lint-staged
 
 commit-msg msg_file:
+    mise exec --locked -- uv run rill policy commit-msg {{quote(msg_file)}}
     mise exec --locked -- pnpm exec commitlint --edit {{quote(msg_file)}}
+
+# All green checks stay concise; errors retain full evidence in the local anchor.
+_silent-run label *argv:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    label={{quote(label)}}
+    output="$(mktemp)"
+    trap 'rm -f -- "$output"' EXIT
+    if {{argv}} >"$output" 2>&1; then
+      printf '✔ [%s] OK\n' "$label"
+    else
+      mkdir -p .rill
+      { printf '\n[gate %s] command failed\n' "$label"; cat "$output"; } >>.rill/last-error.log
+      printf '✖ [%s] FAIL (full log in .rill/last-error.log)\n' "$label" >&2
+      head -n 15 "$output" >&2
+      exit 1
+    fi
 
 # Repository-level checks are mandatory on full and incremental runs.
 _ci-guardrails:
@@ -48,7 +67,7 @@ _ci-guardrails:
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
     mise exec --locked -- pnpm exec jscpd src/
-    @if [[ "${RILL_CI_TIER:-L2}" == "L3" ]]; then warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi; mise exec --locked -- tokei src/; mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .; mise exec --locked -- pnpm audit --prod --audit-level moderate; fi
+    @if [[ "${RILL_CI_TIER:-L2}" == "L3" ]]; then if warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; then if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi; else printf '%s\n' "$warnings" >&2; exit 1; fi; mise exec --locked -- tokei src/; mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .; mise exec --locked -- pnpm audit --prod --audit-level moderate; fi
 
 # The browser tests run against the verified production build, not a dev server.
 _ci-ts:
@@ -140,7 +159,6 @@ ci mode="incremental":
     trap 'rm -rf -- "$workdir"' EXIT
     pids=()
     for name in "${tasks[@]}"; do
-      printf '[ci] START %s\n' "$name"
       RILL_CI_TIER="$([[ "$mode" == "full" ]] && echo L3 || echo L2)" just "_ci-$name" >"$workdir/$name.log" 2>&1 &
       pids+=("$!")
     done
@@ -149,18 +167,20 @@ ci mode="incremental":
     for index in "${!pids[@]}"; do
       name="${tasks[index]}"
       if wait "${pids[index]}"; then
-        printf '[ci] PASS %s\n' "$name"
+        printf '✔ [%s] OK\n' "$name"
       else
-        printf '[ci] FAIL %s\n' "$name" >&2
+        mkdir -p .rill
+        { printf '\n[ci %s] check failed\n' "$name"; cat "$workdir/$name.log"; } >> .rill/last-error.log
+        printf '✖ [%s] FAIL (full log in .rill/last-error.log)\n' "$name" >&2
+        head -n 15 "$workdir/$name.log" >&2
         result=1
       fi
-      cat "$workdir/$name.log"
     done
     exit "$result"
 
 ci-full:
-    just ci full
-    just factory-ci
+    @just ci full
+    @just _silent-run factory just factory-ci
 
 # ==============================================================================
 # 4. 防假测试压测：前后端并行变异测试 (Mutation Testing)
@@ -220,8 +240,11 @@ factory-ci:
 
 # Standalone directory-mode executable with embedded Copier template assets.
 build-cli:
-    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all jinja2_ansible_filters --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" src/py/rill_cli/__main__.py
+    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all jinja2_ansible_filters --copy-metadata rill-factory --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" --add-data "$(pwd)/src/py/rill_cli/assets/dashboard.html:rill_cli/assets" src/py/rill_cli/__main__.py
 
-check-fast:
+_check-fast:
     mise exec --locked -- ruff check src/py/rill_cli tests/py
     mise exec --locked -- uv run pytest -n 0 tests/py
+
+check-fast:
+    @just _silent-run fast just _check-fast
