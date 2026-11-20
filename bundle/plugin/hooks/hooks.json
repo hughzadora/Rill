@@ -1,0 +1,19 @@
+{
+  "description": "Read-only Rill discovery context; requires native host trust to run.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-start.mjs\"",
+            "statusMessage": "Checking Rill project specification",
+            "timeout": 3,
+            "additionalContextLimit": 500
+          }
+        ]
+      }
+    ]
+  }
+}

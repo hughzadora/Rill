@@ -16,16 +16,16 @@ Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified cur
 
 | ID | Outcome / acceptance | Proposed landing area | Status |
 |---|---|---|---|
-| FR-01 | Versioned, independently installable native Codex package; fresh trusted session proves actual loading, model/permissions/roles/Hooks and optional MCP. | `bundle/`, `src/` | [PLANNED] |
+| FR-01 | Versioned, independently installable native Codex package; fresh trusted session proves actual loading, model/permissions/roles/Hooks and optional MCP. | `bundle/plugin/`, `.agents/plugins/marketplace.json`, `bundle/repo-common/.codex/` | [IN-PROGRESS] |
 | FR-02 | `rill setup/init/doctor` operate on real isolated new/brownfield repos without destructive consumer overwrites; explicit JSON and exit codes. | `src/`, `bundle/` | [PLANNED] |
-| FR-03 | Owner intent flows through proportionate brainstorming, primary-source research, grill and a current acceptance-ready spec before execution. | `bundle/skills/`, `PRD.md` | [PLANNED] |
-| FR-04 | Native worker roles implement scoped code and regression tests; no hand-rolled agent runtime or unnecessary owner coordination. | `bundle/agents/`, `bundle/skills/` | [PLANNED] |
+| FR-03 | Owner intent flows through proportionate brainstorming, primary-source research, grill and a current acceptance-ready spec before execution. | `bundle/plugin/skills/`, `PRD.md` | [PLANNED] |
+| FR-04 | Native worker roles implement scoped code and regression tests; no hand-rolled agent runtime or unnecessary owner coordination. | `bundle/repo-common/.codex/agents/`, `bundle/plugin/skills/` | [PLANNED] |
 | FR-05 | Applicable source-complete lint, type, integration, accessibility, secret, supply-chain, coverage and negative tests gate delivery and reject false PASS. | `bundle/stacks/`, `.github/workflows/` | [PLANNED] |
-| FR-06 | Actual independent reviewer assesses exact tested candidate; two-round bound and platform-native protected authorization. | `bundle/agents/`, `bundle/skills/` | [PLANNED] |
-| FR-07 | Fresh agent recovers project, exact SHA, Issues/PR dependencies, tests and next action after interruption or context compaction. | `bundle/skills/`, GitHub | [PLANNED] |
+| FR-06 | Actual independent reviewer assesses exact tested candidate; two-round bound and platform-native protected authorization. | `bundle/repo-common/.codex/agents/`, `bundle/plugin/skills/` | [PLANNED] |
+| FR-07 | Fresh agent recovers project, exact SHA, Issues/PR dependencies, tests and next action after interruption or context compaction. | `bundle/plugin/skills/`, GitHub | [PLANNED] |
 | FR-08 | Versioned updates/rollback and conflict checks preserve consumer-owned files; no legacy Rill compatibility adapters. | `src/`, `bundle/` | [PLANNED] |
 | FR-09 | Every enrolled product has **one** live root `PRD.md`; scoped reads, stable requirement IDs, status plus evidence-linked source traceability. | `bundle/repo-common/PRD.md` | [PLANNED] |
-| FR-10 | Bundle an upstream-derived brainstorming Skill; Rill-controlled research/grill entrypoints invoke it before **substantive new design**, without duplicate interviews. | `bundle/skills/brainstorming/` | [IN-PROGRESS] |
+| FR-10 | Bundle an upstream-derived brainstorming Skill; Rill-controlled research/grill entrypoints invoke it before **substantive new design**, without duplicate interviews. | `bundle/plugin/skills/brainstorming/` | [IN-PROGRESS] |
 | FR-11 | Optional accessible local status view displays version-bound actual gate state, blockers, unknowns and safe next action; never pretends to approve. | `src/`, `bundle/` | [PLANNED] |
 | FR-12 | Independent external new/existing repositories prove actual feature, native workflows, genuine CI, fresh-agent recovery, independent PR and release/rollback. | External pilot evidence in GitHub | [PLANNED] |
 
