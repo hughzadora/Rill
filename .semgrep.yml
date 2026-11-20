@@ -1,0 +1,57 @@
+rules:
+  - id: no-typescript-type-suppression
+    severity: ERROR
+    languages: [typescript]
+    message: Avoid any-casts or TypeScript diagnostic suppression; narrow types explicitly.
+    pattern-regex: '(?m)(?:\bas\s+any\b|@ts-(?:ignore|nocheck))'
+  - id: no-unscoped-python-type-ignore
+    severity: ERROR
+    languages: [python]
+    message: Python type ignores require a specific error code.
+    pattern-regex: '#\s*type:\s*ignore(?!\s*\[)'
+  - id: no-urllib-request-clients
+    severity: ERROR
+    languages: [python]
+    message: Use the maintained httpx library instead of urllib.request.
+    pattern-either:
+      - pattern: import urllib.request
+      - pattern: from urllib import request
+      - pattern: from urllib.request import $IMPORT
+  - id: no-dynamic-code-execution
+    severity: ERROR
+    languages: [typescript, javascript, python, bash]
+    message: Dynamic eval/exec is forbidden.
+    pattern-regex: '(?m)(?:\b(?:eval|exec)\s*\(|(?:^|[;&|]\s*|\s+)eval[ \t]+)'
+  - id: rill-no-hardcoded-semantic-version
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Read application versions from the runtime metadata or shared constants registry.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["']v?[0-9]+\.[0-9]+\.[0-9]+(?:[a-z]+[0-9]+)?["']
+  - id: rill-no-inline-state-or-agent-paths
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Resolve Rill runtime and Codex paths from the shared constants registry.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["'](?:\.rill|\.codex)(?:/[^"']*)?["']
+  - id: rill-no-hardcoded-runtime-location
+    severity: ERROR
+    languages: [python, typescript, javascript]
+    message: Runtime addresses and local absolute paths belong in constants or OS-provided paths.
+    paths:
+      exclude:
+        - src/py/rill_cli/core/constants.py
+        - src/ts/lib/constants.ts
+        - '**/tests/**'
+    pattern-regex: |-
+      (?m)["'](?:/tmp(?:/[^"']*)?|https?://(?:localhost|127\.0\.0\.1):[0-9]+[^"']*)["']

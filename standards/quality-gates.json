@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "standard": "Rill",
+  "status": "candidate",
+  "description": "Required checks for actual project source; fixture checks alone do not certify a project.",
+  "layers": [
+    { "id": "lint", "label": "代码规范" },
+    { "id": "types", "label": "类型与接口" },
+    { "id": "unit", "label": "单元与组件" },
+    { "id": "integration", "label": "集成与故障" },
+    { "id": "system", "label": "端到端与实机" },
+    { "id": "accessibility", "label": "无障碍" },
+    { "id": "coverage", "label": "覆盖与回归" },
+    { "id": "build", "label": "构建与运行" },
+    { "id": "security", "label": "安全与供应链" }
+  ],
+  "stacks": [
+    {
+      "id": "react",
+      "label": "React + Tailwind",
+      "profile": "frontend",
+      "tools": [
+        "Biome",
+        "Oxlint",
+        "TypeScript",
+        "Vitest",
+        "React Testing Library",
+        "Playwright Chrome",
+        "axe-core",
+        "Tailwind/Vite"
+      ],
+      "layers": [
+        "lint",
+        "types",
+        "unit",
+        "integration",
+        "system",
+        "accessibility",
+        "coverage",
+        "build",
+        "security"
+      ]
+    },
+    {
+      "id": "node",
+      "label": "Node.js + TypeScript",
+      "profile": "backend",
+      "tools": [
+        "Biome",
+        "Oxlint",
+        "TypeScript",
+        "Vitest",
+        "HTTP contract tests",
+        "Trivy",
+        "Gitleaks"
+      ],
+      "layers": [
+        "lint",
+        "types",
+        "unit",
+        "integration",
+        "system",
+        "coverage",
+        "build",
+        "security"
+      ]
+    },
+    {
+      "id": "python",
+      "label": "Python",
+      "profile": "backend",
+      "tools": ["Ruff", "mypy", "pytest", "pytest-cov", "uv", "Trivy"],
+      "layers": [
+        "lint",
+        "types",
+        "unit",
+        "integration",
+        "system",
+        "coverage",
+        "build",
+        "security"
+      ]
+    },
+    {
+      "id": "shell",
+      "label": "Shell",
+      "profile": "automation",
+      "tools": ["shfmt", "ShellCheck", "Bats", "Trivy", "Gitleaks"],
+      "layers": [
+        "lint",
+        "types",
+        "unit",
+        "integration",
+        "system",
+        "build",
+        "security"
+      ]
+    }
+  ],
+  "evidencePolicy": {
+    "unknownIsPassing": false,
+    "scopes": ["real-source", "fixture", "hosted-ci", "human"],
+    "required": ["revision", "command", "exitCode", "sourceRoot", "timestamp"]
+  }
+}

@@ -1,0 +1,187 @@
+_min_copier_version: "9.19.1"
+_answers_file: .rill/copier-answers.yml
+_skip_if_exists:
+  - "{% if preserve_agent_entry %}AGENTS.md{% endif %}"
+  - "{% if preserve_codex_roles %}.codex/config.toml{% endif %}"
+  - "{% if preserve_codex_roles %}.codex/agents/*{% endif %}"
+  - "{% if preserve_hook_config %}.codex/hooks.json{% endif %}"
+  - "{% if preserve_rill_skills %}.agents/skills/rill-*/*{% endif %}"
+  - "{% if preserve_justfile %}justfile{% endif %}"
+  - "{% if preserve_mise_fragment %}.mise/conf.d/rill.toml{% endif %}"
+_envops:
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  keep_trailing_newline: true
+
+# Deterministic preflight values: set from the target's existing files.
+# Copier persists these choices so upgrades never silently change ownership.
+# For legacy installs lacking these answers, conservative true is mandatory.
+# The deterministic Rill installer explicitly sets false for new owned files.
+preserve_mise_fragment:
+  type: bool
+  default: true
+  help: "Preserve an existing native mise fragment owned by the target project."
+
+preserve_justfile:
+  type: bool
+  default: true
+  help: "True when the target already owns its justfile; do not overwrite it."
+
+preserve_agent_entry:
+  type: bool
+  default: true
+  help: "True when target AGENTS.md already exists and is consumer-owned."
+preserve_codex_roles:
+  type: bool
+  default: true
+  help: "True when target native Codex config/roles already exist."
+preserve_hook_config:
+  type: bool
+  default: true
+  help: "True when target native Hook config/handler already exists."
+preserve_rill_skills:
+  type: bool
+  default: true
+  help: "True when target already owns a skill in the Rill namespace."
+
+project_name:
+  type: str
+  default: "Software project"
+  help: "Name of the independent product repository."
+
+github_parent_issue:
+  type: int
+  default: 0
+  validator: "{% if github_parent_issue < 0 %}Use a positive native GitHub issue number or 0 for not enrolled{% endif %}"
+  help: "Native engineering parent Issue in this target repository. 0 means unbound; do not infer or invent one."
+react:
+  type: bool
+  default: true
+  help: "Does this product contain a React/Tailwind UI?"
+node:
+  type: bool
+  default: true
+  help: "Does this product contain a Node.js/TypeScript backend?"
+python:
+  type: bool
+  default: true
+  help: "Does this product contain Python application code?"
+shell:
+  type: bool
+  default: true
+  validator: "{% if not (react or node or python or shell) %}Select at least one real product stack{% endif %}"
+  help: "Does this product include Shell scripts and executable Bats tests?"
+js_workspace:
+  type: str
+  default: "."
+  when: "[[ react or node ]]"
+  validator: "{% if js_workspace.startswith('/') or js_workspace.startswith('..') or '/..' in js_workspace or not (js_workspace | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "pnpm workspace directory (relative to product root)."
+react_root:
+  type: str
+  default: "apps/web"
+  when: "[[ react ]]"
+  validator: "{% if react_root.startswith('/') or react_root.startswith('..') or '/..' in react_root or not (react_root | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "React package directory relative to the pnpm workspace."
+node_root:
+  type: str
+  default: "apps/api"
+  when: "[[ node ]]"
+  validator: "{% if node_root.startswith('/') or node_root.startswith('..') or '/..' in node_root or not (node_root | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Node.js package directory relative to the pnpm workspace."
+react_sources:
+  type: str
+  default: "src"
+  when: "[[ react ]]"
+  validator: "{% if react_sources.startswith('/') or react_sources.startswith('..') or '/..' in react_sources or not (react_sources | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Tracked application source directory relative to the React package."
+
+react_coverage:
+  type: int
+  default: 80
+  when: "[[ react ]]"
+  validator: "{% if react_coverage < 0 or react_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Reviewed minimum React source statement coverage percentage."
+
+node_sources:
+  type: str
+  default: "src"
+  when: "[[ node ]]"
+  validator: "{% if node_sources.startswith('/') or node_sources.startswith('..') or '/..' in node_sources or not (node_sources | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Tracked application source directory relative to the Node.js package."
+
+node_coverage:
+  type: int
+  default: 80
+  when: "[[ node ]]"
+  validator: "{% if node_coverage < 0 or node_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Reviewed minimum Node.js source line coverage percentage."
+
+node_test_runner:
+  type: str
+  choices: ["node", "vitest"]
+  default: "node"
+  when: "[[ node ]]"
+  help: "Actual native test runner of the Node/TypeScript package."
+
+react_build_artifact:
+  type: str
+  default: "dist/index.html"
+  when: "[[ react ]]"
+  validator: "{% if react_build_artifact.startswith('/') or react_build_artifact.startswith('..') or '/..' in react_build_artifact or not (react_build_artifact | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a file path inside the React package{% endif %}"
+  help: "The exact output file the production React build must freshly produce."
+
+node_build_artifact:
+  type: str
+  default: "dist/server.js"
+  when: "[[ node ]]"
+  validator: "{% if node_build_artifact.startswith('/') or node_build_artifact.startswith('..') or '/..' in node_build_artifact or not (node_build_artifact | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a file path inside the Node package{% endif %}"
+  help: "The exact output file the production Node build must freshly produce."
+
+node_version:
+  type: str
+  default: "24.22.3"
+  when: "[[ react or node ]]"
+  help: "Product-supported Node.js version."
+python_root:
+  type: str
+  default: "."
+  when: "[[ python ]]"
+  validator: "{% if python_root.startswith('/') or python_root.startswith('..') or '/..' in python_root or not (python_root | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing pyproject.toml and uv.lock."
+python_sources:
+  type: str
+  default: "src"
+  when: "[[ python ]]"
+  validator: "{% if python_sources.startswith('/') or python_sources.startswith('..') or '/..' in python_sources or not (python_sources | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python source directory relative to the Python project."
+python_tests:
+  type: str
+  default: "tests"
+  when: "[[ python ]]"
+  validator: "{% if python_tests.startswith('/') or python_tests.startswith('..') or '/..' in python_tests or not (python_tests | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python tests directory relative to the Python project."
+python_integration:
+  type: str
+  default: "tests/integration"
+  when: "[[ python ]]"
+  validator: "{% if python_integration.startswith('/') or python_integration.startswith('..') or '/..' in python_integration or not (python_integration | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Python integration test directory relative to the Python project; must exist."
+python_coverage:
+  type: int
+  default: 80
+  when: "[[ python ]]"
+  validator: "{% if python_coverage < 0 or python_coverage > 100 %}Must be between 0 and 100{% endif %}"
+  help: "Project-reviewed minimum Python coverage percentage."
+shell_sources:
+  type: str
+  default: "scripts"
+  when: "[[ shell ]]"
+  validator: "{% if shell_sources.startswith('/') or shell_sources.startswith('..') or '/..' in shell_sources or not (shell_sources | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing product Shell scripts."
+shell_tests:
+  type: str
+  default: "tests/shell"
+  when: "[[ shell ]]"
+  validator: "{% if shell_tests.startswith('/') or shell_tests.startswith('..') or '/..' in shell_tests or not (shell_tests | regex_search('^[A-Za-z0-9_.][A-Za-z0-9_./-]*$')) %}Use a path inside the product repository{% endif %}"
+  help: "Directory containing executable Bats tests."

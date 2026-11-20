@@ -1,0 +1,55 @@
+# Install the Rill CLI
+
+Rill is distributed as a versioned GitHub Release artifact. No Python virtual
+environment is required at runtime. Supported targets: Apple Silicon Macs
+(arm64, macOS 26 or newer), Linux x64 and Linux arm64. Intel Macs and Windows
+are intentionally unsupported.
+
+Consumer CI must have that pinned CLI available in PATH before `just ci`.
+The generated Quality Job now **fails closed** when Rill is missing rather
+than silently skipping the governance gate. Publishing and validating the
+matching GitHub Release is a prerequisite to enabling that workflow on new
+repositories; no unpublished release is substituted by source checkout.
+
+Use mise's native GitHub backend with the exact version and asset for your
+platform. For example, on Linux x64:
+
+```toml
+[tools."github:hughzadora/Rill"]
+version = "vX.Y.Z"
+asset_pattern = "rill-linux-x64.tar.gz"
+bin_path = "rill"
+```
+
+Replace `vX.Y.Z` with the published tag (which must match the root `VERSION`),
+then run `mise install`, `mise which rill`,
+`rill version` and `rill doctor`. The asset pattern chooses the published
+archive for the selected platform. For Apple Silicon use
+`rill-macos-arm64.tar.gz`; for Linux ARM64 use `rill-linux-arm64.tar.gz`.
+Pin a release; do not rely on latest. Review
+`SHA256SUMS.txt` and release provenance before installing.
+
+For an empty or clean Git repository use `rill init PATH --yes`; the CLI
+creates `feat/rill-init` when necessary and records one initialization commit.
+After updating the global `rill` binary, run `rill upgrade PATH --yes`
+**before** running the project's `just ci` or `just ci-full`. The native
+versioned template is the only source of updated CLI command contracts;
+Rill does not maintain a second legacy command compatibility layer.
+An upgrade checks managed hashes, uses a temporary Git worktree and applies
+only a native fast-forward commit to a clean, unchanged target. A conflict
+stops without deleting user files or replacing a concurrent edit.
+`rill status PATH`, `rill doctor PATH`, and `rill ui PATH --no-open` are
+safe local observations. `rill ui PATH --serve` temporarily serves the
+single-file dashboard on loopback, accepts one owner decision and exits.
+Use `rill --json status PATH` for a machine-readable, single-line receipt.
+
+The binary needs no Python virtual environment. The factory toolchain
+(`git`, `mise`, `uv`, `pnpm`, `just`) is nevertheless expected on the host;
+`rill doctor` reports missing tools as an environment error (exit code 2).
+No Intel Mac or Windows release archive is produced. Version Tags alone
+trigger the multi-platform release workflow; ordinary PRs never launch
+macOS runners.
+`--yes` approves the CLI operation but does not grant autonomous permission
+to override product-owned files, deploy, purchase services or bypass Codex
+sandbox boundaries. An upgrade rejects locally modified Rill-managed files
+and requires a clean Git worktree.

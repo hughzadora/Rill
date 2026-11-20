@@ -1,0 +1,6 @@
+# Rill private state; scoped to this directory.
+state.json
+symbols.txt
+last-error.log
+dashboard.html
+ci-summary.json
