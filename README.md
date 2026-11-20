@@ -22,7 +22,14 @@ every failure is reflected in the aggregated exit code.
 
 Node LTS, pnpm 12 and Python 3.14 are locked by Mise.
 Mise is the authority for CLI tool versions; pnpm and uv lock their package
-dependency graphs. The Just recipe contains the complete CI orchestration.
+dependency graphs.
+
+Bats and Taplo currently publish artifacts without automatically resolved
+SHA-256 metadata. Their release downloads were independently hashed and the
+checksums recorded in mise.lock. Preserve or reverify those checksums when
+refreshing their versions; do not disable locked-download verification.
+
+The Just recipe contains the complete CI orchestration.
 Husky runs pre-commit secret and staged-file checks, commit-message lint
 and incremental CI before pushes.
 
