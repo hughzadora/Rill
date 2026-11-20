@@ -75,6 +75,7 @@ def preflight(path: Path) -> Path:
 
 def ownership(root: Path) -> dict[str, bool]:
     return {
+        "preserve_justfile": (root / "justfile").exists(),
         "preserve_agent_entry": (root / "AGENTS.md").exists(),
         "preserve_codex_roles": (root / ".codex/config.toml").exists(),
         "preserve_hook_config": (root / ".codex/hooks.json").exists(),

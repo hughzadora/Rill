@@ -6,7 +6,7 @@ export MISE_LOCKFILE_PLATFORMS := "linux-x64"
 export MISE_CONFIG_DIR := justfile_directory() + "/.mise"
 export MISE_SYSTEM_CONFIG_DIR := justfile_directory() + "/.mise"
 
-release_platforms := "linux-x64,linux-arm64,macos-x64,macos-arm64"
+release_platforms := "linux-x64,linux-arm64,macos-arm64"
 
 # Mise resolves upstream CLI versions, pnpm and uv lock package dependencies.
 lock:
@@ -25,6 +25,12 @@ setup:
     mise exec --locked -- pnpm exec husky
     @if [[ "${CI:-}" == "true" ]]; then mise exec --locked -- pnpm exec playwright install --with-deps chromium chrome; else mise exec --locked -- pnpm exec playwright install chromium chrome; fi
 
+# CI L2 installs only static analysis and unit-test tools; never downloads browsers.
+setup-ci:
+    mise install --locked node pnpm python uv just taplo biome oxlint ruff shellcheck shfmt bats markdownlint-cli2 typos gitleaks semgrep
+    HUSKY=0 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 mise exec --locked -- pnpm install --frozen-lockfile
+    mise exec --locked -- uv sync --locked --dev --python "$(mise which python)"
+
 pre-commit:
     mise exec --locked -- gitleaks git --staged --redact --no-banner
     mise exec --locked -- pnpm exec lint-staged
@@ -42,10 +48,7 @@ _ci-guardrails:
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
     mise exec --locked -- pnpm exec jscpd src/
-    @warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi
-    mise exec --locked -- tokei src/
-    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .
-    mise exec --locked -- pnpm audit --prod --audit-level moderate
+    @if [[ "${RILL_CI_TIER:-L2}" == "L3" ]]; then warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi; mise exec --locked -- tokei src/; mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .; mise exec --locked -- pnpm audit --prod --audit-level moderate; fi
 
 # The browser tests run against the verified production build, not a dev server.
 _ci-ts:
@@ -56,7 +59,7 @@ _ci-ts:
     mise exec --locked -- pnpm exec vitest run --coverage --passWithNoTests
     mise exec --locked -- pnpm exec vite build
     test -s dist/index.html
-    mise exec --locked -- pnpm exec playwright test
+    @if [[ "${RILL_CI_TIER:-L2}" == "L3" ]]; then mise exec --locked -- pnpm exec playwright test; fi
 
 _ci-py:
     mise exec --locked -- ruff check .
@@ -138,7 +141,7 @@ ci mode="incremental":
     pids=()
     for name in "${tasks[@]}"; do
       printf '[ci] START %s\n' "$name"
-      just "_ci-$name" >"$workdir/$name.log" 2>&1 &
+      RILL_CI_TIER="$([[ "$mode" == "full" ]] && echo L3 || echo L2)" just "_ci-$name" >"$workdir/$name.log" 2>&1 &
       pids+=("$!")
     done
 

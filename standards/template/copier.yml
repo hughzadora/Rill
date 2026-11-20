@@ -6,6 +6,7 @@ _skip_if_exists:
   - "{% if preserve_codex_roles %}.codex/agents/*{% endif %}"
   - "{% if preserve_hook_config %}.codex/hooks.json{% endif %}"
   - "{% if preserve_rill_skills %}.agents/skills/rill-*/*{% endif %}"
+  - "{% if preserve_justfile %}justfile{% endif %}"
 _envops:
   variable_start_string: "[["
   variable_end_string: "]]"
@@ -15,6 +16,11 @@ _envops:
 # Copier persists these choices so upgrades never silently change ownership.
 # For legacy installs lacking these answers, conservative true is mandatory.
 # The deterministic Rill installer explicitly sets false for new owned files.
+preserve_justfile:
+  type: bool
+  default: true
+  help: "True when the target already owns its justfile; do not overwrite it."
+
 preserve_agent_entry:
   type: bool
   default: true

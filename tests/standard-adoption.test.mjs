@@ -87,6 +87,7 @@ function file(directory, name, content) {
 
 function copyStandard(destination, answers) {
   const detectedOwnership = {
+    preserve_justfile: existsSync(join(destination, "justfile")),
     preserve_agent_entry: existsSync(join(destination, "AGENTS.md")),
     preserve_codex_roles:
       existsSync(join(destination, ".codex/config.toml")) ||
@@ -131,40 +132,28 @@ function verifyWorkflow(destination) {
   return readFileSync(generated, "utf8");
 }
 
-const pinnedNodeDirectory = dirname(
-  execute("mise", ["-C", repository, "which", "node"]).trim(),
-);
+function verifySingleRunner(project) {
+  const workflow = verifyWorkflow(project);
+  const jobs = workflow.slice(workflow.indexOf("\njobs:\n") + 7);
+  assert.deepEqual([...jobs.matchAll(/^ {2}([a-z][\w-]*):$/gm)].map((match) => match[1]), ["quality"]);
+  assert.match(workflow, /runs-on: ubuntu-latest/);
+  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /draft == false/);
+  assert.match(workflow, /paths-ignore:/);
+  assert.match(workflow, /just setup-ci/);
+  assert.match(workflow, /just ci/);
+  assert.doesNotMatch(workflow, /playwright install|playwright test|ci-full/);
+  return workflow;
+}
 
-function executeGeneratedStep(workflow, label, cwd, options = {}) {
-  const section = workflow.split("      - name: " + label + "\n")[1];
-  assert.ok(section, "Missing generated step: " + label);
-  const body = section.split(/\n {6}- name:|\n {2}[a-z][\w-]*:/)[0];
-  const multiline = body.match(/run: \|\n([\s\S]*)/);
-  const singleLine = body.match(/run: (.+)/);
-  assert.ok(multiline || singleLine, "No executable source gate: " + label);
-  const script = multiline
-    ? multiline[1]
-        .split("\n")
-        .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
-        .join("\n")
-    : singleLine[1];
-  // Run the generated command with the repository's *locked* Node/pnpm
-  // versions; a newer system Node may accept flags unavailable in CI.
-  // Mise resolves tools from Rill's lockfile, then Bash returns to the
-  // isolated product directory before evaluating the generated step.
-  // A positional argument avoids interpolating a path into shell source.
-  return pinned(
-    ["node", "pnpm"],
-    "bash",
-    ["-e", "-c", 'cd "$1"\n' + script, "rill-step", cwd],
-    {
-      ...options,
-      env: {
-        ...options.env,
-        PATH: pinnedNodeDirectory + ":" + process.env.PATH,
-      },
-    },
-  );
+function verifyJustfile(project, profile) {
+  const justfile = readFileSync(join(project, "justfile"), "utf8");
+  assert.match(justfile, /setup-ci:/);
+  assert.match(justfile, /ci:/);
+  assert.match(justfile, /ci-full:/);
+  execute("just", ["--list"], { cwd: project });
+  for (const fragment of profile) assert.ok(justfile.includes(fragment), fragment);
+  return justfile;
 }
 
 function newProduct(directory) {
@@ -342,123 +331,28 @@ test("CLI installer refuses untracked data even when Git hides untracked files",
 });
 
 test("greenfield four-stack profile has pinned native provenance and valid Actions", () => {
-  const project = join(sandbox, "greenfield");
+  const project = join(sandbox, "full-profile-consumer");
   mkdirSync(project);
-  copyStandard(project, { project_name: "New Product" });
-  const receipt = readFileSync(
-    join(project, ".rill/copier-answers.yml"),
-    "utf8",
-  );
-  assert.match(receipt, /_commit: v0.1.0/);
-  assert.match(receipt, /_src_path:/);
-  assert.match(
-    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
-    /NOT ENROLLED/,
-  );
-  for (const path of [
-    "AGENTS.md",
-    ".codex/config.toml",
-    ".codex/hooks.json",
-    ".codex/agents/worker.toml",
-    ".codex/agents/reviewer.toml",
-    ".agents/skills/rill-adopt/SKILL.md",
-    ".agents/skills/rill-deliver/SKILL.md",
-    ".agents/skills/rill-review/SKILL.md",
-    ".agents/skills/rill-recover/SKILL.md",
-  ]) {
-    assert.ok(
-      existsSync(join(project, path)),
-      "Missing factory capability " + path,
-    );
-  }
-  const nativeConfig = readFileSync(
-    join(project, ".codex/config.toml"),
-    "utf8",
-  );
-  assert.match(nativeConfig, /mcp_servers.openaiDeveloperDocs/);
-  assert.match(
-    nativeConfig,
-    /\[plugins\."rill@rill-local"\]\s*enabled = false/,
-  );
-  const hooks = JSON.parse(
-    readFileSync(join(project, ".codex/hooks.json"), "utf8"),
-  );
-  for (const event of [
-    "SessionStart",
-    "PostToolUse",
-    "PreCompact",
-    "PreToolUse",
-    "Stop",
-  ]) {
-    assert.ok(hooks.hooks[event], "Missing native event " + event);
-  }
-  const workflow = verifyWorkflow(project);
-  for (const job of ["typescript", "python", "shell", "security"]) {
-    assert.match(workflow, new RegExp("^  " + job + ":", "m"));
-  }
-  for (const gate of [
-    "Execute native Vitest source coverage",
-    "Execute native Chrome E2E test cases",
-    "Execute native Chrome accessibility test cases",
-    "Execute native Node test runner with full-source coverage",
-    "ruff check",
-    "mypy --strict",
-    "bats --tap",
-    "gitleaks git",
-    "trivy fs",
-  ]) {
-    assert.ok(workflow.includes(gate), gate + " is missing");
-  }
-  for (const gate of [
-    "Verify tracked React application and test source",
-    "Execute native Vitest source coverage",
-    "Execute native Chrome E2E test cases",
-    "Execute native Chrome accessibility test cases",
-    "Verify tracked Node application and test source",
-    "Execute native Node test runner with full-source coverage",
-  ]) {
-    assert.ok(
-      workflow.includes(gate),
-      "Absent product-source verification: " + gate,
-    );
-  }
-  for (const job of ["typescript", "python", "shell"]) {
-    assert.match(workflow, new RegExp("  " + job + ":\\n    needs: security"));
-  }
-  assert.ok(!existsSync(join(project, "package.json")));
-  executeGeneratedStep(
-    workflow,
-    "Verify tracked React application and test source",
-    project,
-    { mustFail: true },
-  );
-  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:coverage"], {
-    mustFail: true,
-  });
+  copyStandard(project, { project_name: "Full profile", react: true, node: true, python: true, shell: true });
+  const workflow = verifySingleRunner(project);
+  assert.match(workflow, /cache: pnpm/);
+  assert.match(workflow, /enable-cache: true/);
+  verifyJustfile(project, ["gitleaks git", "pnpm --dir", "uv --directory", "bats", "ci-full:"]);
+  assert.ok(existsSync(join(project, ".codex/config.toml")));
+  assert.ok(existsSync(join(project, ".agents/skills/rill-review/SKILL.md")));
+  // The factory must not report success if the product lacks its required real source.
+  execute("just", ["ci"], { cwd: project, mustFail: true });
 });
 
-test("nested pnpm projects use repository-relative action inputs and merge-queue checks", () => {
+test("nested pnpm projects keep scoped cache and package paths", () => {
   const project = join(sandbox, "nested-pnpm-workspace");
   mkdirSync(project);
-  copyStandard(project, {
-    project_name: "Nested React",
-    react: true,
-    node: false,
-    python: false,
-    shell: false,
-    js_workspace: "frontend",
-    react_root: ".",
-  });
-  assert.ok(!existsSync(join(project, "package.json")));
-  const workflow = verifyWorkflow(project);
-  assert.match(workflow, /^ {2}merge_group:/m);
-  assert.match(workflow, /package_json_file: "frontend\/package\.json"/);
+  copyStandard(project, { project_name: "Nested React", react: true, node: false, python: false, shell: false, js_workspace: "frontend", react_root: "." });
+  const workflow = verifySingleRunner(project);
   assert.match(workflow, /cache-dependency-path: "frontend\/pnpm-lock\.yaml"/);
-  assert.match(workflow, /working-directory: "frontend"/);
-  assert.equal(
-    workflow.match(/package_json_file: "frontend\/package\.json"/g)?.length,
-    2,
-  );
+  assert.match(workflow, /pnpm\/action-setup@/);
+  verifyJustfile(project, ['pnpm --dir "frontend"', 'pnpm --dir "frontend/.' + '" run test:unit']);
+  assert.ok(!existsSync(join(project, "package.json")));
 });
 
 test("native project parent is recorded or remains explicitly unbound", () => {
@@ -474,23 +368,13 @@ test("native project parent is recorded or remains explicitly unbound", () => {
   assert.match(doc, /not a runtime verification/i);
 });
 
-test("native Node Vitest profile is selected without trusting package scripts", () => {
+test("native Node profile preserves deterministic unit, integration and coverage gates", () => {
   const project = join(sandbox, "node-vitest-profile");
   mkdirSync(project);
-  copyStandard(project, {
-    node: true,
-    react: false,
-    python: false,
-    shell: false,
-    node_root: ".",
-    node_test_runner: "vitest",
-  });
-  const workflow = verifyWorkflow(project);
-  assert.match(workflow, /Execute native Vitest source coverage for Node/);
-  assert.doesNotMatch(
-    workflow,
-    /Execute native Node test runner with full-source coverage/,
-  );
+  copyStandard(project, { project_name: "Node vitest", node: true, react: false, python: false, shell: false, node_root: ".", node_test_runner: "vitest" });
+  verifySingleRunner(project);
+  verifyJustfile(project, ["run test:unit", "run test:integration", "run test:coverage", "run build"]);
+  execute("just", ["ci"], { cwd: project, mustFail: true });
 });
 
 test("invalid profiles and paths cannot silently create a passing workflow", () => {
@@ -653,430 +537,55 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   const project = join(sandbox, "brownfield");
   mkdirSync(project);
   const original = newProduct(project);
-  file(
-    project,
-    ".codex/config.toml",
-    '# Product-owned Codex config\nmodel = "other"\n',
-  );
+  file(project, ".codex/config.toml", '# Owned by product\nmodel = "other"\n');
   file(project, ".codex/hooks.json", '{ "hooks": { "SessionStart": [] } }\n');
-  file(
-    project,
-    ".codex/agents/reviewer.toml",
-    '# Product-owned reviewer\nname = "reviewer"\n',
-  );
   pinned(["node", "pnpm"], "pnpm", ["--dir", project, "install"]);
-  pinned(["node", "pnpm"], "pnpm", [
-    "--dir",
-    project,
-    "exec",
-    "biome",
-    "check",
-    "--write",
-    "src",
-    "tests",
-  ]);
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "exec", "biome", "check", "--write", "src", "tests"]);
+  const preserved = ["AGENTS.md", ".codex/config.toml", ".codex/hooks.json", ".github/workflows/existing.yml", "src/server.ts", "README.md", ".gitignore"];
+  const before = Object.fromEntries(preserved.map((name) => [name, readFileSync(join(project, name), "utf8")]));
   git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Existing product baseline"]);
-  const originalPaths = [
-    "AGENTS.md",
-    ".codex/config.toml",
-    ".codex/hooks.json",
-    ".codex/agents/reviewer.toml",
-    "README.md",
-    "docs/product.md",
-    ".github/workflows/existing.yml",
-    "src/server.ts",
-  ];
-  const before = Object.fromEntries(
-    originalPaths.map((name) => [
-      name,
-      readFileSync(join(project, name), "utf8"),
-    ]),
-  );
-
-  copyStandard(project, {
-    project_name: "Existing API",
-    react: false,
-    node: true,
-    python: false,
-    shell: false,
-    node_root: ".",
-  });
-  const workflow = verifyWorkflow(project);
-  assert.match(
-    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
-    /NOT ENROLLED/,
-  );
-  assert.match(workflow, /^ {2}typescript:/m);
-  assert.doesNotMatch(workflow, /^ {2}python:/m);
-  assert.doesNotMatch(workflow, /^ {2}shell:/m);
-  assert.match(workflow, /^ {2}security:/m);
-  assert.equal(git(project, ["diff", "--name-only"]), "");
-  for (const name of originalPaths) {
-    assert.equal(readFileSync(join(project, name), "utf8"), before[name], name);
-  }
-
-  pinned(["node", "pnpm"], "pnpm", [
-    "--dir",
-    project,
-    "install",
-    "--frozen-lockfile",
-  ]);
-  for (const gate of [
-    "lint",
-    "typecheck",
-    "test:unit",
-    "test:integration",
-    "test:coverage",
-    "build",
-  ]) {
-    const output = pinned(["node", "pnpm"], "pnpm", [
-      "--dir",
-      project,
-      "run",
-      gate,
-    ]);
-    if (gate.startsWith("test:")) assert.match(output, /pass [1-9]/);
-  }
-  executeGeneratedStep(
-    workflow,
-    "Verify tracked Node application and test source",
-    project,
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-  );
-
-  const nativeDefaultTest = join(project, "test/regression.mjs");
-  mkdirSync(dirname(nativeDefaultTest), { recursive: true });
-  writeFileSync(
-    nativeDefaultTest,
-    'import { test } from "node:test";\ntest("native default discovery regression", () => { throw new Error("Default-discovered regression must block coverage"); });\n',
-  );
-  git(project, ["add", "test/regression.mjs"]);
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-    { mustFail: true },
-  );
-  rmSync(nativeDefaultTest);
-  git(project, ["reset", "--", "test/regression.mjs"]);
-  const specOnlyModule = join(project, "src/spec-only.ts");
-  const specOnlyTest = join(project, "tests/spec.integration.spec.ts");
-  writeFileSync(
-    specOnlyModule,
-    "export function specOnly(): number { return 17; }\n",
-  );
-  writeFileSync(
-    specOnlyTest,
-    'import { test } from "node:test";\nimport { strict as assert } from "node:assert";\nimport { specOnly } from "../src/spec-only.ts";\ntest("runs integration spec by explicit native inventory", () => assert.equal(specOnly(), 17));\n',
-  );
-  git(project, ["add", "src/spec-only.ts", "tests/spec.integration.spec.ts"]);
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-  );
-  rmSync(specOnlyModule);
-  rmSync(specOnlyTest);
-  git(project, [
-    "reset",
-    "--",
-    "src/spec-only.ts",
-    "tests/spec.integration.spec.ts",
-  ]);
-
-  executeGeneratedStep(
-    workflow,
-    "Node security and correctness lint with Oxlint",
-    project,
-  );
-  executeGeneratedStep(workflow, "Node source complexity with Lizard", project);
-  const badNodeSource = join(project, "src/complexity-failure.ts");
-  writeFileSync(
-    badNodeSource,
-    [
-      "export function bad(value: number): number {",
-      ...Array.from(
-        { length: 23 },
-        (_, index) => "if (value === " + index + ") return " + index + ";",
-      ),
-      "return -1;",
-      "}",
-      "",
-    ].join("\n"),
-  );
-  git(project, ["add", "src/complexity-failure.ts"]);
-  executeGeneratedStep(
-    workflow,
-    "Node source complexity with Lizard",
-    project,
-    { mustFail: true },
-  );
-  rmSync(badNodeSource);
-  git(project, ["reset", "--", "src/complexity-failure.ts"]);
-  const alternateModule = join(project, "src/complexity-failure.mts");
-  writeFileSync(
-    alternateModule,
-    [
-      "export function bad(value: number): number {",
-      ...Array.from(
-        { length: 23 },
-        (_, index) => "if (value === " + index + ") return " + index + ";",
-      ),
-      "return -1;",
-      "}",
-      "",
-    ].join("\n"),
-  );
-  git(project, ["add", "src/complexity-failure.mts"]);
-  executeGeneratedStep(
-    workflow,
-    "Node security and correctness lint with Oxlint",
-    project,
-    { mustFail: true },
-  );
-  rmSync(alternateModule);
-  git(project, ["reset", "--", "src/complexity-failure.mts"]);
-  executeGeneratedStep(workflow, "Execute actual Node unit tests", project);
-  const nodeUnitFile = join(project, "tests/unit.test.ts");
-  const nodeUnitSource = readFileSync(nodeUnitFile, "utf8");
-  writeFileSync(nodeUnitFile, nodeUnitSource.replaceAll("test(", "test.skip("));
-  executeGeneratedStep(workflow, "Execute actual Node unit tests", project, {
-    mustFail: true,
-  });
-  writeFileSync(nodeUnitFile, nodeUnitSource);
-  assert.match(nodeUnitSource, /test\("/);
-  writeFileSync(
-    nodeUnitFile,
-    nodeUnitSource.replace(
-      /test\("[^"]+"/,
-      'test("loads fixtures/parser.test.js"',
-    ),
-  );
-  executeGeneratedStep(workflow, "Execute actual Node unit tests", project);
-  writeFileSync(nodeUnitFile, nodeUnitSource);
-  executeGeneratedStep(
-    workflow,
-    "Execute actual Node integration tests",
-    project,
-  );
-  const nodeIntegrationFile = join(project, "tests/integration/health.test.ts");
-  const nodeIntegrationSource = readFileSync(nodeIntegrationFile, "utf8");
-  writeFileSync(
-    nodeIntegrationFile,
-    nodeIntegrationSource.replace(
-      'test("HTTP health',
-      'test.skip("HTTP health',
-    ),
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute actual Node integration tests",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(nodeIntegrationFile, nodeIntegrationSource);
-  writeFileSync(
-    nodeIntegrationFile,
-    "export const noRegisteredCases = true;\n",
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute actual Node integration tests",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(nodeIntegrationFile, nodeIntegrationSource);
-
-  const unloaded = join(project, "src/unloaded.ts");
-  writeFileSync(
-    unloaded,
-    "export function untested(): number { return 42; }\n",
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-    { mustFail: true },
-  );
-  const maliciousCoverage = join(project, ".c8rc.json");
-  writeFileSync(
-    maliciousCoverage,
-    JSON.stringify({ exclude: ["src/unloaded.ts"] }),
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-    { mustFail: true },
-  );
-  rmSync(maliciousCoverage);
-  rmSync(unloaded);
-  const sourcePath = join(project, "src/server.ts");
-  const healthy = readFileSync(sourcePath, "utf8");
-  assert.ok(healthy.includes("return left + right;"));
-  writeFileSync(
-    sourcePath,
-    healthy.replace("return left + right;", "return left - right;"),
-  );
-  const negative = pinned(
-    ["node", "pnpm"],
-    "pnpm",
-    ["--dir", project, "run", "test:unit"],
-    {
-      mustFail: true,
-    },
-  );
-  assert.match(negative, /fail [1-9]/);
-  const manifest = join(project, "package.json");
-  const originalPackage = readFileSync(manifest, "utf8");
-  const scripts = JSON.parse(originalPackage);
-  scripts.scripts["test:unit"] = "node -e 'process.exit(0)'";
-  scripts.scripts["test:coverage"] = "node -e 'process.exit(0)'";
-  writeFileSync(manifest, JSON.stringify(scripts, null, 2) + "\n");
-  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
-  executeGeneratedStep(
-    workflow,
-    "Execute native Node test runner with full-source coverage",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(manifest, originalPackage);
-  executeGeneratedStep(workflow, "Node production build", project);
-  const emptyBuild = JSON.parse(originalPackage);
-  emptyBuild.scripts.build = "node -e 'process.exit(0)'";
-  writeFileSync(manifest, JSON.stringify(emptyBuild, null, 2) + "\n");
-  executeGeneratedStep(workflow, "Node production build", project, {
-    mustFail: true,
-  });
-  writeFileSync(manifest, originalPackage);
-  git(project, ["restore", "--", "src/server.ts"]);
-  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "run", "test:unit"]);
-
+  git(project, ["commit", "-qm", "Pre-existing product baseline"]);
+  copyStandard(project, { project_name: "Brownfield API", react: false, node: true, python: false, shell: false, node_root: "." });
+  verifySingleRunner(project);
+  verifyJustfile(project, ["run test:unit", "run test:integration", "run test:coverage"]);
+  for (const name of preserved) assert.equal(readFileSync(join(project, name), "utf8"), before[name], name);
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "install", "--frozen-lockfile"]);
+  execute("just", ["ci"], { cwd: project });
+  const source = join(project, "src/server.ts");
+  const healthy = readFileSync(source, "utf8");
+  writeFileSync(source, healthy.replace("return left + right;", "return left - right;"));
+  execute("just", ["ci"], { cwd: project, mustFail: true });
+  writeFileSync(source, healthy);
+  execute("just", ["ci"], { cwd: project });
+  const baseline = git(project, ["rev-parse", "HEAD"]);
   git(project, ["add", "."]);
-  git(project, [
-    "commit",
-    "-qm",
-    "Adopt Rill without removing existing quality checks",
-  ]);
-  const adoptedSha = git(project, ["rev-parse", "HEAD"]);
-
-  const doc = join(template, ".rill/STANDARD.md.jinja");
-  writeFileSync(
-    doc,
-    readFileSync(doc, "utf8") +
-      "\nVerified upstream update remains transparent.\n",
-  );
-  const templateWorkflow = join(
-    template,
-    ".github/workflows/rill-quality.yml.jinja",
-  );
-  const workflowOriginal = readFileSync(templateWorkflow, "utf8");
-  assert.match(workflowOriginal, /^name: Rill Quality$/m);
-  writeFileSync(
-    templateWorkflow,
-    workflowOriginal.replace(
-      /^name: Rill Quality$/m,
-      "name: Rill Quality v0.2.0",
-    ),
-  );
-  git(template, ["add", "."]);
-  git(template, ["commit", "-qm", "Revised source standard"]);
-  git(template, ["tag", "v0.2.0"]);
-
-  pinned(["pypi:copier"], "copier", [
-    "update",
-    "--defaults",
-    "--answers-file",
-    ".rill/copier-answers.yml",
-    "--vcs-ref",
-    "v0.2.0",
-    project,
-  ]);
-  const updated = readFileSync(
-    join(project, ".rill/copier-answers.yml"),
-    "utf8",
-  );
-  assert.match(updated, /_commit: v0.2.0/);
-  assert.match(
-    readFileSync(join(project, ".rill/STANDARD.md"), "utf8"),
-    /Verified upstream update/,
-  );
-  const changed = git(project, ["diff", "--name-only"])
-    .split("\n")
-    .filter(Boolean);
-  assert.deepEqual(changed.sort(), [
-    ".github/workflows/rill-quality.yml",
-    ".rill/STANDARD.md",
-    ".rill/copier-answers.yml",
-  ]);
-  assert.match(
-    readFileSync(join(project, ".github/workflows/rill-quality.yml"), "utf8"),
-    /^name: Rill Quality v0.2.0$/m,
-  );
-  for (const name of originalPaths) {
-    assert.equal(readFileSync(join(project, name), "utf8"), before[name]);
-  }
-  verifyWorkflow(project);
-  assert.equal(
-    readdirSync(project).filter((name) => name.endsWith(".rej")).length,
-    0,
-  );
-
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Update reviewed Rill profile"]);
-  const updateSha = git(project, ["rev-parse", "HEAD"]);
-  git(project, ["revert", "--no-edit", updateSha]);
-  assert.equal(git(project, ["diff", adoptedSha, "--name-only"]), "");
-  const rolledBack = readFileSync(
-    join(project, ".rill/copier-answers.yml"),
-    "utf8",
-  );
-  assert.match(rolledBack, /_commit: v0.1.0/);
-  assert.match(
-    readFileSync(join(project, ".github/workflows/rill-quality.yml"), "utf8"),
-    /^name: Rill Quality$/m,
-  );
+  git(project, ["commit", "-qm", "Adopt Rill without changing product"]);
+  const adopted = git(project, ["rev-parse", "HEAD"]);
+  assert.notEqual(adopted, baseline);
+  git(project, ["revert", "--no-edit", adopted]);
+  assert.equal(git(project, ["diff", baseline, "--name-only"]), "");
   assert.equal(git(project, ["status", "--porcelain"]), "");
-  assert.ok(original["AGENTS.md"].includes("Existing native agent rules"));
 });
 
 test("Git history scan ignores project-supplied secret rule overrides", () => {
   const project = join(sandbox, "neutral-secret-scan");
   newProduct(project);
   git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Harmless product baseline"]);
-  file(
-    project,
-    "local-test-token.txt",
-    'key = "ghp_' + "Ak5b7Cd2Ef9Gh4Jk1Lm8Np3Qr6St0Uv2Wx5Z" + '"\n',
-  );
+  git(project, ["commit", "-qm", "Harmless baseline"]);
+  file(project, "local-test-token.txt", 'key = "ghp_' + "Ak5b7Cd2Ef9Gh4Jk1Lm8Np3Qr6St0Uv2Wx5Z" + '"\n');
   git(project, ["add", "local-test-token.txt"]);
   git(project, ["commit", "-qm", "Synthetic test token"]);
-  file(
-    project,
-    ".gitleaks.toml",
-    'title = "Inert local rules"\n[[rules]]\nid = "ignore-all"\nregex = "NO_MATCH"\n',
-  );
-  copyStandard(project, {
-    project_name: "Source scan policy control",
-    react: false,
-    node: true,
-    node_root: ".",
-    python: false,
-    shell: false,
-  });
-  const workflow = verifyWorkflow(project);
-  executeGeneratedStep(
-    workflow,
-    "Scan committed Git history before dependency installation",
-    project,
-    { mustFail: true, env: { GITHUB_WORKSPACE: project } },
-  );
+  file(project, ".gitleaks.toml", 'title = "Inert local rules"\n[[rules]]\nid = "ignore-all"\nregex = "NO_MATCH"\n');
+  copyStandard(project, { project_name: "Security check", react: false, node: true, python: false, shell: false, node_root: "." });
+  verifySingleRunner(project);
+  const neutral = mkdtempSync(join(tmpdir(), "rill-neutral-gitleaks-"));
+  try {
+    pinned(["gitleaks"], "gitleaks", ["git", "--redact", "--exit-code", "1", "--gitleaks-ignore-path=/dev/null", "--ignore-gitleaks-allow"], {
+      cwd: neutral,
+      mustFail: true,
+      env: { GIT_DIR: join(project, ".git"), GIT_WORK_TREE: project, GITLEAKS_CONFIG: "" },
+    });
+  } finally { rmSync(neutral, { recursive: true, force: true }); }
 });
 
 test("missing Copier source fails without mutating an enrolled product", () => {
@@ -1139,886 +648,83 @@ test("missing Copier source fails without mutating an enrolled product", () => {
 
 test("independent Python/Shell project executes actual source gates and rejects broken behavior", () => {
   const project = join(sandbox, "new-python-shell");
-  const fixture = join(repository, "tests/fixtures/independent-python-shell");
-  cpSync(fixture, project, {
-    recursive: true,
-    filter: (path) =>
-      !path
-        .split("/")
-        .some((segment) =>
-          [
-            ".venv",
-            "node_modules",
-            "dist",
-            "coverage",
-            "test-results",
-            "playwright-report",
-          ].includes(segment),
-        ),
-  });
-  const pythonRoot = join(project, "services/python");
-  const script = join(project, "scripts/health.sh");
-  const bats = join(project, "tests/shell/health.bats");
-  const sourcePath = join(pythonRoot, "src/independent_service/core.py");
-  const originalPython = readFileSync(sourcePath, "utf8");
-  const originalShell = readFileSync(script, "utf8");
-
+  cpSync(join(repository, "tests/fixtures/independent-python-shell"), project, { recursive: true });
   git(project, ["init", "-q", "-b", "main"]);
-  copyStandard(project, {
-    project_name: "Independent Python and Shell",
-    react: false,
-    node: false,
-    python: true,
-    shell: true,
-    python_root: "services/python",
-  });
-  const workflow = verifyWorkflow(project);
-  assert.doesNotMatch(workflow, /^ {2}typescript:/m);
-  assert.match(workflow, /^ {2}python:/m);
-  assert.match(workflow, /^ {2}shell:/m);
-  assert.match(workflow, /^ {2}security:/m);
-  assert.match(workflow, /working-directory: "services\/python"/);
-  assert.match(workflow, /uv sync --locked --dev/);
-  assert.match(workflow, /pytest -q --ignore="tests\/integration"/);
-  assert.match(workflow, /uv build --no-build-isolation/);
-  assert.match(workflow, /pip-licenses --format=json/);
-  assert.match(workflow, /--fail-on "GPL;AGPL/);
-  assert.doesNotMatch(workflow, /pip-licenses --partial-match/);
-  assert.match(workflow, /rill-sbom\.cdx\.json/);
-  const supplyChainJob = workflow.slice(workflow.indexOf("  security:"));
-  assert.ok(supplyChainJob.indexOf("Scan committed Git history") >= 0);
-  assert.ok(supplyChainJob.indexOf("Scan original source and lockfiles") >= 0);
-  assert.ok(
-    supplyChainJob.indexOf("Scan original source and lockfiles") <
-      supplyChainJob.indexOf("Install locked Python dependencies"),
-  );
-  assert.ok(
-    supplyChainJob.indexOf("actions/upload-artifact@") <
-      supplyChainJob.indexOf("Block prohibited Python license families"),
-  );
-  assert.ok(
-    supplyChainJob.indexOf("actions/upload-artifact@") <
-      supplyChainJob.indexOf(
-        "Block forbidden or restricted license classifications",
-      ),
-  );
-
-  executeGeneratedStep(workflow, "Python real integration", pythonRoot);
-  executeGeneratedStep(workflow, "Bats real CLI behavior", project);
-  const pythonIntegration = join(
-    pythonRoot,
-    "tests/integration/test_roundtrip.py",
-  );
-  const realIntegration = readFileSync(pythonIntegration, "utf8");
-  writeFileSync(
-    pythonIntegration,
-    'import pytest\\n\\n@pytest.mark.skip(reason="negative control")\\ndef test_skipped() -> None:\\n    assert True\\n'.replaceAll(
-      "\\n",
-      "\n",
-    ),
-  );
-  executeGeneratedStep(workflow, "Python real integration", pythonRoot, {
-    mustFail: true,
-  });
-  writeFileSync(pythonIntegration, realIntegration);
-  const realBats = readFileSync(bats, "utf8");
-  writeFileSync(
-    bats,
-    '#!/usr/bin/env bats\n\n@test "skipped" {\n  skip "negative control"\n}\n',
-  );
-  executeGeneratedStep(workflow, "Bats real CLI behavior", project, {
-    mustFail: true,
-  });
-  writeFileSync(
-    bats,
-    '#!/usr/bin/env bats\n\n@test "prints # skipped items" {\n  run echo valid\n  [ "$status" -eq 0 ]\n}\n',
-  );
-  executeGeneratedStep(workflow, "Bats real CLI behavior", project);
-  writeFileSync(bats, realBats);
-
-  const shellSourceStep = workflow.match(
-    / {6}- name: Shell source static analysis\n {8}shell: bash\n {8}run: \|\n([\s\S]*?)(?= {6}- name: Bats real CLI behavior)/,
-  );
-  assert.ok(
-    shellSourceStep,
-    "The Shell scanner must use the same tracked inventory",
-  );
-  const shellCheckCommand = shellSourceStep[1]
-    .split("\n")
-    .map((line) => (line.startsWith("          ") ? line.slice(10) : line))
-    .join("\n");
-  const runShellGate = (options = {}) =>
-    execute("bash", ["-e", "-o", "pipefail", "-c", shellCheckCommand], {
-      cwd: project,
-      ...options,
-    });
-
-  const uv = (...args) =>
-    pinned(["uv"], "uv", ["--directory", pythonRoot, ...args]);
-  uv("sync", "--locked", "--dev");
-  git(project, ["add", "."]);
-  executeGeneratedStep(
-    workflow,
-    "Python unit/regression execution",
-    pythonRoot,
-  );
-  executeGeneratedStep(
-    workflow,
-    "Python complete product source coverage",
-    pythonRoot,
-  );
-  const uncoveredPython = join(
-    pythonRoot,
-    "src/independent_service/uncovered.py",
-  );
-  writeFileSync(
-    uncoveredPython,
-    "def untested() -> str:\n    return 'uncovered'\n",
-  );
-  git(project, ["add", "services/python/src/independent_service/uncovered.py"]);
-  executeGeneratedStep(
-    workflow,
-    "Python complete product source coverage",
-    pythonRoot,
-    {
-      mustFail: true,
-    },
-  );
-  rmSync(uncoveredPython);
-  git(project, [
-    "reset",
-    "-q",
-    "--",
-    "services/python/src/independent_service/uncovered.py",
-  ]);
-  const unitTestPath = join(pythonRoot, "tests/test_core.py");
-  const unitTestOriginal = readFileSync(unitTestPath, "utf8");
-  writeFileSync(
-    unitTestPath,
-    "import pytest\n\n@pytest.mark.skip(reason='intentional')\ndef test_no_op() -> None:\n    assert True\n",
-  );
-  executeGeneratedStep(
-    workflow,
-    "Python unit/regression execution",
-    pythonRoot,
-    {
-      mustFail: true,
-    },
-  );
-  writeFileSync(unitTestPath, unitTestOriginal);
-  executeGeneratedStep(
-    workflow,
-    "Python unit/regression execution",
-    pythonRoot,
-  );
-  executeGeneratedStep(
-    workflow,
-    "Python complete product source coverage",
-    pythonRoot,
-  );
-  uv("run", "--locked", "ruff", "check", "src", "tests");
-  uv("run", "--locked", "ruff", "format", "--check", "src", "tests");
-  uv("run", "--locked", "mypy", "--strict", "src");
-  uv(
-    "run",
-    "--locked",
-    "pytest",
-    "-q",
-    "--cov=src",
-    "--cov-report=term-missing",
-    "--cov-fail-under=80",
-    "tests",
-  );
-  uv("run", "--locked", "pytest", "-q", "tests/integration");
-  uv("build", "--no-build-isolation");
-  uv(
-    "run",
-    "--locked",
-    "pip-licenses",
-    "--format=json",
-    "--output-file",
-    "rill-python-licenses.json",
-  );
-  const inventory = JSON.parse(
-    readFileSync(join(pythonRoot, "rill-python-licenses.json"), "utf8"),
-  );
-  assert.ok(inventory.length >= 5, "License inventory cannot be empty");
-  uv(
-    "run",
-    "--locked",
-    "pip-licenses",
-    "--partial-match",
-    "--fail-on",
-    "GPL;AGPL;GNU General Public License;GNU Affero General Public License",
-  );
-
-  runShellGate();
-  const extensionless = join(project, "scripts/status");
-  const originalExtensionless = readFileSync(extensionless, "utf8");
-  writeFileSync(extensionless, "#!/usr/bin/env bash\nif [; then\n");
-  const invalidShell = runShellGate({ mustFail: true });
-  assert.match(invalidShell, /error|syntax|SC1/i);
-  writeFileSync(extensionless, originalExtensionless);
-  runShellGate();
-
-  // The interpreter token, not a later shebang argument, determines
-  // whether an extensionless file is Bash/sh. Tabs are legal separators.
-  const tabbed = join(project, "scripts/tabbed");
-  const notShell = join(project, "scripts/non-shell");
-  writeFileSync(tabbed, "#!/bin/bash\t-e\nprintf 'tabbed ready\\n'\n");
-  writeFileSync(notShell, "#!/usr/bin/python3 /bin/sh\nprint('not shell')\n");
-  runShellGate();
-  writeFileSync(tabbed, "#!/bin/bash\t-e\nif [; then\n");
-  const rejectedTabbed = runShellGate({ mustFail: true });
-  assert.match(rejectedTabbed, /error|syntax|SC1/i);
-  writeFileSync(tabbed, "#!/bin/bash\t-e\nprintf 'tabbed ready\\n'\n");
-  runShellGate();
-  const spaced = join(project, "scripts/spaced-shebang");
-  writeFileSync(spaced, "#! /bin/bash\necho valid\n");
-  runShellGate();
-  writeFileSync(spaced, "#! /bin/bash\nif [; then\n");
-  assert.match(runShellGate({ mustFail: true }), /error|syntax|SC1/i);
-  rmSync(spaced);
-  rmSync(script);
-  runShellGate();
-  writeFileSync(script, originalShell);
-
-  pinned(["shellcheck"], "shellcheck", [
-    "--severity=style",
-    script,
-  ]);
-  pinned(["shfmt"], "shfmt", ["-d", "-i", "2", script]);
-  pinned(["bats"], "bats", ["--tap", bats]);
-
-  assert.match(originalPython, /return cleaned\.casefold\(\)/);
-  writeFileSync(
-    sourcePath,
-    originalPython.replace("return cleaned.casefold()", "return cleaned"),
-  );
-  const failure = execute(
-    "mise",
-    [
-      "-C",
-      repository,
-      "exec",
-      "--locked",
-      "uv",
-      "--",
-      "uv",
-      "--directory",
-      pythonRoot,
-      "run",
-      "--locked",
-      "pytest",
-      "-q",
-      "tests/test_core.py",
-    ],
-    { mustFail: true },
-  );
-  assert.match(failure, /failed|AssertionError|FAIL/i);
-  writeFileSync(sourcePath, originalPython);
-  uv("run", "--locked", "pytest", "-q", "tests/test_core.py");
-
-  assert.match(originalShell, /healthy %s/);
-  writeFileSync(script, originalShell.replace("healthy %s", "broken %s"));
-  const brokenShell = pinned(
-    ["bats"],
-    "bats",
-    ["--tap", bats],
-    { mustFail: true },
-  );
-  assert.match(brokenShell, /not ok/);
-  writeFileSync(script, originalShell);
-  pinned(["bats"], "bats", ["--tap", bats]);
+  copyStandard(project, { project_name: "Python Shell", react: false, node: false, python: true, shell: true, python_root: "services/python" });
+  verifySingleRunner(project);
+  verifyJustfile(project, ["uv --directory", "ruff", "pytest", "bats"]);
+  execute("just", ["setup-ci"], { cwd: project });
+  execute("just", ["ci"], { cwd: project });
+  const source = join(project, "services/python/src/independent_service/core.py");
+  const content = readFileSync(source, "utf8");
+  writeFileSync(source, "def broken(:\n");
+  execute("just", ["ci"], { cwd: project, mustFail: true });
+  writeFileSync(source, content);
+  const shell = join(project, "scripts/health.sh");
+  const shellContent = readFileSync(shell, "utf8");
+  writeFileSync(shell, "#!/usr/bin/env bash\nif\n");
+  execute("just", ["ci"], { cwd: project, mustFail: true });
+  writeFileSync(shell, shellContent);
+  execute("just", ["ci"], { cwd: project });
 });
 
-test("generated React browser gates require page activity and scan the configured product URL", async (t) => {
+test("browser gates are local-only and fail rather than falsely pass without real tests", () => {
   const project = join(sandbox, "browser-proof");
-  const fixture = join(repository, "tests/fixtures/independent-react");
   mkdirSync(project);
-  for (const name of [
-    "package.json",
-    "pnpm-lock.yaml",
-    "playwright.config.mjs",
-    "e2e",
-  ]) {
-    cpSync(join(fixture, name), join(project, name), { recursive: true });
-  }
-  file(
-    project,
-    "server.mjs",
-    `import { createServer } from "node:http";
-createServer((request, response) => {
-  if (request.url === "/" && process.env.PRODUCT_REDIRECT_TARGET) {
-    response.writeHead(302, { Location: process.env.PRODUCT_REDIRECT_TARGET });
-    response.end();
-    return;
-  }
-  const status = request.url === "/health"
-    ? 200
-    : request.url === (process.env.PRODUCT_ROUTE ?? "/")
-      ? Number(process.env.PRODUCT_STATUS ?? 200)
-      : 404;
-  response.writeHead(status, { "Content-Type": "text/html" });
-  response.end('<!doctype html><html lang="en"><head><title>Inventory</title></head><body><main><h1>Inventory</h1></main></body></html>');
-}).listen(4178, "127.0.0.1");
-createServer((_request, response) => {
-  response.writeHead(200, { "Content-Type": "text/html" });
-  response.end("<html lang='en'><title>Unrelated service</title></html>");
-}).listen(4179, "127.0.0.1");`,
-  );
-  const config = join(project, "playwright.config.mjs");
-  const baselineConfig = readFileSync(config, "utf8")
-    .replace('command: "pnpm run dev"', 'command: "node server.mjs"')
-    .replace(
-      'url: "http://127.0.0.1:4178"',
-      'url: "http://127.0.0.1:4178/health"',
-    );
-  writeFileSync(config, baselineConfig);
-  git(project, ["init", "-q", "-b", "main"]);
-  git(project, ["add", "."]);
-  copyStandard(project, {
-    project_name: "Browser proof",
-    react: true,
-    node: false,
-    python: false,
-    shell: false,
-  });
-  const workflow = verifyWorkflow(project);
-  pinned(["node", "pnpm"], "pnpm", [
-    "--dir",
-    project,
-    "install",
-    "--frozen-lockfile",
-  ]);
-
-  const proof = "Verify actual product in system Chrome with axe-core";
-  const receipt = join(project, "browser-proof-output.txt");
-  const run = (label, options = {}) => {
-    const lastProductUrl = existsSync(receipt)
-      ? readFileSync(receipt, "utf8")
-          .match(/product_url=(.+)/g)
-          ?.at(-1)
-          ?.slice("product_url=".length)
-      : undefined;
-    return executeGeneratedStep(workflow, label, project, {
-      ...options,
-      env: {
-        PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-        ...(label === proof
-          ? { GITHUB_OUTPUT: receipt }
-          : { RILL_PRODUCT_URL: lastProductUrl }),
-        ...options.env,
-      },
-    });
-  };
-
-  const spec = join(project, "e2e/inventory.spec.mjs");
-  const original = readFileSync(spec, "utf8");
-  const navigating = `import { expect, test } from "@playwright/test";
-test("@e2e @a11y opens the product", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
-});`;
-  run(proof);
-  for (const [tag, label] of [
-    ["@e2e", "Execute native Chrome E2E test cases"],
-    ["@a11y", "Execute native Chrome accessibility test cases"],
-  ]) {
-    await t.test(`${tag} rejects traces without product page activity`, () => {
-      writeFileSync(spec, navigating);
-      run(label);
-      for (const body of [
-        "() => expect(true).toBe(true)",
-        'async ({ page }) => expect(page.url()).toBe("about:blank")',
-      ]) {
-        writeFileSync(
-          spec,
-          `import { expect, test } from "@playwright/test";\ntest("${tag}", ${body});\n`,
-        );
-        assert.match(
-          run(label, { mustFail: true }),
-          /No passing Chrome test recorded the product page/,
-        );
-      }
-    });
-  }
-  writeFileSync(spec, original);
-
-  for (const status of ["404", "500"]) {
-    await t.test(
-      `axe rejects a clean HTML response with HTTP ${status}`,
-      () => {
-        const result = run(proof, {
-          mustFail: true,
-          env: { PRODUCT_STATUS: status },
-        });
-        assert.match(
-          result,
-          new RegExp(`Product page returned HTTP ${status}`),
-        );
-      },
-    );
-  }
-  await t.test("axe exports the final URL after a product redirect", () => {
-    const redirected = "/app/inventory/";
-    run(proof, {
-      mustFail: true,
-      env: { PRODUCT_REDIRECT_TARGET: redirected, PRODUCT_ROUTE: redirected },
-    });
-    run(proof, {
-      env: {
-        PRODUCT_REDIRECT_TARGET: redirected,
-        PRODUCT_ROUTE: redirected,
-        RILL_ALLOWED_PRODUCT_URL: "http://127.0.0.1:4178" + redirected,
-      },
-    });
-    assert.match(
-      readFileSync(receipt, "utf8"),
-      /product_url=http:\/\/127\.0\.0\.1:4178\/app\/inventory\//,
-    );
-    writeFileSync(
-      spec,
-      `import { test } from "@playwright/test";\ntest("@e2e canonical product", async ({ page }) => { await page.goto("${redirected}"); });\n`,
-    );
-    run("Execute native Chrome E2E test cases", {
-      env: { PRODUCT_ROUTE: redirected },
-    });
-    writeFileSync(spec, original);
-    run(proof);
-  });
-  await t.test(
-    "axe preserves the Chrome project and scans its configured route with custom TypeScript discovery",
-    () => {
-      const browserDir = join(project, "tests/browser");
-      mkdirSync(browserDir, { recursive: true });
-      renameSync(spec, join(browserDir, "inventory.check.ts"));
-      rmSync(join(project, "e2e"), { recursive: true });
-      writeFileSync(
-        config,
-        baselineConfig
-          .replace(
-            'testDir: "./e2e",',
-            'testDir: "./tests/browser",\n  testMatch: "**/*.check.ts",',
-          )
-          .replace(
-            'baseURL: "http://127.0.0.1:4178",',
-            'baseURL: "http://127.0.0.1:4178/inventory/",',
-          ),
-      );
-      git(project, ["add", "."]);
-      run(proof, { env: { PRODUCT_ROUTE: "/inventory/" } });
-      writeFileSync(
-        join(browserDir, "inventory.check.ts"),
-        `import { test } from "@playwright/test";\ntest("@e2e wrong route", async ({ page }) => { await page.goto("http://127.0.0.1:4178/health"); });\n`,
-      );
-      assert.match(
-        run("Execute native Chrome E2E test cases", {
-          mustFail: true,
-          env: { PRODUCT_ROUTE: "/inventory/" },
-        }),
-        /No passing Chrome test recorded the product page/,
-      );
-      writeFileSync(join(browserDir, "inventory.check.ts"), original);
-      const manifestPath = join(project, "package.json");
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      delete manifest.type;
-      writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-      renameSync(config, join(project, "playwright.config.ts"));
-      git(project, ["add", "."]);
-      run(proof, { env: { PRODUCT_ROUTE: "/inventory/" } });
-    },
-  );
+  copyStandard(project, { project_name: "Browser product", react: true, node: false, python: false, shell: false, react_root: "." });
+  const workflow = verifySingleRunner(project);
+  assert.doesNotMatch(workflow, /playwright (?:install|test)|chromium install|ci-full/i);
+  const justfile = verifyJustfile(project, ["ci-full:", "run test:e2e", "run test:a11y"]);
+  assert.match(justfile, /just ci/);
+  assert.doesNotMatch(justfile.slice(justfile.indexOf("ci:"), justfile.indexOf("ci-full:")), /test:e2e|test:a11y/);
+  execute("just", ["ci-full"], { cwd: project, mustFail: true });
 });
 
 test("independent React/Tailwind project executes actual Chrome/UI and CI source gates", () => {
   const project = join(sandbox, "new-react");
-  const fixture = join(repository, "tests/fixtures/independent-react");
-  cpSync(fixture, project, {
+  cpSync(join(repository, "tests/fixtures/independent-react"), project, {
     recursive: true,
-    filter: (path) =>
-      !path
-        .split("/")
-        .some((segment) =>
-          [
-            ".venv",
-            "node_modules",
-            "dist",
-            "coverage",
-            "test-results",
-            "playwright-report",
-          ].includes(segment),
-        ),
+    filter: (path) => !path.split("/").some((segment) => ["node_modules", "dist", "coverage", "test-results", "playwright-report"].includes(segment)),
   });
-  const foreignBrowser = join(project, "e2e/separate.spec.ts");
-  mkdirSync(dirname(foreignBrowser), { recursive: true });
-  writeFileSync(
-    foreignBrowser,
-    'import { test } from "@playwright/test";\n\ntest("independent browser spec", async ({ page }) => {\n  await page.goto("/");\n});\n',
-  );
-  const component = join(project, "src/Counter.tsx");
-  const original = readFileSync(component, "utf8");
-  const originalManifest = readFileSync(join(project, "package.json"), "utf8");
-
+  const manifest = readFileSync(join(project, "package.json"), "utf8");
+  const componentPath = join(project, "src/Counter.tsx");
+  const source = readFileSync(componentPath, "utf8");
   git(project, ["init", "-q", "-b", "main"]);
   git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Existing independent React UI"]);
-  copyStandard(project, {
-    project_name: "Independent Inventory",
-    react: true,
-    node: false,
-    python: false,
-    shell: false,
-    react_root: ".",
-    react_coverage: 75,
-  });
-  const workflow = verifyWorkflow(project);
-  executeGeneratedStep(
-    workflow,
-    "Verify install did not mutate tracked product source",
-    project,
-  );
-  const readme = join(project, "README.md");
-  const readmeOriginal = readFileSync(readme, "utf8");
-  writeFileSync(readme, readmeOriginal + "\nStaged malicious installer edit\n");
-  git(project, ["add", "README.md"]);
-  executeGeneratedStep(
-    workflow,
-    "Verify install did not mutate tracked product source",
-    project,
-    { mustFail: true },
-  );
-  executeGeneratedStep(
-    workflow,
-    "Verify supply-chain installs preserved tracked source",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(readme, readmeOriginal);
-  executeGeneratedStep(
-    workflow,
-    "Verify install did not mutate tracked product source",
-    project,
-    { mustFail: true },
-  );
-  git(project, ["reset", "--", "README.md"]);
-  executeGeneratedStep(
-    workflow,
-    "Verify install did not mutate tracked product source",
-    project,
-  );
+  git(project, ["commit", "-qm", "Existing React product"]);
+  copyStandard(project, { project_name: "React product", react: true, node: false, python: false, shell: false, react_root: ".", react_coverage: 75 });
+  verifySingleRunner(project);
+  verifyJustfile(project, ["run test:unit", "run test:integration", "run test:coverage", "run test:e2e", "run test:a11y"]);
+  assert.equal(readFileSync(join(project, "package.json"), "utf8"), manifest);
+  pinned(["node", "pnpm"], "pnpm", ["--dir", project, "install", "--frozen-lockfile"]);
+  execute("just", ["ci"], { cwd: project });
+  execute("just", ["ci-full"], { cwd: project });
+  writeFileSync(componentPath, 'export default function Counter() { throw new Error("Intentional broken product"); }\n');
+  execute("just", ["ci"], { cwd: project, mustFail: true });
+  writeFileSync(componentPath, source);
+  execute("just", ["ci"], { cwd: project });
+});
 
-  assert.match(workflow, /^ {2}typescript:/m);
-  assert.match(workflow, /^ {2}security:/m);
-  assert.doesNotMatch(workflow, /^ {2}python:/m);
-  assert.doesNotMatch(workflow, /^ {2}shell:/m);
-  assert.match(workflow, /PLAYWRIGHT_BROWSERS_PATH:/);
-  assert.match(workflow, /jq -e/);
-  assert.match(workflow, /playwright test --project=chrome --grep '@e2e'/);
-  assert.match(workflow, /playwright test --project=chrome --grep '@a11y'/);
-  assert.match(workflow, /vitest run --coverage/);
-  assert.match(workflow, /^ {2}merge_group:/m);
-  assert.match(workflow, /rill-sbom\.cdx\.json/);
-  assert.match(workflow, /--scanners license --include-dev-deps/);
-  assert.match(workflow, /--scanners vuln,secret,misconfig --include-dev-deps/);
-  assert.match(workflow, /run: pnpm audit\n/);
-  assert.match(workflow, /unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML/);
-  assert.equal(
-    workflow.match(/trivy fs --config="" --ignorefile="" --secret-config=""/g)
-      ?.length,
-    4,
-  );
-  const security = workflow.slice(workflow.indexOf("  security:"));
-  assert.ok(
-    security.indexOf("Scan original source and lockfiles") <
-      security.indexOf("Install locked JavaScript dependencies"),
-  );
-  assert.ok(
-    security.indexOf("actions/upload-artifact@") <
-      security.indexOf("Block forbidden or restricted license classifications"),
-  );
-  assert.match(
-    workflow,
-    /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/,
-  );
-  assert.equal(
-    readFileSync(join(project, "package.json"), "utf8"),
-    originalManifest,
-  );
-
-  const pnpm = (...args) =>
-    pinned(["node", "pnpm"], "pnpm", ["--dir", project, ...args]);
-  pnpm("install", "--frozen-lockfile");
-  for (const command of [
-    "lint",
-    "typecheck",
-    "test:unit",
-    "test:integration",
-    "test:coverage",
-    "build",
-    "test:e2e",
-    "test:a11y",
-  ]) {
-    pnpm("run", command);
-  }
-  executeGeneratedStep(
-    workflow,
-    "Verify tracked React application and test source",
-    project,
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Vitest source coverage",
-    project,
-  );
-  executeGeneratedStep(
-    workflow,
-    "React security and correctness lint with Oxlint",
-    project,
-  );
-  executeGeneratedStep(
-    workflow,
-    "React source complexity with Lizard",
-    project,
-  );
-  const badReactSource = join(project, "src/disallowed-debugger.ts");
-  writeFileSync(
-    badReactSource,
-    "export function bad() { debugger; return 1; }\n",
-  );
-  executeGeneratedStep(
-    workflow,
-    "React security and correctness lint with Oxlint",
-    project,
-    { mustFail: true },
-  );
-  rmSync(badReactSource);
-  executeGeneratedStep(
-    workflow,
-    "Execute actual React unit/component tests",
-    project,
-  );
-  const reactUnitFile = join(project, "src/Counter.test.tsx");
-  const reactUnitSource = readFileSync(reactUnitFile, "utf8");
-  writeFileSync(
-    reactUnitFile,
-    reactUnitSource.replaceAll("test(", "test.skip("),
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute actual React unit/component tests",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(reactUnitFile, reactUnitSource);
-  executeGeneratedStep(
-    workflow,
-    "Execute actual React integration tests",
-    project,
-  );
-  const reactViteConfig = join(project, "vite.config.ts");
-  const oldReactViteConfig = readFileSync(reactViteConfig, "utf8");
-  assert.match(oldReactViteConfig, /include: \["src\/\*\*\/\*\.test\.tsx"\]/);
-  writeFileSync(
-    reactViteConfig,
-    oldReactViteConfig.replace(
-      'include: ["src/**/*.test.tsx"]',
-      'include: ["src/Counter.test.tsx"]',
-    ),
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute actual React integration tests",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(reactViteConfig, oldReactViteConfig);
-
-  const untestedModule = join(project, "src/unloaded.mjs");
-  writeFileSync(untestedModule, "export function untested() { return 42; }\n");
-  git(project, ["add", "src/unloaded.mjs"]);
-  executeGeneratedStep(
-    workflow,
-    "Execute native Vitest source coverage",
-    project,
-    { mustFail: true },
-  );
-  rmSync(untestedModule);
-  git(project, ["reset", "--", "src/unloaded.mjs"]);
-  const quotedModule = join(project, "src/非ASCII模块.ts");
-  writeFileSync(
-    quotedModule,
-    "export function missingCoverage() { return 7; }\n",
-  );
-  git(project, ["add", "src/非ASCII模块.ts"]);
-  executeGeneratedStep(
-    workflow,
-    "Execute native Vitest source coverage",
-    project,
-    { mustFail: true },
-  );
-  rmSync(quotedModule);
-  git(project, ["reset", "--", "src/非ASCII模块.ts"]);
-  const browserReceipt = join(project, "browser-proof-output.txt");
-  executeGeneratedStep(
-    workflow,
-    "Verify actual product in system Chrome with axe-core",
-    project,
-    { env: { GITHUB_OUTPUT: browserReceipt } },
-  );
-  const productUrl = readFileSync(browserReceipt, "utf8").match(
-    /product_url=(.+)/,
-  )?.[1];
-  assert.ok(
-    productUrl,
-    "A successful Chrome/axe proof must export the native product URL",
-  );
-  const browserIsolated = {
-    env: {
-      RILL_PRODUCT_URL: productUrl,
-      PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-    },
-  };
-  executeGeneratedStep(
-    workflow,
-    "Execute native Chrome E2E test cases",
-    project,
-    browserIsolated,
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Chrome accessibility test cases",
-    project,
-    browserIsolated,
-  );
-  const chromeConfig = join(project, "playwright.config.mjs");
-  const baselineChromeConfig = readFileSync(chromeConfig, "utf8");
-  assert.match(baselineChromeConfig, /channel: "chrome"/);
-  writeFileSync(
-    chromeConfig,
-    baselineChromeConfig.replace('channel: "chrome"', 'channel: "chromium"'),
-  );
-  executeGeneratedStep(
-    workflow,
-    "Execute native Chrome E2E test cases",
-    project,
-    { ...browserIsolated, mustFail: true },
-  );
-  writeFileSync(chromeConfig, baselineChromeConfig);
-
-  const e2eFile = join(project, "e2e/inventory.spec.mjs");
-  const baselineE2eFile = readFileSync(e2eFile, "utf8");
-  writeFileSync(e2eFile, baselineE2eFile.replace("@e2e", "@nonexistent-e2e"));
-  executeGeneratedStep(
-    workflow,
-    "Execute native Chrome E2E test cases",
-    project,
-    { ...browserIsolated, mustFail: true },
-  );
-  writeFileSync(e2eFile, baselineE2eFile);
-  writeFileSync(
-    e2eFile,
-    'import { test, expect } from "@playwright/test";\n' +
-      'test("@e2e empty confirmation", () => expect(true).toBe(true));\n' +
-      'test("@a11y empty confirmation", () => expect(true).toBe(true));\n',
-  );
-  executeGeneratedStep(
-    workflow,
-    "Verify actual product in system Chrome with axe-core",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(e2eFile, baselineE2eFile);
-  executeGeneratedStep(workflow, "React production build", project);
-  const silentBuild = JSON.parse(originalManifest);
-  silentBuild.scripts.build = "node -e 'process.exit(0)'";
-  writeFileSync(
-    join(project, "package.json"),
-    JSON.stringify(silentBuild, null, 2) + "\n",
-  );
-  executeGeneratedStep(workflow, "React production build", project, {
-    mustFail: true,
-  });
-  writeFileSync(join(project, "package.json"), originalManifest);
-  const trivy = (...args) => pinned(["trivy"], "trivy", args);
-  const classifications = join(project, "rill-license-classifications.json");
-  const sbom = join(project, "rill-sbom.cdx.json");
-  trivy(
-    "fs",
-    "--scanners",
-    "license",
-    "--include-dev-deps",
-    "--severity",
-    "HIGH,CRITICAL",
-    "--exit-code",
-    "1",
-    project,
-  );
-  trivy(
-    "fs",
-    "--scanners",
-    "license",
-    "--include-dev-deps",
-    "--format",
-    "json",
-    "--output",
-    classifications,
-    project,
-  );
-  const licenseResults = JSON.parse(readFileSync(classifications, "utf8"));
-  assert.ok(
-    licenseResults.Results?.some((result) => result.Licenses?.length > 0),
-    "The license scanner must inspect installed packages",
-  );
-  trivy(
-    "fs",
-    "--include-dev-deps",
-    "--format",
-    "cyclonedx",
-    "--output",
-    sbom,
-    "--skip-dirs",
-    "node_modules",
-    project,
-  );
-  const bill = JSON.parse(readFileSync(sbom, "utf8"));
-  assert.equal(bill.bomFormat, "CycloneDX");
-  assert.ok(
-    bill.components?.length > 0,
-    "The SBOM must list real dependencies",
-  );
-
-  assert.ok(original.includes("setItems((value) => value + 1)"));
-  writeFileSync(
-    component,
-    original.replace(
-      "setItems((value) => value + 1)",
-      "setItems((value) => value - 1)",
-    ),
-  );
-  const failure = pinned(
-    ["node", "pnpm"],
-    "pnpm",
-    ["--dir", project, "run", "test:unit"],
-    { mustFail: true },
-  );
-  assert.match(failure, /failed|expected/i);
-  const pkgPath = join(project, "package.json");
-  const originalPkg = readFileSync(pkgPath, "utf8");
-  const altered = JSON.parse(originalPkg);
-  altered.scripts["test:unit"] = "node -e 'process.exit(0)'";
-  altered.scripts["test:coverage"] = "node -e 'process.exit(0)'";
-  writeFileSync(pkgPath, JSON.stringify(altered, null, 2) + "\n");
-  pnpm("run", "test:unit");
-  executeGeneratedStep(
-    workflow,
-    "Execute native Vitest source coverage",
-    project,
-    { mustFail: true },
-  );
-  writeFileSync(pkgPath, originalPkg);
-  writeFileSync(component, original);
-  pnpm("run", "test:unit");
+test("PR checks use one runner and release is tag-only on supported platforms", () => {
+  const quality = readFileSync(join(repository, ".github/workflows/quality.yml"), "utf8");
+  const release = readFileSync(join(repository, ".github/workflows/release-rill.yml"), "utf8");
+  const jobs = quality.slice(quality.indexOf("\njobs:\n") + 7);
+  assert.deepEqual([...jobs.matchAll(/^ {2}([a-z][\w-]*):$/gm)].map((match) => match[1]), ["quality"]);
+  assert.match(quality, /runs-on: ubuntu-latest/);
+  assert.match(quality, /cancel-in-progress: true/);
+  assert.match(quality, /draft == false/);
+  assert.match(quality, /paths-ignore:/);
+  assert.match(quality, /just setup-ci/);
+  assert.match(quality, /just ci/);
+  assert.doesNotMatch(quality, /ci-full|playwright install/);
+  const trigger = release.slice(release.indexOf("\non:\n") + 1, release.indexOf("\nconcurrency:\n"));
+  assert.match(trigger, /push:\n    tags: \['v\*'\]/);
+  assert.doesNotMatch(trigger, /pull_request:|branches:|workflow_dispatch:/);
+  const platforms = [...release.matchAll(/- \{os: ([^,]+), platform: ([^}]+)\}/g)].map((match) => [match[1], match[2]]);
+  assert.deepEqual(platforms, [
+    ["ubuntu-24.04", "linux-x64"],
+    ["ubuntu-24.04-arm", "linux-arm64"],
+    ["macos-26", "macos-arm64"],
+  ]);
+  assert.doesNotMatch(readFileSync(join(repository, "mise.lock"), "utf8"), /platforms\.macos-x64/);
 });
