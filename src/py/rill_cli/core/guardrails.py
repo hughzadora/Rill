@@ -2,12 +2,12 @@
 
 import ast
 import re
-import shutil
 import subprocess
 from pathlib import Path
 from typing import cast
 
 from .constants import FRAMEWORK_PATHS, MAX_REWRITE_LINES, MAX_SYMBOL_LINES, RUNTIME_ANCHORS
+from .git_policy import changed_paths
 from .state import load
 
 
@@ -51,20 +51,11 @@ def check_scope(relative: str, scope: object) -> None:
 
 
 def tracked_changes(root: Path) -> list[str]:
-    result = subprocess.run(  # noqa: S603 - trusted git binary; explicit argv
-        [
-            shutil.which("git") or "/usr/bin/git",
-            "-C",
-            str(root),
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return [line[3:].split(" -> ")[-1] for line in result.stdout.splitlines()]
+    """Use native Git NUL paths; never treat an audit failure as a clean tree."""
+    try:
+        return changed_paths(root)
+    except subprocess.CalledProcessError as exc:
+        raise PermissionError("Git audit unavailable: refusing to report clean") from exc
 
 
 def audit(root: Path) -> list[str]:
