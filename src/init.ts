@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
@@ -10,7 +11,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 
 import { RillCommandError } from "./command-error.js";
 
@@ -26,7 +26,10 @@ const GOAL_PLACEHOLDER = "[Describe the user-facing product result.]";
 function requireAbsent(target: string): void {
   try {
     lstatSync(target);
-    throw new RillCommandError("Target already exists. Use the separate brownfield enrollment workflow.", 1);
+    throw new RillCommandError(
+      "Target already exists. Use the separate brownfield enrollment workflow.",
+      1,
+    );
   } catch (error) {
     if (error instanceof RillCommandError) throw error;
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -56,7 +59,8 @@ export function initializeProject(
 ): InitReceipt {
   const destination = resolve(path);
   const normalizedGoal = goal.replace(/\s+/g, " ").trim();
-  if (!normalizedGoal) throw new RillCommandError("A product goal is required for non-interactive initialization.", 2);
+  if (!normalizedGoal)
+    throw new RillCommandError("A product goal is required for non-interactive initialization.", 2);
   requireAbsent(destination);
   const parent = dirname(destination);
   if (!existsSync(parent) || !lstatSync(parent).isDirectory()) {
@@ -82,7 +86,9 @@ export function initializeProject(
 
     mkdirSync(join(staging, ".rill"), { recursive: true });
     copyAssets(plugin, join(staging, ".rill/plugin"));
-    const pluginManifest = JSON.parse(readFileSync(join(staging, ".rill/plugin/plugin.json"), "utf8")) as {
+    const pluginManifest = JSON.parse(
+      readFileSync(join(staging, ".rill/plugin/plugin.json"), "utf8"),
+    ) as {
       version?: string;
     };
     if (pluginManifest.version !== version) {
@@ -106,7 +112,10 @@ export function initializeProject(
       throw new RillCommandError(`Native Git unavailable: ${result.error.message}`, 2);
     }
     if (result.status !== 0) {
-      throw new RillCommandError(`Native Git initialization failed: ${result.stderr?.trim() ?? "unknown error"}`, 2);
+      throw new RillCommandError(
+        `Native Git initialization failed: ${result.stderr?.trim() ?? "unknown error"}`,
+        2,
+      );
     }
     requireAbsent(destination);
     renameSync(staging, destination);

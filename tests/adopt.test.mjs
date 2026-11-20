@@ -1,14 +1,27 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const factory = fileURLToPath(new URL("../", import.meta.url));
 const cli = join(factory, "dist/cli.js");
-const exec = (command, args, cwd) => spawnSync(command, args, { cwd, encoding: "utf8", env: { ...process.env, NODE_TEST_CONTEXT: undefined } });
+const exec = (command, args, cwd) =>
+  spawnSync(command, args, {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+  });
 const call = (...args) => exec(process.execPath, [cli, "adopt", ...args], factory);
 const git = (repo, ...args) => exec("git", ["-C", repo, ...args], factory);
 const text = (path) => readFileSync(path, "utf8");
@@ -20,7 +33,9 @@ function fixture(t, options = {}) {
   t.after(() => {
     // The test removes only its own temporary workspace, not a consumer's real worktree.
     const result = git(repo, "worktree", "list", "--porcelain");
-    const paths = [...result.stdout.matchAll(/^worktree (.+)$/gm)].map((m) => m[1]).filter((p) => p && p !== repo);
+    const paths = [...result.stdout.matchAll(/^worktree (.+)$/gm)]
+      .map((m) => m[1])
+      .filter((p) => p && p !== repo);
     for (const p of paths) {
       assert.equal(git(repo, "worktree", "remove", "--force", p).status, 0);
       if (p.startsWith(join(tmpdir(), "rill-adopt-"))) {
@@ -34,21 +49,41 @@ function fixture(t, options = {}) {
   mkdirSync(join(repo, "tests"));
   mkdirSync(join(repo, ".github", "workflows"), { recursive: true });
   writeFileSync(join(repo, "src/core.mjs"), "export const total = (a,b) => a+b;\n");
-  writeFileSync(join(repo, "tests/core.test.mjs"),
-    "import test from 'node:test'; import{strict as assert}from 'node:assert';import{total}from '../src/core.mjs';test('actual product logic',()=>assert.equal(total(2,3),5));\n");
-  writeFileSync(join(repo, ".github/workflows/verify.yml"), "name: Product CI\non: [push]\njobs: {}\n");
+  writeFileSync(
+    join(repo, "tests/core.test.mjs"),
+    "import test from 'node:test'; import{strict as assert}from 'node:assert';import{total}from '../src/core.mjs';test('actual product logic',()=>assert.equal(total(2,3),5));\n",
+  );
+  writeFileSync(
+    join(repo, ".github/workflows/verify.yml"),
+    "name: Product CI\non: [push]\njobs: {}\n",
+  );
   if (options.custom !== false) {
     writeFileSync(join(repo, "AGENTS.md"), "# Existing product policy\nNO SILENT OVERWRITE\n");
     mkdirSync(join(repo, ".codex"));
-    writeFileSync(join(repo, ".codex/config.toml"), "# Existing product Codex configuration\nmodel = 'example'\n");
+    writeFileSync(
+      join(repo, ".codex/config.toml"),
+      "# Existing product Codex configuration\nmodel = 'example'\n",
+    );
   }
-  if (options.existingPrd) writeFileSync(join(repo, "PRD.md"), "# Existing requirements\nDo not replace\n");
+  if (options.existingPrd)
+    writeFileSync(join(repo, "PRD.md"), "# Existing requirements\nDo not replace\n");
   if (options.existingPlugin) {
     mkdirSync(join(repo, ".rill/plugin"), { recursive: true });
     writeFileSync(join(repo, ".rill/plugin/user-owned.txt"), "Not Rill owned");
   }
   assert.equal(git(repo, "add", "-A").status, 0);
-  const initial = git(repo, "-c", "core.hooksPath=/dev/null", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "existing product source");
+  const initial = git(
+    repo,
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "existing product source",
+  );
   assert.equal(initial.status, 0, initial.stderr);
   return { repo, parent, head: git(repo, "rev-parse", "HEAD").stdout.trim() };
 }
@@ -78,8 +113,14 @@ test("applied review branch preserves custom Codex policy, app source, tests and
   assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
   assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
   assert.equal(text(join(receipt.worktree, "AGENTS.md")), text(join(repo, "AGENTS.md")));
-  assert.equal(text(join(receipt.worktree, ".codex/config.toml")), text(join(repo, ".codex/config.toml")));
-  assert.equal(text(join(receipt.worktree, ".github/workflows/verify.yml")), text(join(repo, ".github/workflows/verify.yml")));
+  assert.equal(
+    text(join(receipt.worktree, ".codex/config.toml")),
+    text(join(repo, ".codex/config.toml")),
+  );
+  assert.equal(
+    text(join(receipt.worktree, ".github/workflows/verify.yml")),
+    text(join(repo, ".github/workflows/verify.yml")),
+  );
   assert.equal(text(join(receipt.worktree, "src/core.mjs")), text(join(repo, "src/core.mjs")));
   assert.equal(text(join(receipt.worktree, "PRD.md")), text(join(repo, "PRD.md")));
   assert.equal(existsSync(join(receipt.worktree, ".rill/plugin/plugin.json")), true);
@@ -93,7 +134,11 @@ test("applied review branch preserves custom Codex policy, app source, tests and
   const originalSource = text(join(receipt.worktree, "src/core.mjs"));
   writeFileSync(join(receipt.worktree, "src/core.mjs"), "export const total = () => 0;\n");
   const regression = exec(process.execPath, ["--test", "tests/core.test.mjs"], receipt.worktree);
-  assert.notEqual(regression.status, 0, "a genuine business regression must turn the product test red");
+  assert.notEqual(
+    regression.status,
+    0,
+    "a genuine business regression must turn the product test red",
+  );
   writeFileSync(join(receipt.worktree, "src/core.mjs"), originalSource);
 });
 
@@ -143,7 +188,11 @@ test("standalone distribution can prepare a brownfield review without repository
   cpSync(join(factory, "bundle"), join(distribution, "bundle"), { recursive: true });
   cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
   cpSync(join(factory, "package.json"), join(distribution, "package.json"));
-  const result = exec(process.execPath, [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"], factory);
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "PREPARED_NOT_VERIFIED");
 });
