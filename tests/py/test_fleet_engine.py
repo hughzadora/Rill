@@ -501,3 +501,100 @@ def test_rollback_and_retire_approval_invalidates_after_new_registration(
         engine.rollback(previous, preview_token=token)
     assert engine.load().assets[0].id == asset.id
     assert not engine.load().projects
+
+
+def secondary_bundle(tmp_path: Path) -> Path:
+    """A separate installed owner, to test whole-fleet snapshot coverage."""
+    root = tmp_path / "separate-owner"
+    root.mkdir(exist_ok=True)
+    contents = b"# Independent skill\n"
+    (root / "SKILL.md").write_bytes(contents)
+    manifest = AgentAssetManifest(
+        id="independent-skill",
+        name="Independent skill",
+        kind="skill",
+        version="1.0.0",
+        files=[
+            AssetFile(
+                source="SKILL.md",
+                target="skills/independent/SKILL.md",
+                sha256=hashlib.sha256(contents).hexdigest(),
+            )
+        ],
+    )
+    (root / FLEET_ASSET_MANIFEST).write_text(manifest.model_dump_json())
+    return root
+
+
+def test_alternate_codex_homes_get_separate_native_registry_namespaces(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_user_data_path(*_args: object, **_kwargs: object) -> Path:
+        return tmp_path / "native"
+
+    monkeypatch.setattr(fleet, "user_data_path", fake_user_data_path)
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "first-codex"))
+    first = FleetEngine()
+    repository = tmp_path / "worktree"
+    repository.mkdir()
+    git(repository, "init", "-q", "-b", "main")
+    first.register_project(repository)
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "second-codex"))
+    second = FleetEngine()
+    assert first.data_root != second.data_root
+    assert first.load().projects[0].path == repository
+    assert second.load().projects == []
+    assert second.backups() == []
+    assert not second.codex_root.exists()
+
+
+def test_legacy_partial_snapshot_restores_if_omitted_owner_is_provably_unchanged(
+    engine: FleetEngine,
+    tmp_path: Path,
+) -> None:
+    engine.install_bundle(bundle(tmp_path))
+    engine.install_bundle(secondary_bundle(tmp_path))
+    earlier_registry = (engine.data_root / FLEET_REGISTRY_FILE).read_bytes()
+    partial = engine.files.backup("upgrade", ["skills/demo/SKILL.md"])
+    engine.upgrade_bundle(bundle(tmp_path, version="1.1.0", payload=b"# Upgraded\n"))
+    engine.rollback(partial.id)
+    assert (engine.data_root / FLEET_REGISTRY_FILE).read_bytes() == earlier_registry
+    assert (engine.codex_root / "skills/demo/SKILL.md").read_bytes() == b"# Skill\n"
+    assert (engine.codex_root / "skills/independent/SKILL.md").read_bytes() == (
+        b"# Independent skill\n"
+    )
+    assert len(engine.load().assets) == 2
+
+
+def test_missing_other_owned_file_blocks_new_backup_before_registration_is_changed(
+    engine: FleetEngine,
+    tmp_path: Path,
+) -> None:
+    engine.install_bundle(bundle(tmp_path))
+    engine.install_bundle(secondary_bundle(tmp_path))
+    prior = (engine.data_root / FLEET_REGISTRY_FILE).read_bytes()
+    backup_count = len(engine.backups())
+    (engine.codex_root / "skills/independent/SKILL.md").unlink()
+    with pytest.raises(PermissionError, match="drifted registered asset"):
+        engine.upgrade_bundle(bundle(tmp_path, version="1.1.0", payload=b"# Upgraded\n"))
+    assert (engine.data_root / FLEET_REGISTRY_FILE).read_bytes() == prior
+    assert len(engine.backups()) == backup_count
+
+
+def test_corrupted_historical_owner_bytes_cannot_be_restored_as_registered(
+    engine: FleetEngine,
+    tmp_path: Path,
+) -> None:
+    engine.install_bundle(bundle(tmp_path))
+    engine.install_bundle(secondary_bundle(tmp_path))
+    second = engine.codex_root / "skills/independent/SKILL.md"
+    second.unlink()
+    invalid = engine.files.backup(
+        "upgrade", ["skills/demo/SKILL.md", "skills/independent/SKILL.md"]
+    )
+    second.write_bytes(b"# Independent skill\n")
+    with pytest.raises(PermissionError, match="cannot prove registered asset bytes"):
+        engine.rollback(invalid.id)
+    assert second.read_bytes() == b"# Independent skill\n"
+    assert len(engine.load().assets) == 2

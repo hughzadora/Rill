@@ -27,6 +27,7 @@ from .constants import (
     FLEET_AUDIT_FILE,
     FLEET_BACKUPS_DIR,
     FLEET_BUNDLES_DIR,
+    FLEET_CODEX_HOMES_DIR,
     FLEET_LOCK_FILE,
     FLEET_RECENT_AUDIT_LIMIT,
     FLEET_REGISTRY_FILE,
@@ -47,12 +48,16 @@ class FleetEngine:
     """Persistent registry and guarded lifecycle for multiple local projects."""
 
     def __init__(self, *, data_root: Path | None = None, codex_root: Path | None = None) -> None:
-        self.data_root = (data_root or user_data_path(FLEET_APP_ID, appauthor=False)).resolve()
         configured = os.environ.get("CODEX_HOME")
         fallback = Path(configured) if configured else Path.home() / GLOBAL_CODEX_DIR
         self.codex_root = (
             (codex_root if codex_root is not None else fallback).expanduser().resolve()
         )
+        default_codex = (Path.home() / GLOBAL_CODEX_DIR).resolve()
+        storage = data_root or user_data_path(FLEET_APP_ID, appauthor=False)
+        if data_root is None and self.codex_root != default_codex:
+            storage = storage / FLEET_CODEX_HOMES_DIR / digest(str(self.codex_root).encode())
+        self.data_root = storage.resolve()
         self.files = AssetManager(self.data_root, self.codex_root)
 
     @contextmanager
@@ -133,6 +138,13 @@ class FleetEngine:
         """Backup before writes and revert only files still matching our own output."""
         previous = self.load()
         all_owned = {name for asset in previous.assets for name in asset.file_hashes}
+        for asset in previous.assets:
+            for name, expected in asset.file_hashes.items():
+                if name in updates:
+                    continue  # Explicit repair can restore a drifted target.
+                target = self.files.file("codex", name)
+                if not target.is_file() or digest(target.read_bytes()) != expected:
+                    raise PermissionError(f"Cannot snapshot a drifted registered asset: {name}")
         backup = self.files.backup(action, sorted(set(updates) | all_owned))
         original = self.files.verify_backup(backup)
         changed: dict[Path, bytes | None] = {}
@@ -366,9 +378,46 @@ class FleetEngine:
             self._transact(registry, "repair", asset.id, payload)
             return asset
 
+    def _repair_drift_paths(self, backup_id: str, registry: FleetSnapshot) -> set[str]:
+        """Only the audited repair's own targets may contain original drift bytes."""
+        history = self.audit_records(limit=0)
+        receipt = next(
+            (
+                entry
+                for entry in history
+                if entry.backup_id == backup_id and entry.operation == "repair"
+            ),
+            None,
+        )
+        if receipt is None:
+            return set()
+        asset = next((item for item in registry.assets if item.id == receipt.subject), None)
+        return set(asset.file_hashes) if asset is not None else set()
+
+    def _reconcile_historical_asset(
+        self,
+        asset: InstalledAsset,
+        included: set[str],
+        verified: dict[Path, bytes | None],
+        drift_targets: set[str],
+    ) -> None:
+        for name, expected in asset.file_hashes.items():
+            target = self.files.file("codex", name)
+            if name in included:
+                contents = verified.get(target)
+            else:
+                contents = target.read_bytes() if target.is_file() else None
+                verified[target] = contents
+                included.add(name)
+            if contents is None or (digest(contents) != expected and name not in drift_targets):
+                raise PermissionError(
+                    f"Historical backup cannot prove registered asset bytes: {name}"
+                )
+
     def _checked_historical_backup(
         self, backup_id: str
     ) -> tuple[dict[Path, bytes | None], set[str]]:
+        """Prove owned bytes against old hashes, reconstructing safe legacy backups."""
         snapshot = self.files.inspect_backup(backup_id)
         verified = dict(self.files.verify_backup(snapshot))
         registry_path = self.data_root / FLEET_REGISTRY_FILE
@@ -378,10 +427,14 @@ class FleetEngine:
         original = (
             FleetSnapshot.model_validate_json(original_bytes) if original_bytes else FleetSnapshot()
         )
-        historical = {name for item in original.assets for name in item.file_hashes}
         included = {entry.path for entry in snapshot.entries if entry.namespace == "codex"}
-        if not historical.issubset(included):
-            raise PermissionError("Historical backup lacks the complete registered asset state")
+        original_drift = (
+            self._repair_drift_paths(backup_id, original)
+            if snapshot.operation == "repair"
+            else set[str]()
+        )
+        for asset in original.assets:
+            self._reconcile_historical_asset(asset, included, verified, original_drift)
         return verified, included
 
     def _rollback_plan(self, backup_id: str) -> tuple[dict[Path, bytes | None], list[str]]:
