@@ -222,6 +222,33 @@ class FleetEngine:
     def upgrade_bundle(self, bundle: Path) -> InstalledAsset:
         return self._install(bundle, action="upgrade")
 
+    def preview_bundle(self, bundle: Path, *, upgrade: bool = False) -> dict[str, object]:
+        """Read-only impact description for a terminal confirmation screen."""
+        manifest, payload = read_bundle(bundle)
+        registry = self.load()
+        old = next((item for item in registry.assets if item.id == manifest.id), None)
+        if upgrade != (old is not None):
+            raise ValueError("Asset operation does not match registration")
+        self._check_destinations(registry, payload, old)
+        paths = sorted(set(payload) | (set(old.file_hashes) if old else set[str]()))
+        return {
+            "id": manifest.id,
+            "version": manifest.version,
+            "kind": manifest.kind,
+            "paths": paths,
+            "backup": True,
+        }
+
+    def preview_backup(self, backup_id: str) -> dict[str, object]:
+        """Validate saved bytes before presenting the owner a rollback impact."""
+        snapshot = self.files.inspect_backup(backup_id)
+        self.files.verify_backup(snapshot)
+        return {
+            "id": backup_id,
+            "paths": [f"{entry.namespace}/{entry.path}" for entry in snapshot.entries],
+            "backup": True,
+        }
+
     def install_archive(self, archive: Path, *, upgrade: bool = False) -> InstalledAsset:
         with tempfile.TemporaryDirectory(prefix="rill-asset-") as temporary:
             extracted = unpack_archive(archive, Path(temporary))
