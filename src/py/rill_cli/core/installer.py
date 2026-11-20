@@ -20,6 +20,7 @@ from .constants import (
     COPIER_ANSWERS,
     DEFAULT_SCOPE,
     DELIVER_SKILL,
+    GOVERNANCE_FILE,
     INIT_BRANCH,
     INIT_COMMIT,
     JUSTFILE,
@@ -116,7 +117,7 @@ def fingerprint(root: Path) -> dict[str, str]:
             if Path(relative) in RUNTIME_ANCHORS:
                 continue
             files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    for name in (AGENT_ENTRY, JUSTFILE, REVIEW_FILE):
+    for name in (AGENT_ENTRY, JUSTFILE, REVIEW_FILE, GOVERNANCE_FILE):
         path = root / name
         if path.is_file():
             files[name.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()

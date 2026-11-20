@@ -11,6 +11,7 @@ from .constants import (
     CODEX_HOOKS,
     COPIER_ANSWERS,
     FLEET_COMMAND_TIMEOUT_SECONDS,
+    GOVERNANCE_FILE,
     JUSTFILE,
     REVIEW_FILE,
     REVIEW_SKILL,
@@ -22,7 +23,7 @@ from .state import load
 
 def inspect(root: Path) -> dict[str, object]:
     state = load(root)
-    required = (CODEX_HOOKS, CODEX_CONFIG, REVIEW_SKILL, REVIEW_FILE, JUSTFILE)
+    required = (CODEX_HOOKS, CODEX_CONFIG, REVIEW_SKILL, REVIEW_FILE, GOVERNANCE_FILE, JUSTFILE)
     missing = [name.as_posix() for name in required if not (root / name).is_file()]
     return {
         "repository": str(root.resolve()),

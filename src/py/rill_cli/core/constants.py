@@ -2,6 +2,7 @@
 
 from importlib.metadata import version
 from pathlib import Path
+from types import MappingProxyType
 
 DISTRIBUTION = "rill-factory"
 RILL_VERSION = version(DISTRIBUTION)
@@ -30,6 +31,7 @@ REVIEW_SKILL = Path(".agents/skills/rill-review/SKILL.md")
 DELIVER_SKILL = Path(".agents/skills/rill-deliver/SKILL.md")
 AGENT_ENTRY = Path("AGENTS.md")
 REVIEW_FILE = Path("REVIEW.md")
+GOVERNANCE_FILE = Path("GOVERNANCE.md")
 JUSTFILE = Path("justfile")
 PACKAGE_VERSION_FILE = Path("VERSION")
 ASSET_DASHBOARD = Path("assets/dashboard.html")
@@ -46,6 +48,7 @@ RUNTIME_ANCHORS = frozenset(
 FRAMEWORK_PATHS = (
     "justfile",
     "REVIEW.md",
+    "GOVERNANCE.md",
     "mise.toml",
     "mise.lock",
     "biome.json",
@@ -106,3 +109,12 @@ FLEET_REGISTRY_NAMESPACE = "data"
 
 # Fixture-only display versions; authoritative Rill version remains package metadata.
 FLEET_DEMO_VERSIONS = ("1.0.0", "1.1.0", "2.0.0")
+
+# Rill-specific governance semantics. Git, Commitlint and test tools stay native.
+GOVERNANCE_SCHEMA_VERSION = 1
+GOVERNANCE_STATE_PATH = RILL_DIR / "governance.json"
+GOVERNANCE_LOCK_PATH = RILL_DIR / "governance.lock"
+GOVERNANCE_TECH_DEBT_PATH = Path("TECH_DEBT.md")
+GOVERNANCE_ATTEMPT_LIMITS = MappingProxyType({"P0": 3, "P1": 2, "P2": 1, "P3": 1})
+GOVERNANCE_MAX_EVIDENCE_CHARS = 600
+GOVERNANCE_MAX_CAUSE_CHARS = 400
