@@ -29,6 +29,10 @@ Success is not a beautiful repository scaffold, a green fixture, or an agent's w
 
 **Approved v10.0.1 rebuild:** TypeScript 7-first, with only demonstrated Python/Shell adjuncts. Retire all old Rill runtime/code/configuration on the isolated rebuild branch, retaining prior history only as evidence. Do not write compatibility shims or perform legacy migrations. New independent consumer repositories remain protected from unrelated destructive changes.
 
+## Versioning authority
+
+Product artifact versions follow SemVer 2.0.0, with root `VERSION` as the canonical source and `0.0.1` as the initial unreleased development version. An edition such as *blueprint 10.0.1* identifies a design specification, never an application release. Build metadata and plugin manifests must derive from or be mechanically checked against `VERSION`; releases require tested, reviewed, separately authorized immutable tags. Major version zero does not guarantee API stability.
+
 ## Decision and change authority
 
 - This constitution is the stable design intent. A conflict with verified upstream platform security/capability **must be resolved toward reality**; update the spec and record why rather than preserve a false promise.

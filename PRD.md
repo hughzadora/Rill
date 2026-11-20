@@ -1,6 +1,6 @@
-# Rill Product Requirements — v10.0.1
+# Rill Product Requirements — Blueprint 10.0.1
 
-> Single **living** specification for Rill's current product. Permanent purpose and authority: [CONSTITUTION.md](CONSTITUTION.md). GitHub Issues/PRs and Git preserve execution history. Requirements are not evidence of completed implementation.
+> **Blueprint edition:** 10.0.1 (design only). **Product version:** canonical root [`VERSION`](VERSION), initialized to `0.0.1` under SemVer 2.0.0; no release or Git tag is implied. This is the single **living** specification for Rill's current product. Permanent purpose and authority: [CONSTITUTION.md](CONSTITUTION.md). GitHub Issues/PRs and Git preserve execution history. Requirements are not evidence of completed implementation.
 
 ## Vision, Scope & Non-Goals
 

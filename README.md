@@ -1,6 +1,6 @@
 # Rill Software Factory
 
-**v10.0.1 — Clean rebuild (not released)**
+**Product SemVer:** `0.0.1` (development baseline, not released; [`VERSION`](VERSION) is authoritative). **Blueprint edition:** `10.0.1` (design revision only, not a product release).
 
 Rill is a distributable native Codex-first software factory for new and existing product repositories. The owner defines the outcome and protected authorization; agents and maintained tools research, design, implement, test, independently review, recover and deliver working software.
 
