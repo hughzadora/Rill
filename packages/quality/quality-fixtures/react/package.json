@@ -1,7 +1,0 @@
-{
-  "name": "rill-quality-react-fixture",
-  "private": true,
-  "devDependencies": {
-    "tailwindcss": "^4.1.0"
-  }
-}

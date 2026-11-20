@@ -264,9 +264,9 @@ function AppFrame({
           </div>
         </header>
         {error && (
-          <div className="error-banner" role="status">
+          <output className="error-banner">
             {error}。现有界面数据可能过时；缺失项一律不视为通过。
-          </div>
+          </output>
         )}
         <main id="main-content" className="content-area">
           {children}
@@ -291,7 +291,6 @@ export function App() {
     activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
-    setFetching(true);
     void (async () => {
       try {
         const response = await fetch("/api/dashboard", {
@@ -320,6 +319,11 @@ export function App() {
     return controller;
   }, []);
 
+  const refreshDashboard = () => {
+    setFetching(true);
+    loadDashboard();
+  };
+
   useEffect(() => {
     const controller = loadDashboard();
     return () => controller.abort();
@@ -328,11 +332,11 @@ export function App() {
   let content: ReactNode;
   if (!data) {
     content = (
-      <div className="page-grid initial-state" role="status">
+      <output className="page-grid initial-state">
         <p className="eyebrow">ENGINEERING SOURCES</p>
         <h1>{fetching ? "读取项目交付事实…" : "当前没有可核实的项目事实"}</h1>
         <p>若 GitHub 暂时不可用，不能用标题快照或者历史 CI 冒充最新状态。</p>
-      </div>
+      </output>
     );
   } else {
     switch (view) {
@@ -374,7 +378,7 @@ export function App() {
       data={data}
       fetching={fetching}
       error={error}
-      onRefresh={loadDashboard}
+      onRefresh={refreshDashboard}
     >
       {content}
     </AppFrame>

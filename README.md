@@ -1,68 +1,84 @@
-# Rill — Reusable Software Factory
+# Rill local quality foundation
 
-Rill is a **versioned industrial software-delivery standard for new and existing projects**, not one business application, an issue viewer, or a replacement agent runtime. Its output is working software with reproducible testing, independent review, security and delivery evidence. The owner decides product outcomes and protected choices; native agents and maintained tools execute the engineering work.
+This repository provides a reproducible four-way local CI foundation for
+TypeScript/React, Python and shell code. It uses upstream tooling and avoids
+custom quality-runner wrappers.
 
-Default stacks: **React + Tailwind CSS, Node.js + TypeScript, Python, and Shell**. Every real project must run its complete applicable quality gates. Rill's fixture tests do not certify other products.
+## Bootstrap and verify
 
-## Engineering sources
+```sh
+just lock
+just setup
+just ci-full
+```
 
-| Area                                            | Versioned source                            |
-| ----------------------------------------------- | ------------------------------------------- |
-| Product outcome, constraints, acceptance        | [PRD](PRD.md)                               |
-| Architecture, system and authority boundaries   | [ARCHITECTURE](ARCHITECTURE.md)             |
-| Interactive console product design              | [DESIGN](DESIGN.md)                         |
-| Engineering and human checkpoint policy         | [POLICY](POLICY.md)                         |
-| Native Issue relationships, planning and status | [PROJECT_MANAGEMENT](PROJECT_MANAGEMENT.md) |
-| Fresh-agent recovery and delivery receipts      | [HANDOFF](HANDOFF.md)                       |
-| Native Codex agents and independence            | [MULTI_AGENT](MULTI_AGENT.md)               |
-| Four-stack testing and security gate matrix     | [QUALITY_STANDARD](QUALITY_STANDARD.md)     |
-| Adoption and delivery roadmap                   | [ROADMAP](ROADMAP.md)                       |
-| Shared terms                                    | [GLOSSARY](GLOSSARY.md)                     |
+Use `just ci` to run incremental checks. Every run includes security and
+repository guardrails. The other three workstreams are selected by changed
+files; shared configuration changes run all workstreams. Selected tasks are
+started concurrently and every failed task makes the aggregate command fail.
 
-Current task authority: [Issue #22](https://github.com/hughzadora/Rill/issues/22) and native sub-issues, plus permanent [bug parent #23](https://github.com/hughzadora/Rill/issues/23). Closed #10/#18 remain historical evidence. Source and decisions live in issue **bodies**, Git/PR and these docs — not an agent transcript database or Issue comments log.
+Runtime tool versions are locked by Mise. The current runtime families are
+Node LTS, pnpm 12 and Python 3.14. pnpm and uv separately lock project
+dependencies. The Justfile is the sole CI orchestrator.
 
-The agent entry is [AGENTS.md](AGENTS.md); native role config is in [.codex/](.codex/config.toml). Configuration does not prove real agent delegation.
+## React and browser checks
 
-## Versioned standard adoption
+The root `index.html` renders `src/ts/main.tsx` through Vite and Tailwind
+CSS v4. Shared shadcn/ui-style controls live in `src/ts/components/ui/`.
+This fixture uses a typed, variant-driven Button and the `cn()` class
+merging utility. The build writes to `dist/`.
 
-The first **candidate** project distribution lives in
-[standards/README.md](standards/README.md) with the actual native
-[Copier template](copier.yml). It distributes the maintained native
-role/model configuration,
-reusable adopt/deliver/review/recover Skills, trust-required lifecycle
-Hooks, an optional read-only upstream documentation MCP connection,
-and project-specific GitHub Actions quality gates without cloning
-Codex, storing transcript state or replacing unrelated product files.
-The committed
-[temporary-pilot tests](tests/standard-adoption.test.mjs) exercise
-fresh generation, isolated independent React/Node/Python/Shell
-applications, intentional source-test failures, Copier update,
-and native Git rollback.
+The TypeScript worker runs Biome and Oxlint, strict TypeScript, Knip and
+Vitest V8 coverage (at least 80% in all dimensions), then builds the
+production app and tests it in Chromium using Playwright. Playwright
+previews the production build on port 4173, checks browser errors and
+verifies a real click-driven UI state change.
 
-The target project's pre-existing agent entry and project-level Codex
-settings are preserved; a conflict blocks verified enrollment until
-the native settings are reviewed and integrated. Hook definition and
-MCP configuration are not runtime invocation proof.
+`just setup` installs Chromium. In GitHub Actions it additionally installs
+the system packages required by Playwright. The first browser installation
+downloads a browser binary; no paid services are required.
 
-A successful local pilot is not an approved SemVer release or proof of
-full hosted React/Python/Shell adoption. That work is tracked in
-[Issue #32](https://github.com/hughzadora/Rill/issues/32), an active
-child of #22. Do not use a test-only tag to install into production.
+Biome 2.6 uses the experimental `useTailwindSortedClasses` rule and the
+`tailwind` configuration instead of the older `useSortedClasses` options.
+Class ordering is enforced by the quality gate and can be fixed using Biome.
 
-## Software-delivery console
+Bats and Taplo archives have independently verified SHA-256 entries in
+`mise.lock`; refresh and reverify these when bumping their tool releases.
+Never disable locked-download verification to bypass a checksum failure.
 
-The [React + Tailwind console](apps/console/) replaces the rejected static Issue-title prototype. It includes engineering overview, searchable native child tasks, task acceptance and dependencies, eight-stage workflow, declared-versus-executed quality, versioned engineering documents, and explicit handoff gaps.
+## Mutation-test effectiveness
 
-The preview uses a **loopback-only read-only adapter** and the already-authenticated GitHub CLI / local Git. It does not export credentials into a browser, write task state, create a second issue database, schedule agents, or simulate owner approval. Unknown or stale external facts must stay visible. Consequential decisions need real harness-native controls.
+Run `just verify-tests` to test whether unit assertions actually detect
+introduced defects. Stryker 10 uses its native Vitest runner with a mutation
+break threshold of 60% (high 80%, low 60%). Its TypeScript 7 native checker
+still depends on the removed TypeScript JavaScript configuration API; for
+that reason Stryker's sandbox excludes the tsconfig. Strict TypeScript 7
+checking remains mandatory in `just ci-full`, and Stryker still
+mutates and executes the real Vitest suite.
 
-## Commands
+Mutmut 3.8 requires a named importable Python package. Python code lives
+in `src/rill_quality/`, not under a package literally called `py`,
+which conflicts with existing Python tooling. The Python mutation stage
+requires at least one tested mutant and rejects all outcomes other than
+`killed`, so an empty, untested or surviving result cannot pass.
+Mutation tests execute the two language runners concurrently.
 
-- `just workspace-install` — locked upstream tool and package installation, without downloading Chromium.
-- `just lint` — fast lint / language native checks.
-- `just workspace-ci` — configured source lint, type, React unit/component, Node HTTP integration, Shell, quality fixtures, security, production build and installed-Google-Chrome E2E. This **does not** certify separate target-project adoption.
-- `just preview` — build and serve locally at http://127.0.0.1:8765/ on the authorized Arch host.
-- `pnpm exec playwright-cli open http://127.0.0.1:8765/ --browser=chrome` — inspect through system Chrome.
+## Reusable software factory (PR #33)
 
-The [hosted quality workflow](.github/workflows/quality.yml) runs the same locked checks on PRs. Owner prototype/design/final experience, independent review, native delegation, real new/existing project installation, published version provenance, real external target-project hosted pilots and trusted release remain distinct acceptance gates.
+The #39 local four-language quality foundation above is the **only**
+repository-level CI baseline. The reusable factory layers on the upstream
+native Codex `.codex` roles, Copier distribution in `standards/template`,
+four maintained `.agents/skills/`, reviewed lifecycle Hook handlers,
+a read-only optional documentation MCP declaration, a Git-native installer,
+and an independent delivery console in `apps/console`.
 
-**Current status:** Rill is a candidate software factory, not a published industrial standard. Passing local fixtures or one console does not prove project enrollment, production safety or release readiness. No unattended merge, payment, production deployment or privilege escalation is authorized.
+Preview an adoption without changing the target:
+`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag>`.
+Install only after native trust and target authorization:
+`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag> --apply`.
+Existing product-owned agent files remain protected.
+
+`just factory-ci` validates the reusable release in isolation;
+`just ci-full` runs the full #39 foundation and then its factory checks.
+Passing these is not proof of real consumer Codex Hook/MCP calls,
+continuous agent recovery or owner-approved product release.

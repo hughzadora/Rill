@@ -1,4 +1,4 @@
-export type IssueState = "OPEN" | "CLOSED";
+type IssueState = "OPEN" | "CLOSED";
 
 export interface IssueRef {
   number: number;
@@ -30,21 +30,21 @@ export interface IssueParent extends IssueRef {
   };
 }
 
-export interface BugParent extends IssueRef {
+interface BugParent extends IssueRef {
   subIssues: {
     nodes: (IssueRef & { updatedAt: string })[];
     pageInfo: { hasNextPage: boolean };
   };
 }
 
-export interface GitHubIssues {
+interface GitHubIssues {
   nameWithOwner: string;
   url: string;
   parent: IssueParent;
   bugs: BugParent;
 }
 
-export interface PullRequest {
+interface PullRequest {
   number: number;
   title: string;
   state: string;
@@ -106,16 +106,19 @@ function markdownFenceTransition(
   fence: string | undefined,
 ): { fence: string | undefined; skip: boolean } {
   const delimiter = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+  const marker = delimiter?.[1];
+  const info = delimiter?.[2];
   if (fence) {
     const closes =
-      delimiter &&
-      delimiter[1][0] === fence[0] &&
-      delimiter[1].length >= fence.length &&
-      !delimiter[2].trim();
+      marker !== undefined &&
+      info !== undefined &&
+      marker[0] === fence[0] &&
+      marker.length >= fence.length &&
+      !info.trim();
     return { fence: closes ? undefined : fence, skip: true };
   }
-  if (delimiter && (delimiter[1][0] === "~" || !delimiter[2].includes("`"))) {
-    return { fence: delimiter[1], skip: true };
+  if (marker && info !== undefined && (marker[0] === "~" || !info.includes("`"))) {
+    return { fence: marker, skip: true };
   }
   return { fence: undefined, skip: false };
 }
@@ -130,12 +133,14 @@ export function acceptanceItems(body: string): AcceptanceItem[] {
     if (state.skip) continue;
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
-      const depth = heading[1].length;
+      const depth = heading[1]?.length;
+      const label = heading[2];
+      if (depth === undefined || label === undefined) continue;
       if (sectionDepth !== null && depth <= sectionDepth) break;
       if (
         sectionDepth === null &&
         /^(acceptance(?: criteria)?|验收(?:标准|条件)?)(?:[:：])?$/i.test(
-          heading[2].replace(/\s+#+\s*$/, "").trim(),
+          label.replace(/\s+#+\s*$/, "").trim(),
         )
       ) {
         sectionDepth = depth;
@@ -144,10 +149,11 @@ export function acceptanceItems(body: string): AcceptanceItem[] {
     }
     if (sectionDepth === null) continue;
     const check = line.match(/^\s*[-*]\s+\[([xX ])\]\s+(.+?)\s*$/);
-    if (check) {
+    if (check?.[1] && check[2]) {
       items.push({ checked: check[1].toLowerCase() === "x", text: check[2] });
-    } else if (items.length && /^\s{2,}\S/.test(line)) {
-      items[items.length - 1].text += " " + line.trim();
+    } else if (/^\s{2,}\S/.test(line)) {
+      const previous = items.at(-1);
+      if (previous) previous.text += " " + line.trim();
     }
   }
   return items;
@@ -165,7 +171,7 @@ export function issueSections(
   };
   for (const line of body.split(/\r?\n/)) {
     const heading = line.match(/^#{1,3}\s+(.+)$/);
-    if (heading) {
+    if (heading?.[1]) {
       push();
       title = heading[1].trim();
       content = [];

@@ -22,13 +22,16 @@ function resolveDocumentLink(href: string, active: string) {
 
 export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
   const [active, setActive] = useState("PRD.md");
-  const [content, setContent] = useState<string | null>(null);
-  const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState<{
+    path: string;
+    text: string | null;
+    error: boolean;
+  } | null>(null);
+  const content = loaded?.path === active ? loaded.text : null;
+  const error = loaded?.path === active && loaded.error;
 
   useEffect(() => {
     const controller = new AbortController();
-    setContent(null);
-    setError(false);
     fetch(documentRequest(active), {
       signal: controller.signal,
     })
@@ -37,11 +40,12 @@ export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
         return response.text();
       })
       .then((text) => {
-        if (!controller.signal.aborted) setContent(text);
+        if (!controller.signal.aborted)
+          setLoaded({ path: active, text, error: false });
       })
       .catch((reason) => {
         if (!controller.signal.aborted && reason instanceof Error)
-          setError(true);
+          setLoaded({ path: active, text: null, error: true });
       });
     return () => controller.abort();
   }, [active]);
@@ -92,8 +96,9 @@ export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
     },
     input: ({ type, checked }) =>
       type === "checkbox" ? (
-        <span role="img" aria-label={checked ? "已完成" : "待完成"}>
-          {checked ? "✓" : "○"}
+        <span>
+          <span aria-hidden="true">{checked ? "✓" : "○"}</span>
+          <span className="sr-only">{checked ? "已完成" : "待完成"}</span>
         </span>
       ) : null,
   };
@@ -143,9 +148,9 @@ export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
               当前文档不可读取。无法从缺失信息推断决策或交接状态。
             </div>
           ) : (
-            <p className="small-muted" role="status">
+            <output className="small-muted">
               读取受版本控制的工程文档…
-            </p>
+            </output>
           )}
         </article>
       </div>

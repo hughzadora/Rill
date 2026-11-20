@@ -219,7 +219,6 @@ const documents = [
   ["Policy", "POLICY.md"],
   ["Project Management", "PROJECT_MANAGEMENT.md"],
   ["Handoff", "HANDOFF.md"],
-  ["Quality", "QUALITY_STANDARD.md"],
   ["Multi-Agent", "MULTI_AGENT.md"],
   ["Roadmap", "ROADMAP.md"],
   ["Glossary", "GLOSSARY.md"],

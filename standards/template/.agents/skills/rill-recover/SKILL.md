@@ -4,6 +4,8 @@ name: rill-recover
 description: Resume a Rill task in a fresh or compacted Codex session from actual GitHub and Git facts instead of conversation history.
 ---
 
+# rill-recover
+
 Use when the agent restarts, compacts, switches worktrees or inherits work.
 
 1. Run `python3 .codex/hooks/rill.py status` from product root.

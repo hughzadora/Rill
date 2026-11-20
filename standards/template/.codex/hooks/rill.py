@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -11,8 +12,8 @@ from pathlib import Path
 
 def command(*args, cwd=None, timeout=4):
     try:
-        result = subprocess.run(
-            args,
+        result = subprocess.run(  # noqa: S603 - argv array; no shell execution
+            (shutil.which(args[0]) or args[0], *args[1:]),
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -39,6 +40,149 @@ def parent_issue(root):
     return int(match.group(1)) if match else None
 
 
+def distribution_status(root):
+    if not (root / ".rill/STANDARD.md").is_file():
+        return "Missing installed Rill standard"
+    required = (
+        ".codex/config.toml",
+        ".codex/hooks.json",
+        ".codex/hooks/rill.py",
+        "AGENTS.md",
+        *(
+            f".agents/skills/rill-{name}/SKILL.md"
+            for name in ("adopt", "deliver", "review", "recover")
+        ),
+    )
+    for relative in required:
+        if not (root / relative).is_file():
+            return "Incomplete Rill capability distribution: " + relative
+    return None
+
+
+def role_status(root, native):
+    expected = ("default", "explorer", "reviewer", "risk_reviewer", "worker")
+    for role in expected:
+        declaration = native.get(role, {})
+        if not isinstance(declaration, dict):
+            return "Invalid native role declaration: " + role
+        stem = role.replace("_", "-")
+        if declaration.get("config_file") != f"./agents/{stem}.toml":
+            return "Missing native role declaration: " + role
+        try:
+            role_config = tomllib.loads(
+                (root / ".codex/agents" / f"{stem}.toml").read_text(encoding="utf-8")
+            )
+        except (OSError, UnicodeError, ValueError, TypeError):
+            return "Invalid native role file: " + role
+        for field in ("model", "model_reasoning_effort", "developer_instructions"):
+            if not isinstance(role_config.get(field), str) or not role_config[field].strip():
+                return f"Native role {role} lacks {field}"
+        if role_config.get("name") != role:
+            return "Incorrect native role identity: " + role
+    return None
+
+
+def hook_status(groups):
+    expected_actions = {
+        "SessionStart": "start",
+        "SubagentStart": "subagent",
+        "PostToolUse": "check",
+        "Stop": "stop",
+    }
+    for event, action in expected_actions.items():
+        entries = groups.get(event)
+        if not isinstance(entries, list) or not entries:
+            return "Missing native Hook event: " + event
+        expected_command = (
+            'python3 "$(git rev-parse --show-toplevel)/.codex/hooks/rill.py" ' + action
+        )
+        if not any(
+            isinstance(entry, dict)
+            and isinstance(entry.get("hooks"), list)
+            and any(
+                isinstance(handler, dict)
+                and handler.get("type") == "command"
+                and handler.get("command") == expected_command
+                for handler in entry["hooks"]
+            )
+            for entry in entries
+        ):
+            return "Missing Rill command handler: " + event
+    return None
+
+
+def native_status(root):
+    try:
+        config = tomllib.loads((root / ".codex/config.toml").read_text(encoding="utf-8"))
+        hooks = json.loads((root / ".codex/hooks.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return "Invalid native Codex config or Hook declarations"
+    if not isinstance(config, dict) or not isinstance(hooks, dict):
+        return "Invalid native Codex config or Hook declarations"
+    native = config.get("agents", {})
+    if not isinstance(native, dict):
+        return "Invalid native Codex agent declarations"
+    if native.get("enabled") is not True or not isinstance(hooks.get("hooks"), dict):
+        return "Native Codex agents or Hooks are unavailable"
+    return role_status(root, native) or hook_status(hooks["hooks"])
+
+
+def entry_status(root):
+    try:
+        entry = (root / "AGENTS.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return "Cannot read native AGENTS.md"
+    if "Rill Agent Entry" not in entry:
+        return "Existing AGENTS.md requires reviewed Rill integration"
+    return None
+
+
+def github_binding(root, parent):
+    origin = command("git", "-C", str(root), "remote", "get-url", "origin")
+    if not origin:
+        return None, "Cannot verify the checkout's Git origin"
+    repository = command(
+        "gh",
+        "repo",
+        "view",
+        origin,
+        "--json",
+        "nameWithOwner",
+        "--jq",
+        ".nameWithOwner",
+        cwd=root,
+    )
+    if not repository:
+        return None, "Cannot verify target GitHub repository"
+    raw = command(
+        "gh",
+        "issue",
+        "view",
+        str(parent),
+        "-R",
+        repository,
+        "--json",
+        "number,title,state,url",
+        cwd=root,
+    )
+    if not raw:
+        return None, "Cannot verify bound GitHub parent Issue"
+    try:
+        issue = json.loads(raw)
+    except json.JSONDecodeError:
+        return None, "Invalid GitHub Issue response"
+    if not isinstance(issue, dict) or issue.get("number") != parent or issue.get("state") != "OPEN":
+        return None, "Parent Issue does not identify active work"
+    return {
+        "repository": repository,
+        "issue": {
+            "number": parent,
+            "title": issue.get("title"),
+            "url": issue.get("url"),
+        },
+    }, None
+
+
 def snapshot(cwd):
     root = root_for(cwd)
     if root is None:
@@ -57,153 +201,19 @@ def snapshot(cwd):
     if head is None or dirty is None:
         result["reason"] = "Git revision or worktree status could not be verified"
         return result
-    if not (root / ".rill/STANDARD.md").is_file():
-        result["reason"] = "Missing installed Rill standard"
-        return result
-    expected_roles = ("default", "explorer", "reviewer", "risk_reviewer", "worker")
-    for required in (
-        ".codex/config.toml",
-        ".codex/hooks.json",
-        ".codex/hooks/rill.py",
-        "AGENTS.md",
-        *(
-            f".agents/skills/rill-{name}/SKILL.md"
-            for name in ("adopt", "deliver", "review", "recover")
-        ),
-    ):
-        if not (root / required).is_file():
-            result["reason"] = "Incomplete Rill capability distribution: " + required
-            return result
-    try:
-        config = tomllib.loads(
-            (root / ".codex/config.toml").read_text(encoding="utf-8")
-        )
-        hooks = json.loads((root / ".codex/hooks.json").read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError, TypeError):
-        result["reason"] = "Invalid native Codex config or Hook declarations"
-        return result
-    if not isinstance(config, dict) or not isinstance(hooks, dict):
-        result["reason"] = "Invalid native Codex config or Hook declarations"
-        return result
-    native = config.get("agents", {})
-    if not isinstance(native, dict):
-        result["reason"] = "Invalid native Codex agent declarations"
-        return result
-    if native.get("enabled") is not True or not isinstance(hooks.get("hooks"), dict):
-        result["reason"] = "Native Codex agents or Hooks are unavailable"
-        return result
-    for role in expected_roles:
-        declaration = native.get(role, {})
-        if not isinstance(declaration, dict):
-            result["reason"] = "Invalid native role declaration: " + role
-            return result
-        relative = declaration.get("config_file")
-        if relative != f"./agents/{role.replace('_', '-')}.toml":
-            result["reason"] = "Missing native role declaration: " + role
-            return result
-        role_path = root / ".codex/agents" / f"{role.replace('_', '-')}.toml"
-        try:
-            role_config = tomllib.loads(role_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, ValueError, TypeError):
-            result["reason"] = "Invalid native role file: " + role
-            return result
-        for field in ("model", "model_reasoning_effort", "developer_instructions"):
-            if (
-                not isinstance(role_config.get(field), str)
-                or not role_config[field].strip()
-            ):
-                result["reason"] = f"Native role {role} lacks {field}"
-                return result
-        if role_config.get("name") != role:
-            result["reason"] = "Incorrect native role identity: " + role
-            return result
-    expected_actions = {
-        "SessionStart": "start",
-        "SubagentStart": "subagent",
-        "PostToolUse": "check",
-        "Stop": "stop",
-    }
-    for event, action in expected_actions.items():
-        groups = hooks["hooks"].get(event)
-        if not isinstance(groups, list) or not groups:
-            result["reason"] = "Missing native Hook event: " + event
-            return result
-        expected_command = (
-            'python3 "$(git rev-parse --show-toplevel)/.codex/hooks/rill.py" ' + action
-        )
-        if not any(
-            isinstance(group, dict)
-            and isinstance(group.get("hooks"), list)
-            and any(
-                isinstance(handler, dict)
-                and handler.get("type") == "command"
-                and isinstance(handler.get("command"), str)
-                and handler["command"] == expected_command
-                for handler in group["hooks"]
-            )
-            for group in groups
-        ):
-            result["reason"] = "Missing Rill command handler: " + event
-            return result
-    try:
-        entry = (root / "AGENTS.md").read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        result["reason"] = "Cannot read native AGENTS.md"
-        return result
-    if "Rill Agent Entry" not in entry:
-        result["reason"] = "Existing AGENTS.md requires reviewed Rill integration"
+    failure = distribution_status(root) or native_status(root) or entry_status(root)
+    if failure:
+        result["reason"] = failure
         return result
     if not parent:
         result["reason"] = "Target project has no configured engineering parent Issue"
         return result
-    origin = command("git", "-C", str(root), "remote", "get-url", "origin")
-    if not origin:
-        result["reason"] = "Cannot verify the checkout's Git origin"
+    binding, error = github_binding(root, parent)
+    if error:
+        result["reason"] = error
         return result
-    repository = command(
-        "gh",
-        "repo",
-        "view",
-        origin,
-        "--json",
-        "nameWithOwner",
-        "--jq",
-        ".nameWithOwner",
-        cwd=root,
-    )
-    if not repository:
-        result["reason"] = "Cannot verify target GitHub repository"
-        return result
-    raw = command(
-        "gh",
-        "issue",
-        "view",
-        str(parent),
-        "-R",
-        repository,
-        "--json",
-        "number,title,state,url",
-        cwd=root,
-    )
-    if not raw:
-        result["reason"] = "Cannot verify bound GitHub parent Issue"
-        return result
-    try:
-        issue = json.loads(raw)
-    except json.JSONDecodeError:
-        result["reason"] = "Invalid GitHub Issue response"
-        return result
-    if issue.get("number") != parent or issue.get("state") != "OPEN":
-        result["reason"] = "Parent Issue does not identify active work"
-        return result
-    result["status"] = "BOUND"
-    result["reason"] = "Verified native GitHub issue"
-    result["repository"] = repository
-    result["issue"] = {
-        "number": parent,
-        "title": issue.get("title"),
-        "url": issue.get("url"),
-    }
+    result.update(binding)
+    result.update(status="BOUND", reason="Verified native GitHub issue")
     return result
 
 
@@ -265,8 +275,8 @@ def whitespace_check(root):
     findings = []
     for diff_args in (("diff", "--check"), ("diff", "--cached", "--check")):
         try:
-            result = subprocess.run(
-                ["git", "-C", str(root), *diff_args],
+            result = subprocess.run(  # noqa: S603 - fixed Git binary and flags
+                [shutil.which("git") or "git", "-C", str(root), *diff_args],
                 capture_output=True,
                 text=True,
                 timeout=4,
@@ -307,8 +317,7 @@ def check(event):
                     "hookSpecificOutput": {
                         "hookEventName": "PostToolUse",
                         "additionalContext": (
-                            "git diff --check failed; fix whitespace issues. "
-                            + errors[:500]
+                            "git diff --check failed; fix whitespace issues. " + errors[:500]
                         ),
                     }
                 }
@@ -351,7 +360,7 @@ def stop(event):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in (
+    if len(sys.argv) != len(("script", "mode")) or sys.argv[1] not in (
         "status",
         "start",
         "subagent",

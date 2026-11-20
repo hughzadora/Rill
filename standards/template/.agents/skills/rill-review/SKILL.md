@@ -4,6 +4,8 @@ name: rill-review
 description: Independently review Rill product changes with exact-SHA code, behavior, security and regression evidence.
 ---
 
+# rill-review
+
 Start from a fresh Codex reviewer context, never the implementing thread.
 
 1. Read product requirements and issue acceptance, actual base/head refs and

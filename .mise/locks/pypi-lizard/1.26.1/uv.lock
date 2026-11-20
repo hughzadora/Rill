@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-11-18T06:53:13.869487953Z"
+exclude-newer = "2026-11-19T03:39:02.808699217Z"
 
 [[package]]
 name = "lizard"

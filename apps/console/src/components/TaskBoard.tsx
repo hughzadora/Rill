@@ -311,14 +311,17 @@ export function TaskBoard({
                     <button
                       className="task-select"
                       type="button"
+                      aria-labelledby={`task-${encodeURIComponent(issue.url)}-label`}
                       onClick={() => setSelected(issue.url)}
                       aria-current={
                         active?.url === issue.url ? "true" : undefined
                       }
                     >
-                      <span className="task-id">#{issue.number}</span>
-                      <span className="task-name">{issue.title}</span>
-                      <small>{issueSummary(issue)}</small>
+                      <span id={`task-${encodeURIComponent(issue.url)}-label`} className="task-label">
+                        <span className="task-id">#{issue.number}</span>
+                        <span className="task-name">{issue.title}</span>
+                        <small>{issueSummary(issue)}</small>
+                      </span>
                     </button>
                   </td>
                   <td>

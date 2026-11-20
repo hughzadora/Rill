@@ -703,6 +703,9 @@ a {
   display: grid;
   padding: 15px 18px;
 }
+.task-label {
+  display: grid;
+}
 .task-select .task-name {
   margin: 4px 0;
   color: #254552;
@@ -1632,4 +1635,16 @@ a {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

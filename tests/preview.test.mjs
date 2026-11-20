@@ -4,7 +4,6 @@ import {
   chmod,
   mkdir,
   mkdtemp,
-  readFile,
   rm,
   symlink,
   writeFile,

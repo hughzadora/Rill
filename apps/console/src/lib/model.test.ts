@@ -154,7 +154,7 @@ describe("native issue evidence model", () => {
       ],
     };
     expect(currentCheck(base)?.databaseId).toBe(2);
-    expect(currentCheck({ ...base, runs: [base.runs[0]] })).toBeNull();
+    expect(currentCheck({ ...base, runs: base.runs.slice(0, 1) })).toBeNull();
   });
 
   it("rejects incomplete issue graphs instead of calling them valid", () => {

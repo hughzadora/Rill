@@ -74,7 +74,7 @@ export function QualityPanel({
             <p>此表是必须实现的要求，不是虚构的测试结果。</p>
           </div>
           <a
-            href="/api/document?path=QUALITY_STANDARD.md"
+            href="/api/document?path=README.md"
             className="link-action"
             target="_blank"
             rel="noopener noreferrer"

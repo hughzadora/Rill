@@ -21,14 +21,27 @@ certify that a delegated task actually ran under the declared model.
 
 ## Roles
 
-| Role          | Work                                                                      | Required handoff                                          |
-| ------------- | ------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Coordinator   | Scope from owner intent, issue/PR and available evidence; budget/sequence | Clear next action and approvals needed                    |
-| Explorer      | Read-only source audit, root cause, current vendor docs                   | Source links, versions, unknowns and alternatives         |
-| Worker        | Bounded implementation on the real worktree                               | Changed paths, actual command results and remaining risks |
-| Default       | General bounded task when specialty adds no value                         | Concrete source and results                               |
-| Reviewer      | Independent review of final diff and real outputs                         | Ranked reproducible findings and accepted limitations     |
-| Risk reviewer | Security, trust, migrations, licensing, privacy, irreversible actions     | Attack/failure cases and risk posture                     |
+- **Coordinator**
+  - Work: Scope from owner intent, issue/PR and available evidence;
+    budget/sequence
+  - Required handoff: Clear next action and approvals needed
+- **Explorer**
+  - Work: Read-only source audit, root cause, current vendor docs
+  - Required handoff: Source links, versions, unknowns and alternatives
+- **Worker**
+  - Work: Bounded implementation on the real worktree
+  - Required handoff: Changed paths, actual command results and remaining
+    risks
+- **Default**
+  - Work: General bounded task when specialty adds no value
+  - Required handoff: Concrete source and results
+- **Reviewer**
+  - Work: Independent review of final diff and real outputs
+  - Required handoff: Ranked reproducible findings and accepted limitations
+- **Risk reviewer**
+  - Work: Security, trust, migrations, licensing, privacy, irreversible
+    actions
+  - Required handoff: Attack/failure cases and risk posture
 
 The native configuration retains cost-aware coordinator defaults, a
 two-child limit and intentionally bounded specialist roles. Workers do

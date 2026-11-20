@@ -4,6 +4,8 @@ name: rill-deliver
 description: Deliver software tasks under Rill using native Codex roles and real product-specific quality and behavior checks.
 ---
 
+# rill-deliver
+
 Use for a real feature, bug fix or refactor in a repository with Rill installed.
 
 1. Identify the target repo and issue from current GitHub state; no presumed

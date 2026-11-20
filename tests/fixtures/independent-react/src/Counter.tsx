@@ -21,9 +21,7 @@ export function Counter() {
   return (
     <main className="mx-auto max-w-xl p-8">
       <h1 className="text-2xl font-bold">Inventory Console</h1>
-      <p role="status" className="mt-4">
-        Available stock: {items}
-      </p>
+      <output className="mt-4 block">Available stock: {items}</output>
       <div className="mt-5 flex gap-3">
         <button
           className="rounded border px-4 py-2"

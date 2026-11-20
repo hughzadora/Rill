@@ -1,30 +1,62 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "formatter": {
-    "indentStyle": "space"
-  },
-  "linter": {
-    "rules": {
-      "preset": "recommended"
-    }
-  },
   "files": {
     "includes": [
-      "**",
-      "!!packages/quality",
-      "!!.mise",
-      "!!.agents",
-      "!!.playwright-cli"
+      "src/ts/**/*",
+      "tests/ts/**/*",
+      "tests/e2e/**/*",
+      "*.json",
+      "vite.config.ts",
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "index.html",
+      "!**/dist",
+      "!**/playwright-report",
+      "!**/test-results",
+      "!**/coverage",
+      "!**/node_modules",
+      "!**/.venv"
     ]
   },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "tailwind": {
+    "stylesheet": "./src/ts/index.css",
+    "attributes": ["class", "className"],
+    "mergeFunctions": ["clsx", "cn"],
+    "variantFunctions": ["cva"]
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        }
+      },
+      "style": {
+        "noNonNullAssertion": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "error"
+      },
+      "nursery": {
+        "useTailwindSortedClasses": "error"
+      }
     }
   }
 }

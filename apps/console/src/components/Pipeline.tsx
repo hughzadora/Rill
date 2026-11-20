@@ -87,6 +87,9 @@ export function Pipeline({
   const [compared, setCompared] = useState(0);
   const current = phases[selected];
   const route = designRoutes[compared];
+  if (!current || !route) {
+    throw new Error("Invalid delivery pipeline selection");
+  }
   return (
     <div className="page-grid">
       <div className="content-heading">

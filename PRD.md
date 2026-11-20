@@ -16,17 +16,37 @@ replacing functioning tools in an existing product.
 
 ## Delivery contracts
 
-| Contract       | Product result                                                         | Required evidence                                     |
-| -------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
-| Intake         | Detect stack, dependencies, constraints, current tests and risk        | Greenfield and brownfield real pilots                 |
-| Requirements   | Business result, in/out scope, positive and failure cases              | Native GitHub parent/sub-issue and versioned docs     |
-| Prototype      | Runnable, clickable user journey                                       | System Chrome interaction and mobile proof            |
-| System design  | Interactive flows, dependency and risk tradeoffs                       | Human inspectable design, native consequential choice |
-| Implementation | Actual application code with existing regressions preserved            | Candidate diff and executed checks                    |
-| Integration    | Service, browser, accessibility and failure-path operation             | Current-candidate positive and negative tests         |
-| Cleanup        | Remove obsolete code, reduce complexity, add needed tests and comments | Static analysis, focused regression and review        |
-| Delivery       | Full quality matrix and independent review                             | CI, actual owner click test, scoped PR                |
-| Handoff        | Exact next work without copied transcript store                        | Fresh agent reads Issues, Git and docs                |
+- **Intake**
+  - Product result: Detect stack, dependencies, constraints, current tests
+    and risk
+  - Required evidence: Greenfield and brownfield real pilots
+- **Requirements**
+  - Product result: Business result, in/out scope, positive and failure cases
+  - Required evidence: Native GitHub parent/sub-issue and versioned docs
+- **Prototype**
+  - Product result: Runnable, clickable user journey
+  - Required evidence: System Chrome interaction and mobile proof
+- **System design**
+  - Product result: Interactive flows, dependency and risk tradeoffs
+  - Required evidence: Human inspectable design, native consequential choice
+- **Implementation**
+  - Product result: Actual application code with existing regressions
+    preserved
+  - Required evidence: Candidate diff and executed checks
+- **Integration**
+  - Product result: Service, browser, accessibility and failure-path
+    operation
+  - Required evidence: Current-candidate positive and negative tests
+- **Cleanup**
+  - Product result: Remove obsolete code, reduce complexity, add needed tests
+    and comments
+  - Required evidence: Static analysis, focused regression and review
+- **Delivery**
+  - Product result: Full quality matrix and independent review
+  - Required evidence: CI, actual owner click test, scoped PR
+- **Handoff**
+  - Product result: Exact next work without copied transcript store
+  - Required evidence: Fresh agent reads Issues, Git and docs
 
 ## Large-feature lifecycle
 
@@ -44,7 +64,7 @@ Owner checkpoints are prototype, major design choice and final real behavior.
 
 ## Industrial acceptance
 
-The [quality matrix](QUALITY_STANDARD.md) covers lint, types, contracts,
+The [quality matrix](README.md) covers lint, types, contracts,
 unit/component/integration/CLI/browser/accessibility and negative tests,
 build, coverage, performance where relevant, dependency/license/secrets/SBOM,
 recovery, independent review and actual product acceptance.

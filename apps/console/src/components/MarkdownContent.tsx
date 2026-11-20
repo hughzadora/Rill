@@ -9,8 +9,9 @@ export function MarkdownContent({ children }: { children: string }) {
         input: ({ type, checked }) => {
           if (type !== "checkbox") return null;
           return (
-            <span role="img" aria-label={checked ? "已完成" : "待完成"}>
-              {checked ? "✓" : "○"}
+            <span>
+              <span aria-hidden="true">{checked ? "✓" : "○"}</span>
+              <span className="sr-only">{checked ? "已完成" : "待完成"}</span>
             </span>
           );
         },

@@ -4,6 +4,8 @@ name: rill-adopt
 description: Adopt the already packaged Rill software factory in a new or existing product without recreating its configuration or tooling.
 ---
 
+# rill-adopt
+
 This skill applies when installing, updating or diagnosing Rill adoption.
 
 1. Inspect the actual target Git repository, committed source roots, locks,

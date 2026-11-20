@@ -2,77 +2,87 @@
 
 lockfile_version = 3
 
-[[tools."aqua:aquasecurity/trivy"]]
-version = "0.76.2"
-backend = "aqua:aquasecurity/trivy"
-specifiers = ["latest"]
-
-[tools."aqua:aquasecurity/trivy"."platforms.linux-x64"]
-checksum = "sha256:bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf"
-url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz"
-url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/713401165"
-provenance = "cosign"
-
-[[tools."aqua:astral-sh/ruff"]]
-version = "0.17.5"
-backend = "aqua:astral-sh/ruff"
-specifiers = ["latest"]
-
-[tools."aqua:astral-sh/ruff"."platforms.linux-x64"]
-checksum = "sha256:7d261fc981a784668e19e9fa6ad437bfd95b67f2dc263fc1eab87d54d72fcc90"
-url = "https://github.com/astral-sh/ruff/releases/download/0.17.5/ruff-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ruff/releases/assets/740497139"
-provenance = "github-attestations"
-
-[[tools."aqua:bats-core/bats-core"]]
+[[tools.bats]]
 version = "1.14.0"
 backend = "aqua:bats-core/bats-core"
 specifiers = ["latest"]
 
-[tools."aqua:bats-core/bats-core"."platforms.linux-x64"]
+[tools.bats."platforms.linux-x64"]
 checksum = "sha256:bb537b70b15b732f6d8827dd6578e3d8ce166636ce1f18ea9a074184fcce9177"
 url = "https://github.com/bats-core/bats-core/archive/refs/tags/v1.14.0.tar.gz"
 url_api = "https://api.github.com/repos/bats-core/bats-core/tarball/v1.14.0"
 
-[[tools."aqua:gitleaks/gitleaks"]]
+[[tools.biome]]
+version = "2.6.7"
+backend = "aqua:biomejs/biome"
+specifiers = ["latest"]
+
+[tools.biome."platforms.linux-x64"]
+checksum = "sha256:d924b8407471748465121f0a2dc1a0bc277038b0b89142e77583e3ce0dda3746"
+url = "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.7/biome-linux-x64"
+url_api = "https://api.github.com/repos/biomejs/biome/releases/assets/737014619"
+provenance = "github-attestations"
+
+[[tools."cargo:tokei"]]
+version = "15.0.0"
+backend = "cargo:tokei"
+specifiers = ["latest"]
+
+[[tools.gitleaks]]
 version = "8.30.1"
 backend = "aqua:gitleaks/gitleaks"
 specifiers = ["latest"]
 
-[tools."aqua:gitleaks/gitleaks"."platforms.linux-x64"]
+[tools.gitleaks."platforms.linux-x64"]
 checksum = "sha256:551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
 url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332058"
 
-[[tools."aqua:koalaman/shellcheck"]]
-version = "0.11.0"
-backend = "aqua:koalaman/shellcheck"
+[[tools.just]]
+version = "1.59.0"
+backend = "aqua:casey/just"
 specifiers = ["latest"]
 
-[tools."aqua:koalaman/shellcheck"."platforms.linux-x64"]
-checksum = "sha256:8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
-url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"
-url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056942"
+[tools.just."platforms.linux-x64"]
+checksum = "sha256:409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
+url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/casey/just/releases/assets/642949555"
 
-[[tools."aqua:mvdan/sh"]]
-version = "3.14.1"
-backend = "aqua:mvdan/sh"
+[[tools.markdownlint-cli2]]
+version = "0.24.1"
+aube = { path = ".mise/locks/markdownlint-cli2/0.24.1", digest = "sha256:97418abec0a8de4ca28d2ffc156b7c59183a36225c0913917c4bd832054eba30" }
+backend = "npm:markdownlint-cli2"
 specifiers = ["latest"]
 
-[tools."aqua:mvdan/sh"."platforms.linux-x64"]
-checksum = "sha256:76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
-url = "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64"
-url_api = "https://api.github.com/repos/mvdan/sh/releases/assets/547320883"
+[[tools.node]]
+version = "24.22.3"
+backend = "core:node"
+specifiers = ["lts"]
 
-[[tools."aqua:oxc-project/oxc/oxlint"]]
+[tools.node."platforms.linux-x64"]
+checksum = "sha256:061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2"
+url = "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.gz"
+
+[[tools.oxlint]]
 version = "1.94.0"
 backend = "aqua:oxc-project/oxc/oxlint"
 specifiers = ["latest"]
 
-[tools."aqua:oxc-project/oxc/oxlint"."platforms.linux-x64"]
+[tools.oxlint."platforms.linux-x64"]
 checksum = "sha256:fc1a189a35417ebda77cac83b8bfe9e9d10a7eb27e0d2fe005d222fa01261e64"
 url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.94.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/754765229"
+
+[[tools.pnpm]]
+version = "12.21.0"
+backend = "aqua:pnpm/pnpm"
+specifiers = ["12"]
+
+[tools.pnpm."platforms.linux-x64"]
+checksum = "sha256:84c4773bcf4a217f4083cd7b2a91e4cee6103cf42426c1282ef37d308f55a410"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357264"
+provenance = "github-attestations"
 
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
@@ -85,126 +95,115 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924896"
 provenance = "github-attestations"
 
-[[tools."aqua:tamasfe/taplo"]]
-version = "0.10.0"
-backend = "aqua:tamasfe/taplo"
-specifiers = ["latest"]
-
-[tools."aqua:tamasfe/taplo"."platforms.linux-x64"]
-checksum = "sha256:8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156"
-url = "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz"
-url_api = "https://api.github.com/repos/tamasfe/taplo/releases/assets/257322600"
-
-[[tools."cargo:tokei"]]
-version = "15.0.0"
-backend = "cargo:tokei"
-specifiers = ["latest"]
-
-[[tools.just]]
-version = "1.59.0"
-backend = "aqua:casey/just"
-specifiers = [
-    "1.59.0",
-    "latest",
-]
-
-[tools.just."platforms.linux-x64"]
-checksum = "sha256:409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
-url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/casey/just/releases/assets/642949555"
-
-[[tools.node]]
-version = "24.22.3"
-backend = "core:node"
-specifiers = [
-    "24.22.3",
-    "latest",
-]
-
-[tools.node."platforms.linux-x64"]
-checksum = "sha256:061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2"
-url = "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.gz"
-
-[[tools."npm:markdownlint-cli2"]]
-version = "0.24.1"
-aube = { path = ".mise/locks/npm-markdownlint-cli2/0.24.1", digest = "sha256:97418abec0a8de4ca28d2ffc156b7c59183a36225c0913917c4bd832054eba30" }
-backend = "npm:markdownlint-cli2"
-specifiers = ["latest"]
-
-[[tools.pnpm]]
-version = "12.18.0"
-backend = "aqua:pnpm/pnpm"
-specifiers = [
-    "12.18.0",
-    "latest",
-]
-
-[tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:3726060e236c0db3e7124c0a5af123c840ba0cb76682149b63ea0baf290017c2"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505542"
-provenance = "github-attestations"
-
 [[tools."pypi:copier"]]
 version = "9.19.1"
 backend = "pypi:copier"
 specifiers = ["9.19.1"]
-uv = { path = ".mise/locks/pypi-copier/9.19.1~15b02c5e", digest = "sha256:550033bdf49f4fee368823bf2df64a8e30934e7ec5ddb85b9a6d857620d475e9" }
+uv = { path = ".mise/locks/pypi-copier/9.19.1~6529b928", digest = "sha256:13a1952c54c29128482a6205dbe933ca95a7f88eb74c5b9e7516c61857903651" }
 
 [tools."pypi:copier".options]
-python = "3.14.8"
+python = "3.14.10"
 
 [[tools."pypi:lizard"]]
 version = "1.26.1"
 backend = "pypi:lizard"
 specifiers = ["latest"]
-uv = { path = ".mise/locks/pypi-lizard/1.26.1", digest = "sha256:114b0cf2e2192dc79e7303085392c22b0afdca1ce779f14538891273b0cbb06f" }
-
-[[tools."pypi:mypy"]]
-version = "2.4.1"
-backend = "pypi:mypy"
-specifiers = ["latest"]
-uv = { path = ".mise/locks/pypi-mypy/2.4.1", digest = "sha256:aa212b802bd6e5f14d7d8090a81793c8e552458c4e90ba9262525b43674dfcc6" }
+uv = { path = ".mise/locks/pypi-lizard/1.26.1", digest = "sha256:bfcdb33812f8bfca8cd9928164ebd3de6b2106a35c3ecd74c3a8b45dc8d53a5d" }
 
 [[tools."pypi:pip-licenses"]]
 version = "5.5.5"
 backend = "pypi:pip-licenses"
 specifiers = ["latest"]
-uv = { path = ".mise/locks/pypi-pip-licenses/5.5.5", digest = "sha256:0539c12b881e02788ff780c635e39cea3281d9a43392ce70e7e7dc0a50bddb8a" }
-
-[[tools."pypi:pytest"]]
-version = "9.2.0"
-backend = "pypi:pytest"
-specifiers = ["latest"]
-uv = { path = ".mise/locks/pypi-pytest/9.2.0", digest = "sha256:f430bf52b7733dbfcd1e0660c22b3904e34c683f5c6d5cffc885dec9f5e816d8" }
+uv = { path = ".mise/locks/pypi-pip-licenses/5.5.5", digest = "sha256:a54cd9c0f241338613a4e26295181cef932c4221f553da4050b71116c9fe84e5" }
 
 [[tools.python]]
-version = "3.14.8"
+version = "3.14.10"
 backend = "core:python"
-specifiers = ["3.14.8"]
+specifiers = [
+    "3.14",
+    "3.14.10",
+]
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:b88a4ac994ac55c35a03a3672103618d5c5d5bf342db7b2093b8d328b6516b42"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261020/cpython-3.14.8+20261020-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:c2ff2e97422f5d3896a16e0317fd212ba977bbf2688d93a6f7a03d817506bd30"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.14.10+20261110-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
-[[tools.python]]
-version = "3.15.2"
-backend = "core:python"
+[[tools.ruff]]
+version = "0.17.5"
+backend = "aqua:astral-sh/ruff"
 specifiers = ["latest"]
 
-[tools.python."platforms.linux-x64"]
-checksum = "sha256:ad23d1b73fac26440b0306ae06911031344c49a90ec19716c8362e7fa40cae43"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.15.2+20261110-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+[tools.ruff."platforms.linux-x64"]
+checksum = "sha256:7d261fc981a784668e19e9fa6ad437bfd95b67f2dc263fc1eab87d54d72fcc90"
+url = "https://github.com/astral-sh/ruff/releases/download/0.17.5/ruff-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ruff/releases/assets/740497139"
 provenance = "github-attestations"
+
+[[tools.semgrep]]
+version = "1.186.0"
+backend = "pypi:semgrep"
+specifiers = ["latest"]
+uv = { path = ".mise/locks/semgrep/1.186.0", digest = "sha256:b92cd2066b8113f0592d3afdce12c7ca3cfd33f397732545bf45d88306760515" }
+
+[[tools.shellcheck]]
+version = "0.11.0"
+backend = "aqua:koalaman/shellcheck"
+specifiers = ["latest"]
+
+[tools.shellcheck."platforms.linux-x64"]
+checksum = "sha256:8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"
+url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056942"
+
+[[tools.shfmt]]
+version = "3.14.1"
+backend = "aqua:mvdan/sh"
+specifiers = ["latest"]
+
+[tools.shfmt."platforms.linux-x64"]
+checksum = "sha256:76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
+url = "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64"
+url_api = "https://api.github.com/repos/mvdan/sh/releases/assets/547320883"
+
+[[tools.taplo]]
+version = "0.10.0"
+backend = "aqua:tamasfe/taplo"
+specifiers = ["latest"]
+
+[tools.taplo."platforms.linux-x64"]
+checksum = "sha256:8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156"
+url = "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz"
+url_api = "https://api.github.com/repos/tamasfe/taplo/releases/assets/257322600"
+
+[[tools.trivy]]
+version = "0.76.1"
+backend = "aqua:aquasecurity/trivy"
+specifiers = ["latest"]
+
+[tools.trivy."platforms.linux-x64"]
+checksum = "sha256:c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz"
+url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/662254617"
+provenance = "cosign"
+
+[[tools.typos]]
+version = "1.52.2"
+backend = "aqua:crate-ci/typos"
+specifiers = ["latest"]
+
+[tools.typos."platforms.linux-x64"]
+checksum = "sha256:3b13d1291281d39d01822e54035636487a7a0f228e70097899b1e33aeb0e7e93"
+url = "https://github.com/crate-ci/typos/releases/download/v1.52.2/typos-v1.52.2-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/733787189"
 
 [[tools.uv]]
-version = "0.13.8"
+version = "0.13.9"
 backend = "aqua:astral-sh/uv"
 specifiers = ["latest"]
 
 [tools.uv."platforms.linux-x64"]
-checksum = "sha256:5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313966"
+checksum = "sha256:a7fbaff2b9a271d85c1bdb540941090fd1ce011797b4abeb48e4dcd39c2471d5"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.9/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/758513954"
 provenance = "github-attestations"

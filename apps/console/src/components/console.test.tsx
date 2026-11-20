@@ -260,8 +260,8 @@ describe("factory delivery console components", () => {
   it("follows relative links within the allowlisted engineering documents", async () => {
     const user = userEvent.setup();
     const content: Record<string, string> = {
-      "PRD.md": "[Quality](QUALITY_STANDARD.md)",
-      "QUALITY_STANDARD.md": "[Adoption](standards/README.md)",
+      "PRD.md": "[Quality](README.md)",
+      "README.md": "[Adoption](standards/README.md)",
       "standards/README.md":
         "[Product][prd] · [Private](../.git/config) · [API](/api/dashboard) · " +
         "[External](https://github.com) · [Unsafe](javascript:alert%281%29)\n\n" +
@@ -269,7 +269,7 @@ describe("factory delivery console components", () => {
     };
     const fetcher = vi.fn(async (url: string) => ({
       ok: true,
-      text: async () => content[decodeURIComponent(url.split("=")[1])],
+      text: async () => content[decodeURIComponent(url.split("=")[1] ?? "")] ?? "",
     }));
     vi.stubGlobal("fetch", fetcher);
     render(
@@ -302,7 +302,7 @@ describe("factory delivery console components", () => {
     ).toBeInTheDocument();
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
       "/api/document?path=PRD.md",
-      "/api/document?path=QUALITY_STANDARD.md",
+      "/api/document?path=README.md",
       "/api/document?path=standards%2FREADME.md",
       "/api/document?path=PRD.md",
     ]);

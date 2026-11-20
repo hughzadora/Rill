@@ -13,7 +13,7 @@ parallel transcript database to work around that uncertainty.
    upstream refs. Never assume that main is the current development branch.
 2. Read [PRD.md](PRD.md), [ARCHITECTURE.md](ARCHITECTURE.md),
    [DESIGN.md](DESIGN.md), [PROJECT_MANAGEMENT.md](PROJECT_MANAGEMENT.md),
-   [QUALITY_STANDARD.md](QUALITY_STANDARD.md) and [MULTI_AGENT.md](MULTI_AGENT.md).
+   [README.md](README.md) and [MULTI_AGENT.md](MULTI_AGENT.md).
 3. Inspect the selected GitHub parent and actual native child. For Rill the
    current parent is [#22](https://github.com/hughzadora/Rill/issues/22)
    and the permanent defect index is
@@ -32,15 +32,26 @@ parallel transcript database to work around that uncertainty.
 
 The native child should preserve the current work result and next action:
 
-| Field              | Minimum evidence                                                |
-| ------------------ | --------------------------------------------------------------- |
-| Scope              | Positive/negative acceptance, exclusions and decision source    |
-| Candidate          | Git SHA, branch, source roots, relevant changed files           |
-| Execution          | Actual command/tool version, environment, exit, raw log link    |
-| User behavior      | Real Chrome/desktop/API proof, screenshots, meaningful negative |
-| Independent review | Different agent, exact candidate, findings and missing checks   |
-| Risks              | Outstanding failures, incomplete sources, owner/harness blocker |
-| Continuation       | Next safe operation and responsible role, not chat instructions |
+- **Scope**
+  - Minimum evidence: Positive/negative acceptance, exclusions and decision
+    source
+- **Candidate**
+  - Minimum evidence: Git SHA, branch, source roots, relevant changed files
+- **Execution**
+  - Minimum evidence: Actual command/tool version, environment, exit, raw log
+    link
+- **User behavior**
+  - Minimum evidence: Real Chrome/desktop/API proof, screenshots, meaningful
+    negative
+- **Independent review**
+  - Minimum evidence: Different agent, exact candidate, findings and missing
+    checks
+- **Risks**
+  - Minimum evidence: Outstanding failures, incomplete sources, owner/harness
+    blocker
+- **Continuation**
+  - Minimum evidence: Next safe operation and responsible role, not chat
+    instructions
 
 For trivial fixes a short issue body and PR suffice. No issue comments as
 a running work log, no separate agent-owned database, no ungrounded
