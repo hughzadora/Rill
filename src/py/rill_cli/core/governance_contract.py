@@ -93,36 +93,55 @@ class DefectRecord(ContractModel):
 
     @model_validator(mode="after")
     def enforce_disposition_contract(self) -> Self:
+        """Validate status boundaries with isolated deterministic checks."""
+        self._check_attempts()
+        self._check_quarantine()
+        self._check_deferral()
+        self._check_verification()
+        return self
+
+    def _check_attempts(self) -> None:
         if self.attempt_count > self.attempt_limit:
             raise ValueError("Attempt budget exceeded")
         if self.state == Disposition.ATTEMPTING and not self.attempt_count:
             raise ValueError("Attempting requires a consumed attempt")
         if self.state == Disposition.RETRY_ELIGIBLE and self.attempt_count >= self.attempt_limit:
             raise ValueError("Exhausted defects cannot be retry-eligible")
-        if self.state == Disposition.QUARANTINED and (
+
+    def _has_failed_evidence(self) -> bool:
+        return any(receipt.exit_code != 0 for receipt in self.evidence)
+
+    def _check_quarantine(self) -> None:
+        if self.state != Disposition.QUARANTINED:
+            return
+        if (
             self.severity != Severity.P1
             or self.hard_gate
             or self.isolation is None
             or self.attempt_count != self.attempt_limit
-            or not any(receipt.exit_code != 0 for receipt in self.evidence)
+            or not self._has_failed_evidence()
         ):
             raise ValueError("Only evidenced, noncritical P1 defects may be quarantined")
-        if self.state == Disposition.DEFERRED and (
+
+    def _check_deferral(self) -> None:
+        if self.state != Disposition.DEFERRED:
+            return
+        if (
             self.severity not in {Severity.P2, Severity.P3}
             or self.hard_gate
             or self.attempt_count != self.attempt_limit
-            or not any(receipt.exit_code != 0 for receipt in self.evidence)
+            or not self._has_failed_evidence()
         ):
             raise ValueError("Hard quality gates and P0/P1 cannot be deferred")
-        if self.state == Disposition.VERIFIED and (
-            self.last_verified_revision is None
-            or not any(
-                receipt.exit_code == 0 and receipt.revision == self.last_verified_revision
-                for receipt in self.evidence
-            )
+
+    def _check_verification(self) -> None:
+        if self.state != Disposition.VERIFIED:
+            return
+        if self.last_verified_revision is None or not any(
+            receipt.exit_code == 0 and receipt.revision == self.last_verified_revision
+            for receipt in self.evidence
         ):
             raise ValueError("Verified requires successful, revision-matching test evidence")
-        return self
 
 
 class GovernanceLedger(ContractModel):
