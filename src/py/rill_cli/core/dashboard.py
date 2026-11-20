@@ -22,7 +22,7 @@ from .constants import (
     UI_PORT,
     UI_TOKEN_BYTES,
 )
-from .git_policy import branch, business_changes, head_summary, history
+from .git_policy import branch, business_changes, git, head_summary, history, revision
 from .state import load, save, write_json
 
 
@@ -40,8 +40,12 @@ def facts(root: Path) -> dict[str, object]:
     except OSError, ValueError:
         loaded = None
     ci = cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
-    if ci.get("head") != head_summary(root):
+    current_head = git(root, "rev-parse", "--verify", "HEAD", check=False).stdout.strip()
+    dirty = bool(git(root, "status", "--porcelain", "-z").stdout)
+    if not current_head or ci.get("head") != current_head:
         ci = {"result": "unverified", "reason": "No CI receipt for this Git HEAD"}
+    elif dirty and ci.get("result") == "pass":
+        ci = {"result": "unverified", "reason": "Working tree differs from verified HEAD"}
     return {
         "mode": state.get("mode", "normal"),
         "phase": state.get("phase", "ready"),
@@ -69,16 +73,25 @@ def render(root: Path, *, serving: bool = False, token: str = "") -> Path:
     return output
 
 
-def record_ci(root: Path, tier: str, status: str) -> None:
+def record_ci(root: Path, tier: str, status: str, start_head: str) -> None:
     """Record an observed CI execution against the current Git revision."""
     if tier not in {"ci", "core-full", "full"} or status not in {"running", "pass", "fail"}:
         raise ValueError("Unsupported CI receipt")
+    current = revision(root)
+    if start_head != current:
+        raise ValueError(f"HEAD changed during CI: expected {start_head}, got {current}")
     summary: dict[str, object] = {
-        "head": head_summary(root),
+        "head": start_head,
         "tier": tier,
         "result": status,
         "recorded_at": datetime.now(tz=UTC).isoformat(),
     }
+    if status == "pass":
+        if git(root, "status", "--porcelain", "-z").stdout:
+            summary["result"] = "unverified"
+            summary["reason"] = "Checks passed on uncommitted files; HEAD is not verified"
+        else:
+            summary["last_verified_sha"] = start_head
     write_json(root, CI_SUMMARY_PATH, summary)
 
 

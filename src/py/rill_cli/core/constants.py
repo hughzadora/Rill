@@ -60,6 +60,8 @@ FRAMEWORK_PATHS = (
     ".github/workflows/",
 )
 DEFAULT_SCOPE = ("src/", "tests/", "package.json", "pyproject.toml")
+FRONTEND_PATH_PREFIXES = ("src/ts/", "apps/web/")
+BACKEND_PATH_PREFIXES = ("src/py/", "apps/api/")
 MANAGED_DIRECTORIES = (".codex", ".agents/skills", ".github/workflows", ".rill")
 TOOL_NAMES = ("git", "mise", "uv", "pnpm", "just")
 HOOK_EVENTS = frozenset({"session-start", "pre-compact", "pre-tool-use", "post-tool-use", "stop"})
