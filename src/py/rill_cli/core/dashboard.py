@@ -10,11 +10,13 @@ from typing import cast
 from urllib.parse import urlsplit
 
 from rill_cli.assets import dashboard as dashboard_asset
+from rill_cli.assets import fleet_dashboard as fleet_dashboard_asset
 
 from .constants import (
     ALLOWED_DECISIONS,
     CI_SUMMARY_PATH,
     DASHBOARD_PATH,
+    FLEET_HTML_FILE,
     MAX_POST_BYTES,
     MAX_SYMBOL_LINES,
     SYMBOLS_PATH,
@@ -22,6 +24,8 @@ from .constants import (
     UI_PORT,
     UI_TOKEN_BYTES,
 )
+from .fixtures import demo_fleet
+from .fleet import FleetEngine
 from .git_policy import branch, business_changes, git, head_summary, history, revision
 from .state import load, save, write_json
 
@@ -171,3 +175,38 @@ def serve(root: Path, *, open_browser: bool = True) -> None:
         while not server.accepted:
             server.handle_request()
     render(root)
+
+
+def fleet_facts(engine: FleetEngine, *, demo: bool = False) -> dict[str, object]:
+    """One read-only presentation contract shared with the terminal console."""
+    snapshot = engine.load()
+    if demo or not (snapshot.projects or snapshot.assets):
+        snapshot = demo_fleet()
+    health: dict[str, object] = (
+        engine.inspect()
+        if not snapshot.demo
+        else {
+            "projects": [],
+            "assets": [],
+            "tools": {},
+            "mcp": {"connectivity": "unverified"},
+        }
+    )
+    return {
+        "snapshot": snapshot.model_dump(mode="json"),
+        "health": health,
+        "audit": [item.model_dump(mode="json") for item in engine.audit_records()],
+    }
+
+
+def render_fleet(engine: FleetEngine, *, demo: bool = False) -> Path:
+    """Render a self-contained HTML view without writes to global Codex config."""
+    payload = fleet_facts(engine, demo=demo)
+    serial = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+    serial = serial.replace("<", "\\u003c").replace(">", "\\u003e")
+    serial = serial.replace("&", "\\u0026")
+    source = fleet_dashboard_asset().read_text(encoding="utf-8")
+    output = engine.data_root / FLEET_HTML_FILE
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(source.replace("__RILL_FLEET_DATA__", serial), encoding="utf-8")
+    return output

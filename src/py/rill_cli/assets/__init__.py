@@ -5,6 +5,7 @@ from pathlib import Path
 
 from rill_cli.core.constants import (
     ASSET_DASHBOARD,
+    FLEET_HTML_ASSET,
     PACKAGE_DIR,
     PACKAGE_VERSION_FILE,
     RILL_VERSION,
@@ -34,6 +35,10 @@ def template() -> Path:
 
 def dashboard() -> Path:
     return base() / ASSET_DASHBOARD
+
+
+def fleet_dashboard() -> Path:
+    return base() / FLEET_HTML_ASSET
 
 
 def template_version() -> str:
