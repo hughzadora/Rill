@@ -427,9 +427,14 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
       "Missing factory capability " + path,
     );
   }
+  const nativeConfig = readFileSync(
+    join(project, ".codex/config.toml"),
+    "utf8",
+  );
+  assert.match(nativeConfig, /mcp_servers.openaiDeveloperDocs/);
   assert.match(
-    readFileSync(join(project, ".codex/config.toml"), "utf8"),
-    /mcp_servers.openaiDeveloperDocs/,
+    nativeConfig,
+    /\[plugins\."rill@rill-local"\]\s*enabled = false/,
   );
   const hooks = JSON.parse(
     readFileSync(join(project, ".codex/hooks.json"), "utf8"),

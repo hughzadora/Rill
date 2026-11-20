@@ -35,3 +35,10 @@ url = "https://developers.openai.com/mcp"
 enabled = true
 required = false
 default_tools_approval_mode = "approve"
+
+
+# Project-only: prevent the retired user-installed Rill 0.1.2 hooks/MCP
+# from running alongside this supported, versioned factory distribution.
+# This does NOT uninstall or alter any user-wide plugin or another project.
+[plugins."rill@rill-local"]
+enabled = false
