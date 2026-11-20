@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
-from .constants import FRAMEWORK_PATHS, MAX_REWRITE_LINES, RUNTIME_ANCHORS
+from .constants import FRAMEWORK_PATHS, MAX_REWRITE_LINES, MAX_SYMBOL_LINES, RUNTIME_ANCHORS
 from .state import load
 
 
@@ -77,7 +77,7 @@ def audit(root: Path) -> list[str]:
     return violations
 
 
-def symbols(root: Path) -> str:
+def _public_python_symbols(root: Path) -> list[str]:
     names: list[str] = []
     for path in sorted(root.rglob("*.py")):
         if any(part in {".venv", ".git", "node_modules", "dist"} for part in path.parts):
@@ -87,11 +87,42 @@ def symbols(root: Path) -> str:
         except OSError, SyntaxError, UnicodeError:
             continue
         for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ) and not node.name.startswith("_"):
                 names.append(
                     f"{path.relative_to(root)}:{node.lineno} {type(node).__name__} {node.name}"
                 )
-    return "\n".join(names) + ("\n" if names else "")
+    return names
+
+
+def _exported_typescript_symbols(root: Path) -> list[str]:
+    names: list[str] = []
+    source = root / "src"
+    if not source.exists():
+        return names
+    signature = re.compile(
+        r"^export\s+(?:(?:default|declare|async)\s+)*(?:function|class|interface|type|const)\s+([\w$]+)",
+        re.MULTILINE,
+    )
+    for path in sorted((*source.rglob("*.ts"), *source.rglob("*.tsx"))):
+        if any(part in {"node_modules", "dist", "__tests__"} for part in path.parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError, UnicodeError:
+            continue
+        for match in signature.finditer(text):
+            lineno = text.count("\n", 0, match.start()) + 1
+            names.append(f"{path.relative_to(root)}:{lineno} Export {match.group(1)}")
+    return names
+
+
+def symbols(root: Path) -> str:
+    """Index public Python and TS signatures without loading entire files into prompts."""
+    names = [*_public_python_symbols(root), *_exported_typescript_symbols(root)]
+    selected = names[:MAX_SYMBOL_LINES]
+    return "\n".join(selected) + ("\n" if selected else "")
 
 
 def patch_targets(command: str) -> list[tuple[str, int]]:

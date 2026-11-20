@@ -5,6 +5,7 @@ import json
 import runpy
 import shutil
 import subprocess
+import sys
 from importlib.metadata import version as package_version
 from pathlib import Path
 
@@ -14,7 +15,14 @@ from typer.testing import CliRunner
 from rill_cli import __version__
 from rill_cli.cli.app import app
 from rill_cli.core import hooks
-from rill_cli.core.constants import MAX_REWRITE_LINES, RUNTIME_ANCHORS, SCHEMA_VERSION, SYMBOLS_PATH
+from rill_cli.core.constants import (
+    DISTRIBUTION,
+    MAX_REWRITE_LINES,
+    RUNTIME_ANCHORS,
+    SCHEMA_VERSION,
+    SYMBOLS_PATH,
+)
+from rill_cli.core.git_policy import git
 from rill_cli.core.guardrails import patch_targets, symbols, validate
 from rill_cli.core.installer import install, upgrade_values
 from rill_cli.core.state import load, save
@@ -24,7 +32,10 @@ def test_version() -> None:
     result = CliRunner().invoke(app, ["version"])
     assert result.exit_code == 0
     assert __version__ in result.stdout
-    assert package_version("rill-cli") == __version__
+    assert package_version(DISTRIBUTION) == __version__
+    assert (
+        json.loads(CliRunner().invoke(app, ["--json", "version"]).stdout)["version"] == __version__
+    )
     assert Path("VERSION").read_text(encoding="utf-8").strip() == __version__
 
 
@@ -32,6 +43,12 @@ def test_install_creates_native_assets(tmp_path: Path) -> None:
     destination = tmp_path / "product"
     root = install(destination)
     assert (root / ".codex/hooks.json").is_file()
+    assert (root / "REVIEW.md").is_file()
+    status = CliRunner().invoke(app, ["--json", "status", str(root)])
+    assert status.exit_code == 0
+    assert json.loads(status.stdout)["dirty_files"] == 0
+    assert git(root, "ls-files", "--error-unmatch", "REVIEW.md", check=False).returncode == 0
+    assert git(root, "status", "--porcelain").stdout == ""
     assert (root / ".agents/skills/rill-review/SKILL.md").is_file()
     assert (root / ".rill/state.json").is_file()
     assert (root / ".rill/.gitignore").is_file()
@@ -94,6 +111,29 @@ def test_ast_symbol_inventory(tmp_path: Path) -> None:
     assert "FunctionDef run" in inventory
 
 
+def test_hook_without_stdin_data_does_not_block(tmp_path: Path) -> None:
+    process = subprocess.Popen(
+        [sys.executable, "-m", "rill_cli", "hook", "session-start"],
+        cwd=tmp_path,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.wait(timeout=3) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=3)
+        if process.stdin:
+            process.stdin.close()
+        if process.stdout:
+            process.stdout.close()
+        if process.stderr:
+            process.stderr.close()
+
+
 def test_init_requires_explicit_yes(tmp_path: Path) -> None:
     result = CliRunner().invoke(app, ["init", str(tmp_path)])
     assert result.exit_code != 0
@@ -135,7 +175,8 @@ def test_hook_denies_tier_zero(
 def test_hook_denies_quota(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    save(tmp_path, {"schema": 1, "mode": "normal", "budget_exhausted": True})
+    git(tmp_path, "init", "-b", "feat/rill-test")
+    save(tmp_path, {"schema": SCHEMA_VERSION, "mode": "normal", "budget_exhausted": True})
     monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "src/app.py"}})
     hooks.run("pre-tool-use", tmp_path)
     decision = json.loads(capsys.readouterr().out)
@@ -162,13 +203,13 @@ def test_cli_commands_and_invalid_arguments(tmp_path: Path) -> None:
     assert runner.invoke(app, ["doctor", str(tmp_path)]).exit_code == 1
     assert runner.invoke(app, ["upgrade", str(tmp_path)]).exit_code != 0
     missing = tmp_path / "missing-project"
-    assert runner.invoke(app, ["upgrade", str(missing), "--yes"]).exit_code == 2
+    assert runner.invoke(app, ["upgrade", str(missing), "--yes"]).exit_code == 1
     assert not missing.exists()
     assert runner.invoke(app, ["hook", "unknown"]).exit_code != 0
     product = tmp_path / "candidate"
     assert runner.invoke(app, ["init", str(product), "--yes"]).exit_code == 0
     assert '"installed": true' in runner.invoke(app, ["status", str(product)]).stdout
-    assert runner.invoke(app, ["init", str(product), "--yes"]).exit_code == 2
+    assert runner.invoke(app, ["init", str(product), "--yes"]).exit_code == 1
 
 
 def test_cli_hooks_parse_input_and_emit_native_denial(
@@ -198,7 +239,7 @@ def test_post_tool_hook_reports_boundary_violation(
 
     monkeypatch.setattr(hooks, "audit", violation)
     monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "src/app.py"}})
-    assert hooks.run("post-tool-use", tmp_path) == 2
+    assert hooks.run("post-tool-use", tmp_path) == 1
     assert "Tier 0 blocked" in capsys.readouterr().err
     assert "Tier 0 blocked" in (tmp_path / ".rill/last-error.log").read_text(encoding="utf-8")
 
@@ -208,17 +249,18 @@ def test_hook_stop_records_exhausted_quota(
 ) -> None:
     save(tmp_path, {"schema": SCHEMA_VERSION, "budget_exhausted": True})
     monkeypatch.setattr(hooks, "_payload", lambda: {"hook_event_name": "Stop"})
-    assert hooks.run("stop", tmp_path) == 0
-    assert capsys.readouterr().out.strip() == "{}"
-    assert "Quota exhausted" in (tmp_path / ".rill/last-error.log").read_text(encoding="utf-8")
+    assert hooks.run("stop", tmp_path) == 1
+    assert "QUOTA GUARD" in capsys.readouterr().err
+    assert "QUOTA GUARD" in (tmp_path / ".rill/last-error.log").read_text(encoding="utf-8")
 
 
 def test_hook_formats_python_after_tool_use(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = tmp_path / "source.py"
+    source = tmp_path / "src/source.py"
+    source.parent.mkdir()
     source.write_text("value=1\n", encoding="utf-8")
-    monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "source.py"}})
+    monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "src/source.py"}})
 
     def no_violations(_root: Path) -> list[str]:
         return []
