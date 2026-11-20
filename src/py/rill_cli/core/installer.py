@@ -10,25 +10,31 @@ import copier
 import yaml
 
 from rill_cli import __version__
+from rill_cli.assets import template as embedded_template
 
 from .constants import (
+    AGENT_ENTRY,
+    CODEX_CONFIG,
+    CODEX_HOOKS,
     COPIER_ANSWERS,
+    DEFAULT_SCOPE,
+    DELIVER_SKILL,
+    INIT_BRANCH,
+    INIT_COMMIT,
+    JUSTFILE,
     MANAGED_DIRECTORIES,
+    REVIEW_FILE,
     RUNTIME_ANCHORS,
     SCHEMA_VERSION,
+    TEMPLATE_SCHEMA,
+    UPGRADE_COMMIT,
 )
+from .git_policy import commit, ensure_branch, head_summary
 from .state import load, save
 
 
 def source() -> Path:
-    embedded = Path(__file__).resolve().parents[1] / "template"
-    if (embedded / "copier.yml").is_file():
-        return embedded
-    for parent in embedded.parents:
-        candidate = parent / "standards/template"
-        if (candidate / "copier.yml").is_file():
-            return candidate
-    raise FileNotFoundError("The bundled Copier template is missing")
+    return embedded_template()
 
 
 def preflight(path: Path) -> Path:
@@ -65,7 +71,7 @@ def preflight(path: Path) -> Path:
         raise ValueError("Non-empty target must be a Git repository")
     else:
         subprocess.run(  # noqa: S603 - trusted Git binary; argv only
-            [shutil.which("git") or "/usr/bin/git", "init", str(root)],
+            [shutil.which("git") or "/usr/bin/git", "init", "-b", INIT_BRANCH, str(root)],
             check=True,
             capture_output=True,
             text=True,
@@ -75,11 +81,11 @@ def preflight(path: Path) -> Path:
 
 def ownership(root: Path) -> dict[str, bool]:
     return {
-        "preserve_justfile": (root / "justfile").exists(),
-        "preserve_agent_entry": (root / "AGENTS.md").exists(),
-        "preserve_codex_roles": (root / ".codex/config.toml").exists(),
-        "preserve_hook_config": (root / ".codex/hooks.json").exists(),
-        "preserve_rill_skills": (root / ".agents/skills/rill-deliver/SKILL.md").exists(),
+        "preserve_justfile": (root / JUSTFILE).exists(),
+        "preserve_agent_entry": (root / AGENT_ENTRY).exists(),
+        "preserve_codex_roles": (root / CODEX_CONFIG).exists(),
+        "preserve_hook_config": (root / CODEX_HOOKS).exists(),
+        "preserve_rill_skills": (root / DELIVER_SKILL).exists(),
     }
 
 
@@ -97,10 +103,10 @@ def fingerprint(root: Path) -> dict[str, str]:
             if Path(relative) in RUNTIME_ANCHORS:
                 continue
             files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    for name in ("AGENTS.md",):
+    for name in (AGENT_ENTRY, JUSTFILE, REVIEW_FILE):
         path = root / name
         if path.is_file():
-            files[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            files[name.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     return files
 
 
@@ -129,7 +135,7 @@ def upgrade_values(
 
 def select_data(pairs: list[str]) -> dict[str, str]:
     """Validate names against the one canonical Copier question schema."""
-    config: object = yaml.safe_load((source() / "copier.yml").read_text(encoding="utf-8"))
+    config: object = yaml.safe_load((source() / TEMPLATE_SCHEMA).read_text(encoding="utf-8"))
     if not isinstance(config, dict):
         raise ValueError("Invalid template schema")
     questions = cast("dict[str, object]", config)
@@ -145,6 +151,43 @@ def select_data(pairs: list[str]) -> dict[str, str]:
     return chosen
 
 
+def _profile_data(
+    root: Path,
+    upgrade: bool,
+    supplied: dict[str, str],
+    state: dict[str, object],
+    before: dict[str, str],
+) -> tuple[dict[str, object], dict[str, object]]:
+    if upgrade:
+        return upgrade_values(root, state, before)
+    values: dict[str, object] = {**ownership(root), **supplied}
+    return {}, values
+
+
+def _finalize(
+    root: Path,
+    state: dict[str, object],
+    before: dict[str, str],
+    tracked: dict[str, object],
+    upgrade: bool,
+) -> None:
+    after = fingerprint(root)
+    owned = (set(tracked) | (set(after) - set(before))) if upgrade else set(after) - set(before)
+    state.update(
+        {
+            "schema": SCHEMA_VERSION,
+            "version": __version__,
+            "mode": "normal",
+            "phase": "ready",
+            "managed": {name: digest for name, digest in after.items() if name in owned},
+        }
+    )
+    state.setdefault("task_scope", list(DEFAULT_SCOPE))
+    save(root, state)
+    changed = [name for name in owned if before.get(name) != after.get(name)]
+    commit(root, UPGRADE_COMMIT if upgrade else INIT_COMMIT, changed)
+
+
 def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
     supplied = select_data(data or [])
     if upgrade and supplied:
@@ -153,17 +196,13 @@ def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None)
     if upgrade and not (target / COPIER_ANSWERS).is_file():
         raise ValueError("Cannot upgrade a project not installed by Rill")
     root = preflight(path)
-    answers = root / COPIER_ANSWERS
-    if not upgrade and answers.exists():
+    if not upgrade and (root / COPIER_ANSWERS).exists():
         raise ValueError("Already installed: use rill upgrade")
+    ensure_branch(root, upgrade=upgrade, version=__version__)
     before = fingerprint(root)
     state = load(root)
-    values: dict[str, object] = dict(ownership(root))
-    tracked: dict[str, object] = {}
-    if upgrade:
-        tracked, values = upgrade_values(root, state, before)
-    else:
-        values.update(supplied)
+    state["rollback_head"] = head_summary(root) if upgrade else None
+    tracked, values = _profile_data(root, upgrade, supplied, state, before)
     copier.run_copy(
         src_path=str(source()),
         dst_path=root,
@@ -171,17 +210,7 @@ def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None)
         data=values,
         overwrite=upgrade,
         unsafe=False,
+        quiet=True,
     )
-    after = fingerprint(root)
-    owned = (set(tracked) | (set(after) - set(before))) if upgrade else set(after) - set(before)
-    state.update(
-        {
-            "schema": SCHEMA_VERSION,
-            "version": __version__,
-            "mode": "normal",
-            "managed": {name: digest for name, digest in after.items() if name in owned},
-        }
-    )
-    state.setdefault("task_scope", [])
-    save(root, state)
+    _finalize(root, state, before, tracked, upgrade)
     return root

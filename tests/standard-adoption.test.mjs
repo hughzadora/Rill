@@ -299,14 +299,13 @@ after(() => {
 
 test("Rill CLI adoption, upgrade, and template distribution", () => {
   const product = join(sandbox, "one-command-consumer");
-  assert.equal(callRill(["version"]).trim(), appVersion);
+  assert.equal(JSON.parse(callRill(["--json", "version"])).version, appVersion);
   callRill(["init", product, "--yes", "--data", "project_name=One Command Consumer"]);
   for (const entry of [".codex/agents/worker.toml", ".agents/skills/rill-review/SKILL.md", ".codex/hooks.json"]) {
     assert.ok(existsSync(join(product, entry)), entry);
   }
   assert.equal(JSON.parse(callRill(["status", product])).installed, true);
-  git(product, ["add", "."]);
-  git(product, ["commit", "-qm", "Rill CLI installation"]);
+  assert.equal(git(product, ["log", "-1", "--pretty=%s"]), "chore(rill): initialize harness");
   callRill(["upgrade", product, "--yes"]);
   assert.equal(JSON.parse(callRill(["status", product])).state.version, appVersion);
   assert.equal(git(product, ["status", "--porcelain"]), "");
@@ -485,7 +484,7 @@ test("CLI hooks deny framework writes and retain compact symbols", () => {
   callRill(["init", product, "--yes"]);
   file(product, "src/service.py", "def service(): return 1\n");
   git(product, ["add", "."]);
-  git(product, ["commit", "-qm", "Install Rill and source"]);
+  if (git(product, ["status", "--porcelain"])) git(product, ["commit", "-qm", "Install source"]);
   assert.equal(invokeRillHook(product, "session-start").state.mode, "normal");
   const denied = invokeRillHook(product, "pre-tool-use", { file_path: ".codex/hooks.json" });
   assert.equal(denied.hookSpecificOutput.permissionDecision, "deny");
@@ -506,7 +505,7 @@ test("CLI status does not trust GH_REPO environment overrides", () => {
   const product = join(sandbox, "origin-bound-consumer");
   callRill(["init", product, "--yes", "--data", "github_parent_issue=22"]);
   git(product, ["add", "."]);
-  git(product, ["commit", "-qm", "Install Rill"]);
+  if (git(product, ["status", "--porcelain"])) git(product, ["commit", "-qm", "Install Rill"]);
   git(product, ["remote", "add", "origin", "https://github.com/acme/target.git"]);
   const status = JSON.parse(callRill(["status", product], { env: { GH_REPO: "acme/wrong" } }));
   assert.equal(status.repository, product);
@@ -523,7 +522,7 @@ test("CLI upgrade preserves product-owned settings, rejects modified managed fil
   callRill(["init", product, "--yes", "--data", "react=false", "--data", "node=true"]);
   assert.equal(readFileSync(join(product, "AGENTS.md"), "utf8"), ownAgent);
   git(product, ["add", "."]);
-  git(product, ["commit", "-qm", "Install native roles"]);
+  if (git(product, ["status", "--porcelain"])) git(product, ["commit", "-qm", "Install native roles"]);
   const hooksPath = join(product, ".codex/hooks.json");
   writeFileSync(hooksPath, readFileSync(hooksPath, "utf8").replace("SessionStart", "FakeStart"));
   git(product, ["add", "."]);
@@ -676,6 +675,7 @@ test("browser gates are local-only and fail rather than falsely pass without rea
   assert.doesNotMatch(workflow, /playwright (?:install|test)|chromium install|ci-full/i);
   const justfile = verifyJustfile(project, ["ci-full:", "run test:e2e", "run test:a11y"]);
   assert.match(justfile, /just ci/);
+  assert.match(justfile.slice(justfile.indexOf("ci:"), justfile.indexOf("ci-full:")), /gitleaks git/);
   assert.doesNotMatch(justfile.slice(justfile.indexOf("ci:"), justfile.indexOf("ci-full:")), /test:e2e|test:a11y/);
   execute("just", ["ci-full"], { cwd: project, mustFail: true });
 });
