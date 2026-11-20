@@ -54,6 +54,12 @@ function copyAssets(source: string, target: string): void {
 }
 
 function requireSources(root: string, version: string): void {
+  for (const path of ["templates", "templates/consumer", ".codex", ".codex/agents"]) {
+    const directory = join(root, path);
+    if (!existsSync(directory) || !lstatSync(directory).isDirectory()) {
+      throw new RillCommandError("The Rill source has missing or unsafe project directories.", 2);
+    }
+  }
   const paths = [
     "plugin.json",
     "templates/consumer/PRD.md",

@@ -215,3 +215,35 @@ test("missing native Codex role config refuses to initialize a partial product",
   assert.equal(result.status, 2);
   assert.equal(existsSync(target), false);
 });
+
+test("refuses symlinked source Codex directory ancestors without creating a consumer", (t) => {
+  for (const scope of [".codex", ".codex/agents"]) {
+    const parent = scratch();
+    t.after(() => rmSync(parent, { recursive: true, force: true }));
+    const distribution = join(parent, "symlinked-codex-source");
+    mkdirSync(distribution);
+    for (const asset of ["dist", ".codex", "templates"]) {
+      cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+    }
+    cpSync(join(repo, "plugin.json"), join(distribution, "plugin.json"));
+    cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
+    rmSync(join(distribution, scope), { recursive: true });
+    symlinkSync(join(repo, scope), join(distribution, scope));
+    const target = join(parent, "must-remain-absent");
+    const result = run(join(distribution, "dist/cli.js"), [
+      "init",
+      target,
+      "--goal",
+      "Safe repository",
+      "--yes",
+      "--json",
+    ]);
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+    assert.equal(existsSync(target), false);
+    assert.deepEqual(
+      readdirSync(parent).filter((entry) => entry.startsWith(".rill-init-")),
+      [],
+    );
+  }
+});

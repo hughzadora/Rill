@@ -25,7 +25,7 @@ codex plugin add rill@rill-source
 codex plugin list --json
 ```
 
-For editing from a local repository, Codex supports `codex plugin marketplace add /absolute/path/to/Rill`. Plugin installation never constitutes Hook trust; review the active Hook definition in Codex before enabling it. A Marketplace refresh, repository edit or Git push is not evidence that the host's cached Plugin has updated. Confirm the installed version and native Hook events independently.
+For a **local-path Marketplace**, do not install directly from a dirty development checkout: Codex may cache ignored files such as `.git`, `node_modules`, `dist`, and local secrets alongside the Plugin. Use `git archive HEAD` to export the **exact reviewed commit** into a private clean temporary directory, then run `codex plugin marketplace add /absolute/path/to/clean-export` and install `rill@rill-source` from that export. The repository root is still the single Plugin root; the clean export is a temporary installation input, not a second source package. Git-backed Marketplace refreshes should be scoped to `codex plugin marketplace upgrade rill-source`, not the unqualified command that refreshes unrelated Git sources. A local Marketplace is not refreshed by that command: review native Plugin remove/add help and obtain the required authorization before changing the existing installation. Installation never constitutes Hook trust; review the active Hook definition in Codex before enabling it. Confirm the installed version and actual native Hook events independently.
 
 ### Optional consumer project preparation
 
