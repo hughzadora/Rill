@@ -210,10 +210,10 @@ test("a copied Rill distribution with locked production dependencies plans an up
   const { repo } = fixture(t);
   const distribution = join(repo, "../rill-distribution");
   mkdirSync(distribution);
-  for (const item of ["dist", "bundle", "VERSION", "package.json", "pnpm-lock.yaml"]) {
+  for (const item of ["dist", "bundle", "VERSION", "package.json", "bun.lock"]) {
     cpSync(join(root, item), join(distribution, item), { recursive: true });
   }
-  const install = spawnSync("pnpm", ["install", "--prod", "--offline", "--frozen-lockfile"], {
+  const install = spawnSync("bun", ["install", "--production", "--offline", "--frozen-lockfile"], {
     cwd: distribution,
     encoding: "utf8",
     env: { ...process.env, NODE_TEST_CONTEXT: undefined },

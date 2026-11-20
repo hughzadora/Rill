@@ -20,13 +20,16 @@ const factory = fileURLToPath(new URL("../", import.meta.url));
 test("a real build removes obsolete emitted JS and assets without deleting source or unrelated files", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "rill-clean-build-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  for (const name of ["package.json", "pnpm-lock.yaml", "tsconfig.json"]) {
+  for (const name of ["package.json", "bun.lock", "tsconfig.json"]) {
     cpSync(join(factory, name), join(directory, name));
   }
-  mkdirSync(join(directory, "src"), { recursive: true });
+  mkdirSync(join(directory, "src/deep/more"), { recursive: true });
+  mkdirSync(join(directory, "tools"), { recursive: true });
+  cpSync(join(factory, "tools/build.mjs"), join(directory, "tools/build.mjs"));
   mkdirSync(join(directory, "dist/assets"), { recursive: true });
 
   writeFileSync(join(directory, "src/real.ts"), "export const current = 42;\n");
+  writeFileSync(join(directory, "src/deep/more/extra.ts"), "export const nested = 24;\n");
   writeFileSync(join(directory, "dist/assets/stale.js"), "export const obsolete = true;\n");
   writeFileSync(join(directory, "dist/index.html"), "<p>Old Rill output</p>\n");
   writeFileSync(join(directory, "keep.txt"), "Independent consumer data\n");
@@ -37,11 +40,17 @@ test("a real build removes obsolete emitted JS and assets without deleting sourc
     NODE_TEST_PIPE: undefined,
     NODE_V8_COVERAGE: undefined,
   };
-  // The isolated fixture runs the actual build with the factory's installed,
-  // lockfile-backed tools; it does not need a nested network installation.
-  symlinkSync(join(factory, "node_modules"), join(directory, "node_modules"), "dir");
+  // Install locked dependencies inside the fixture. Sharing node_modules via a
+  // symlink can mutate the factory's package-manager links across test runs.
+  const install = spawnSync("bun", ["install", "--offline", "--frozen-lockfile"], {
+    cwd: directory,
+    env,
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  assert.equal(install.status, 0, install.stdout + install.stderr);
 
-  const build = spawnSync("pnpm", ["run", "build"], {
+  const build = spawnSync("bun", ["run", "build"], {
     cwd: directory,
     env,
     encoding: "utf8",
@@ -51,14 +60,19 @@ test("a real build removes obsolete emitted JS and assets without deleting sourc
   assert.equal(existsSync(join(directory, "dist/assets/stale.js")), false);
   assert.equal(existsSync(join(directory, "dist/index.html")), false);
   assert.equal(existsSync(join(directory, "dist/real.js")), true);
+  assert.equal(existsSync(join(directory, "dist/deep/more/extra.js")), true);
   assert.equal(
     readFileSync(join(directory, "src/real.ts"), "utf8"),
     "export const current = 42;\n",
   );
   assert.equal(readFileSync(join(directory, "keep.txt"), "utf8"), "Independent consumer data\n");
+  assert.equal(
+    readFileSync(join(directory, "src/deep/more/extra.ts"), "utf8"),
+    "export const nested = 24;\n",
+  );
 
   writeFileSync(join(directory, "dist/stale-again.js"), "export const obsoleteAgain = true;\n");
-  const repeated = spawnSync("pnpm", ["run", "build"], {
+  const repeated = spawnSync("bun", ["run", "build"], {
     cwd: directory,
     env,
     encoding: "utf8",
@@ -67,6 +81,7 @@ test("a real build removes obsolete emitted JS and assets without deleting sourc
   assert.equal(repeated.status, 0, repeated.stdout + repeated.stderr);
   assert.equal(existsSync(join(directory, "dist/stale-again.js")), false);
   assert.equal(existsSync(join(directory, "dist/real.js")), true);
+  assert.equal(existsSync(join(directory, "dist/deep/more/extra.js")), true);
 
   // A stale output symlink must not cause the build to delete its target.
   const consumerData = join(directory, "independent-user-data");
@@ -74,7 +89,7 @@ test("a real build removes obsolete emitted JS and assets without deleting sourc
   writeFileSync(join(consumerData, "do-not-delete.txt"), "preserved\n");
   rmSync(join(directory, "dist"), { recursive: true, force: true });
   symlinkSync(consumerData, join(directory, "dist"), "dir");
-  const symlinkBuild = spawnSync("pnpm", ["run", "build"], {
+  const symlinkBuild = spawnSync("bun", ["run", "build"], {
     cwd: directory,
     env,
     encoding: "utf8",
@@ -83,4 +98,5 @@ test("a real build removes obsolete emitted JS and assets without deleting sourc
   assert.equal(symlinkBuild.status, 0, symlinkBuild.stdout + symlinkBuild.stderr);
   assert.equal(readFileSync(join(consumerData, "do-not-delete.txt"), "utf8"), "preserved\n");
   assert.equal(existsSync(join(directory, "dist/real.js")), true);
+  assert.equal(existsSync(join(directory, "dist/deep/more/extra.js")), true);
 });
