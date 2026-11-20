@@ -245,6 +245,7 @@ class FleetApp(App[None]):
         try:
             if mode == "install" and request.project:
                 impact = f"Register local Git project: {request.value}\nNo Codex files modified."
+                token = None
             else:
                 preview = (
                     self.engine.preview_backup(request.value)
@@ -259,14 +260,19 @@ class FleetApp(App[None]):
                 impact = "Global backup first. Affected files:\n" + "\n".join(
                     cast("list[str]", paths)
                 )
-            self.call_from_thread(self._confirm, mode, request, impact)
+                token = preview.get("token")
+                if not isinstance(token, str):
+                    raise ValueError("Fleet preview is missing its immutable approval token")
+            self.call_from_thread(self._confirm, mode, request, impact, token)
         except (OSError, ValueError, PermissionError, KeyError) as exc:
             self.call_from_thread(self._error, str(exc))
 
-    def _confirm(self, operation: str, request: WizardRequest, impacts: str) -> None:
+    def _confirm(
+        self, operation: str, request: WizardRequest, impacts: str, token: str | None
+    ) -> None:
         def decided(approved: bool | None) -> None:
             if approved is True:
-                self._mutate_worker(operation, request.value, request.project)
+                self._mutate_worker(operation, request.value, request.project, token)
             else:
                 self._log("Cancelled, no changes made")
 
@@ -280,27 +286,43 @@ class FleetApp(App[None]):
             self.notify("Select a real registered asset or project", severity="warning")
             return
         kind, identity = self.selected
-        asset = next((item for item in self.snapshot.assets if item.id == identity), None)
-        paths = "\n".join(asset.file_hashes) if asset else "Project registration only"
-        request = WizardRequest(identity, project=kind == "project")
-        self._confirm("retire", request, f"Target: {identity}\n{paths}\nBackup before removal.")
+        self._retire_preview_worker(identity, project=kind == "project")
+
+    @work(thread=True, group="fleet-previews")
+    def _retire_preview_worker(self, identity: str, *, project: bool) -> None:
+        try:
+            preview = self.engine.preview_retire(identity, project=project)
+            paths = preview["paths"]
+            token = preview["token"]
+            if not isinstance(paths, list) or not isinstance(token, str):
+                raise ValueError("Invalid Fleet retire preview")
+            impact = "\n".join(cast("list[str]", paths)) or "Project registration only"
+            self.call_from_thread(
+                self._confirm,
+                "retire",
+                WizardRequest(identity, project=project),
+                f"Target: {identity}\n{impact}\nBackup before removal.",
+                token,
+            )
+        except (OSError, ValueError, PermissionError, KeyError) as exc:
+            self.call_from_thread(self._error, str(exc))
 
     @work(thread=True, group="fleet-mutations")
-    def _mutate_worker(self, operation: str, value: str, project: bool) -> None:
+    def _mutate_worker(self, operation: str, value: str, project: bool, token: str | None) -> None:
         try:
             self.call_from_thread(self._log, f"Running {operation} on {value}…")
             if operation == "install":
                 self.engine.register_project(
                     Path(value)
-                ) if project else self.engine.install_bundle(Path(value))
+                ) if project else self.engine.install_bundle(Path(value), preview_token=token)
             elif operation == "upgrade":
-                self.engine.upgrade_bundle(Path(value))
+                self.engine.upgrade_bundle(Path(value), preview_token=token)
             elif operation == "retire":
-                self.engine.unregister_project(value) if project else self.engine.retire_asset(
-                    value
-                )
+                self.engine.unregister_project(
+                    value, preview_token=token
+                ) if project else self.engine.retire_asset(value, preview_token=token)
             elif operation == "rollback":
-                self.engine.rollback(value)
+                self.engine.rollback(value, preview_token=token)
             self.call_from_thread(self._log, f"Complete: {operation}")
             self.call_from_thread(self.action_refresh)
             self.call_from_thread(self.notify, f"{operation.title()} completed", timeout=3)

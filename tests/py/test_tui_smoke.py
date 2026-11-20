@@ -1,15 +1,18 @@
 """Exercise actual Textual navigation, filtering, confirmations and workers."""
 
 import asyncio
+import hashlib
 from pathlib import Path
 from typing import cast
 
 from textual.widgets import Button, DataTable, Input, RichLog
 
+from rill_cli.core.constants import FLEET_ASSET_MANIFEST
 from rill_cli.core.fleet import FleetEngine
 from rill_cli.core.git_policy import git
+from rill_cli.core.models import AgentAssetManifest, AssetFile
 from rill_cli.tui.app import FleetApp
-from rill_cli.tui.modals import ConfirmModal, HelpModal, PathWizard
+from rill_cli.tui.modals import ConfirmModal, HelpModal, PathWizard, WizardRequest
 
 
 def engine_at(tmp_path: Path) -> FleetEngine:
@@ -89,5 +92,55 @@ def test_install_wizard_can_cancel_without_global_write(tmp_path: Path) -> None:
             assert not isinstance(app.screen, PathWizard)
             assert engine.load().projects == []
             assert engine.load().assets == []
+
+    asyncio.run(scenario())
+
+
+def test_preview_approval_rejects_bundle_replaced_before_confirmation(tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    source = tmp_path / "asset"
+    source.mkdir()
+    original = b"# Verified\n"
+    (source / "SKILL.md").write_bytes(original)
+    manifest_path = source / FLEET_ASSET_MANIFEST
+    manifest = AgentAssetManifest(
+        id="verified-skill",
+        name="Reviewed skill",
+        kind="skill",
+        version="1.0.0",
+        files=[
+            AssetFile(
+                source="SKILL.md",
+                target="skills/reviewed/SKILL.md",
+                sha256=hashlib.sha256(original).hexdigest(),
+            )
+        ],
+    )
+    manifest_path.write_text(manifest.model_dump_json())
+
+    async def scenario() -> None:
+        app = FleetApp(engine=engine)
+        async with app.run_test(size=(120, 42)) as pilot:
+            await pilot.pause(0.2)
+            app._preview_worker("install", WizardRequest(str(source)))
+            await pilot.pause(0.25)
+            assert isinstance(app.screen, ConfirmModal)
+            replacement = b"# Changed after inspection\n"
+            (source / "SKILL.md").write_bytes(replacement)
+            changed = manifest.model_copy(
+                update={
+                    "files": [
+                        manifest.files[0].model_copy(
+                            update={"sha256": hashlib.sha256(replacement).hexdigest()}
+                        )
+                    ]
+                }
+            )
+            manifest_path.write_text(changed.model_dump_json())
+            app.screen.query_one("#confirm", Button).press()
+            await pilot.pause(0.3)
+            assert engine.load().assets == []
+            assert not (engine.codex_root / "skills/reviewed/SKILL.md").exists()
+            assert app.query_one("#events", RichLog).lines
 
     asyncio.run(scenario())
