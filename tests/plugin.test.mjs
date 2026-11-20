@@ -8,7 +8,7 @@ import test from "node:test";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
 
-test("portable plugin manifest matches canonical product VERSION and declares trusted hooks", () => {
+test("portable plugin manifest matches VERSION and declares hooks requiring trust", () => {
   const manifest = JSON.parse(read("bundle/plugin/plugin.json"));
   assert.equal(manifest.$schema, "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
   assert.equal(manifest.name, "rill");

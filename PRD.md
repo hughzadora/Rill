@@ -12,7 +12,7 @@ Not in scope: custom agent runtime/scheduler/permission model, copied transcript
 
 ## Functional Requirements
 
-Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified current delivery**, never file presence. Paths are planned anchors only until confirmed by code. All currently redesigned capabilities start as planned.
+Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified current delivery**, never file presence or an Agent self-report. Native execution claims require traceable events and effective trust/permission evidence. Paths are planned anchors only until confirmed by code. All currently redesigned capabilities start as planned.
 
 | ID | Outcome / acceptance | Proposed landing area | Status |
 |---|---|---|---|

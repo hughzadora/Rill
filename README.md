@@ -26,6 +26,10 @@ Run `pnpm install --frozen-lockfile` and `pnpm run ci` to verify the current Typ
 
 The supplied brainstorming Skill references companion files absent from the upload. Completing the dependency audit and demonstrating actual native invocation is explicitly tracked in [#57](https://github.com/hughzadora/Rill/issues/57). File presence alone is not functional integration.
 
+## Native execution evidence
+
+Native Codex JSONL events, not model prose, determine what ran. A Codex read of an installed Rill Skill was observed in an isolated read-only session. A second session **claimed** an Explorer result, but its trace contained only an empty `wait` call and stated that project configuration was untrusted/disabled. `src/native-evidence.ts` classifies such cases as **NOT_VERIFIED** and tests these false-positive paths. Installing a plugin does **not** automatically trust its Hooks or prove agent-model/sandbox configuration. No hook-trust bypass or user-global configuration edits are authorized.
+
 ## Release criteria
 
 A reviewed versioned bundle must install without Rill development context in one independent real greenfield and one brownfield project. A fresh agent implements meaningful work, runs actual applicable positive/negative CI, uses independently observed native roles/Skills/Hooks/justified MCP, obtains separate current-diff review, survives interruption, produces an evidence-bound PR, and demonstrates safe consumer-preserving upgrade and rollback. Owner user-facing acceptance and protected release are separate checkpoints.
