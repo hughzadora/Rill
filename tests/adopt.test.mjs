@@ -124,6 +124,7 @@ test("applied review branch preserves custom Codex policy, app source, tests and
   assert.equal(text(join(receipt.worktree, "src/core.mjs")), text(join(repo, "src/core.mjs")));
   assert.equal(text(join(receipt.worktree, "PRD.md")), text(join(repo, "PRD.md")));
   assert.equal(existsSync(join(receipt.worktree, ".rill/plugin/plugin.json")), true);
+  assert.equal(existsSync(join(receipt.worktree, ".codex/hooks.json")), true);
   assert.equal(existsSync(join(receipt.worktree, ".agents/plugins/marketplace.json")), true);
   assert.ok(receipt.pendingIntegration.includes("AGENTS.md"));
   assert.ok(receipt.pendingIntegration.includes(".codex/config.toml"));
@@ -140,6 +141,34 @@ test("applied review branch preserves custom Codex policy, app source, tests and
     "a genuine business regression must turn the product test red",
   );
   writeFileSync(join(receipt.worktree, "src/core.mjs"), originalSource);
+});
+
+test("existing project hooks are preserved and reported for manual Rill integration", (t) => {
+  const { repo } = fixture(t, { existingPrd: true });
+  mkdirSync(join(repo, ".codex"), { recursive: true });
+  const existingHooks = '{"hooks":{"Stop":[]}}\n';
+  writeFileSync(join(repo, ".codex/hooks.json"), existingHooks);
+  const stage = git(repo, "add", ".codex/hooks.json");
+  assert.equal(stage.status, 0, stage.stderr);
+  const commit = git(
+    repo,
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "existing native hooks",
+  );
+  assert.equal(commit.status, 0, commit.stderr);
+
+  const result = call(repo, "--yes", "--json");
+  assert.equal(result.status, 0, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.ok(receipt.pendingIntegration.includes(".codex/hooks.json"));
+  assert.equal(text(join(receipt.worktree, ".codex/hooks.json")), existingHooks);
 });
 
 test("blank agent policy and current PRD are added only if absent and goal supplied", (t) => {

@@ -24,6 +24,18 @@ test("repo marketplace resolves only to the Rill source package, not a global in
   assert.equal(market.plugins[0].policy.installation, "AVAILABLE");
 });
 
+test("consumer project hooks expose SessionStart to native trust review", () => {
+  const nativeHooks = JSON.parse(read("bundle/repo-common/.codex/hooks.json"));
+  const pluginHooks = JSON.parse(read("bundle/plugin/hooks/hooks.json"));
+  const nativeStart = nativeHooks.hooks.SessionStart[0];
+  const pluginStart = pluginHooks.hooks.SessionStart[0];
+  assert.equal(nativeStart.matcher, pluginStart.matcher);
+  assert.equal(nativeStart.hooks[0].type, "command");
+  assert.match(nativeStart.hooks[0].command, /\.rill\/plugin\/hooks\/session-start\.mjs/);
+  assert.equal(nativeStart.hooks[0].timeout, 3);
+  assert.equal(nativeStart.hooks[0].additionalContextLimit, 500);
+});
+
 test("native skill discovery uses exactly one packaged skill root", () => {
   for (const name of ["brainstorming", "rill-discovery"]) {
     const skill = read(`bundle/plugin/skills/${name}/SKILL.md`);

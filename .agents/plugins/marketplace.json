@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "rill",
+      "name": "Rill",
       "source": {
         "source": "local",
-        "path": "./bundle/plugin"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

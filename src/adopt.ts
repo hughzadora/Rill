@@ -68,6 +68,7 @@ function checkSource(root: string, version: string): void {
     "bundle/repo-common/AGENTS.md",
     "bundle/repo-common/.agents/plugins/marketplace.json",
     "bundle/repo-common/.codex/config.toml",
+    "bundle/repo-common/.codex/hooks.json",
   ];
   const [manifestPath] = required;
   if (manifestPath === undefined || required.some((path) => !existsSync(join(root, path)))) {
@@ -135,6 +136,9 @@ function populate(root: string, worktree: string, goal: string, preserved: strin
       );
     }
   }
+  if (!preserved.includes(".codex/hooks.json")) {
+    copyNew(join(bundle, "repo-common/.codex/hooks.json"), join(worktree, ".codex/hooks.json"));
+  }
 }
 
 /** Prepare reviewed native Git changes; never mutate the existing consumer worktree. */
@@ -176,6 +180,7 @@ export function adoptProject(
     ".codex",
     ".codex/agents",
     ".codex/config.toml",
+    ".codex/hooks.json",
     ".codex/agents/explorer.toml",
     ".codex/agents/worker.toml",
     ".codex/agents/reviewer.toml",
@@ -195,6 +200,7 @@ export function adoptProject(
     "PRD.md",
     ".codex/config.toml",
     ".agents/plugins/marketplace.json",
+    ".codex/hooks.json",
   ]) {
     if (existing(join(target, path))) {
       preserved.push(path);

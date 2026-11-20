@@ -129,6 +129,9 @@ test("standalone copied distribution initializes a repo without the Rill Git che
   assert.equal(JSON.parse(result.stdout).status, "CREATED_NOT_VERIFIED");
   assert.match(readFileSync(join(target, "PRD.md"), "utf8"), /A new independent product/);
   assert.equal(existsSync(join(target, ".rill/plugin/plugin.json")), true);
+  assert.equal(existsSync(join(target, ".codex/hooks.json")), true);
+  const nativeHooks = JSON.parse(readFileSync(join(target, ".codex/hooks.json"), "utf8"));
+  assert.match(nativeHooks.hooks.SessionStart[0].hooks[0].command, /\.rill\/plugin\/hooks/);
 });
 
 test("missing goal reports a usage error rather than an environment failure", (t) => {

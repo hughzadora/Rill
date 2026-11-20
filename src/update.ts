@@ -145,9 +145,28 @@ export function planUpdate(
   if (toVersion !== version) {
     throw new RillCommandError("Source Plugin and canonical VERSION differ.", 2);
   }
-  if (!semver.gt(toVersion, fromVersion)) {
+  const sourceHookConfig = join(factoryRoot, "bundle/repo-common/.codex/hooks.json");
+  const projectCodexConfig = join(target, ".codex");
+  const projectHookConfig = join(projectCodexConfig, "hooks.json");
+  if (!isPresent(sourceHookConfig) || lstatSync(sourceHookConfig).isSymbolicLink()) {
+    throw new RillCommandError("The source project Hook configuration is missing or unsafe.", 2);
+  }
+  if (
+    isPresent(projectCodexConfig) &&
+    (lstatSync(projectCodexConfig).isSymbolicLink() || !lstatSync(projectCodexConfig).isDirectory())
+  ) {
+    throw new RillCommandError("The consumer .codex path is not a real directory.", 1);
+  }
+  if (
+    isPresent(projectHookConfig) &&
+    (lstatSync(projectHookConfig).isSymbolicLink() || !lstatSync(projectHookConfig).isFile())
+  ) {
+    throw new RillCommandError("The consumer .codex/hooks.json path is not a regular file.", 1);
+  }
+  const needsHookIntegration = !isPresent(projectHookConfig);
+  if (!semver.gt(toVersion, fromVersion) && !(toVersion === fromVersion && needsHookIntegration)) {
     throw new RillCommandError(
-      "No newer source Plugin version is available; downgrade is not automatic.",
+      "No newer source Plugin version is available, and the native Hook is already present; downgrade is not automatic.",
       1,
     );
   }
@@ -160,6 +179,7 @@ export function planUpdate(
   ]
     .map((path) => `.rill/plugin/${path}`)
     .sort();
+  pendingReview.push(".codex/hooks.json");
   const receipt: UpdateReceipt = {
     status: "PLAN_ONLY",
     path: target,
@@ -186,6 +206,11 @@ export function planUpdate(
       }
       mkdirSync(dirname(destination), { recursive: true });
       copyFileSync(from, destination);
+    }
+    if (needsHookIntegration) {
+      const destination = join(worktree, ".codex/hooks.json");
+      mkdirSync(dirname(destination), { recursive: true });
+      copyFileSync(sourceHookConfig, destination);
     }
     // Files not present upstream are intentionally retained for human review.
     // Do not stage, commit, merge or install; protected authorization is separate.

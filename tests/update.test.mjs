@@ -153,7 +153,7 @@ test("rill update rejects symlink-controlled managed paths without changing thei
   assert.equal(read(original), "user asset to preserve\n");
 });
 
-test("rill update refuses an existing same-version plugin without branch creation", (t) => {
+test("rill update prepares a same-version migration when native project Hook is missing", (t) => {
   const { repo } = fixture(t);
   writeFileSync(
     join(repo, ".rill/plugin/plugin.json"),
@@ -176,8 +176,58 @@ test("rill update refuses an existing same-version plugin without branch creatio
     0,
   );
   const output = command(repo, "--yes", "--json");
+  assert.equal(output.status, 0, output.stderr);
+  const receipt = JSON.parse(output.stdout);
+  assert.equal(receipt.status, "PREPARED_NOT_VERIFIED");
+  assert.equal(receipt.fromVersion, "0.0.1");
+  assert.equal(receipt.toVersion, "0.0.1");
+  assert.ok(receipt.pendingReview.includes(".codex/hooks.json"));
+  const hookConfig = JSON.parse(read(join(receipt.worktree, ".codex/hooks.json")));
+  assert.match(hookConfig.hooks.SessionStart[0].hooks[0].command, /\.rill\/plugin\/hooks/);
+  assert.equal(existsSync(join(repo, ".codex/hooks.json")), false);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+});
+
+test("same-version Hook migration preserves an existing consumer Hook file", (t) => {
+  const { repo } = fixture(t);
+  mkdirSync(join(repo, ".codex"));
+  writeFileSync(join(repo, ".codex/hooks.json"), '{"hooks":{"Stop":[]}}\n');
+  assert.equal(git(repo, "add", ".codex/hooks.json").status, 0);
+  const committed = git(
+    repo,
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "Existing native hook configuration",
+  );
+  assert.equal(committed.status, 0, committed.stderr);
+  writeFileSync(
+    join(repo, ".rill/plugin/plugin.json"),
+    readFileSync(join(root, "bundle/plugin/plugin.json")),
+  );
+  assert.equal(git(repo, "add", ".rill/plugin/plugin.json").status, 0);
+  const current = git(
+    repo,
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "Plugin already current",
+  );
+  assert.equal(current.status, 0, current.stderr);
+  const output = command(repo, "--yes", "--json");
   assert.equal(output.status, 1);
-  assert.match(output.stderr, /current|version|up.to.date/i);
+  assert.match(output.stderr, /Hook is already present/i);
+  assert.equal(read(join(repo, ".codex/hooks.json")), '{"hooks":{"Stop":[]}}\n');
 });
 
 test("rill update refuses an ignored, untracked managed plugin even with clean Git status", (t) => {

@@ -17,10 +17,6 @@ This branch retires the previous Rill runtime and configurations. It is **not a 
 
 - `bundle/plugin/plugin.json` — portable Agent Plugins identity; its version must match root `VERSION`.
 - `.agents/plugins/marketplace.json` — source-local discovery, never a global installation directive.
-- `bundle/plugin/skills/` — owner-supplied Superpowers brainstorming, one Rill discovery gate and dedicated Research/Grill Skill entrypoints.
-- `bundle/plugin/hooks/` — source-only SessionStart hook, dependent on native trust before execution.
-- `bundle/repo-common/.codex/` — consumer-scoped agent role/config templates; reviewer prompts do not grant a read-only sandbox.
-- `bundle/repo-common/PRD.md` — domain-neutral consumer specification.
 
 Run `bun install --frozen-lockfile` and `bun run ci` with pinned Bun 1.4.5 to verify the current TypeScript CLI and source contracts. Local plugin installation is supported by `codex plugin marketplace add <absolute-Rill-checkout>` and `codex plugin add rill@rill-source`, after reviewing the selected Codex HOME and permissions. Neither command authorizes untrusted hooks or adds permission to external repositories.
 
@@ -28,7 +24,7 @@ The owner-supplied Superpowers Brainstorming Skill now includes the upstream bui
 
 ## Greenfield initialization (local, not yet factory-certified)
 
-The built CLI supports `rill init PATH --goal "Actual product outcome" --yes --json` for a **new non-existing** target directory. It creates a Git root, a consumer-owned PRD, agent entry instructions, versioned Codex roles, a self-contained `0.0.1` Plugin, and a project-local Plugin Marketplace. Existing directories and symbolic links are rejected, rather than overwritten; staging is discarded on failure. A separate isolated Codex CLI confirmed that a freshly initialized project exposes and installs `rill@rill-consumer` as version `0.0.1`.
+The built CLI supports `rill init PATH --goal "Actual product outcome" --yes --json` for a **new non-existing** target directory. It creates a Git root, a consumer-owned PRD, agent entry instructions, versioned Codex roles, a native project Hook, a self-contained `0.0.1` Plugin, and a project-local Plugin Marketplace. Existing directories and symbolic links are rejected, rather than overwritten; staging is discarded on failure. The Hook appears in native Hook inventory as `untrusted` until its definition is reviewed and trusted in Codex. A separate isolated Codex CLI confirmed that a freshly initialized project exposes and installs `rill@rill-consumer` as version `0.0.1`.
 
 The command deliberately returns `CREATED_NOT_VERIFIED`: it does not install globally, trust Hooks, claim effective custom agent permissions, generate fake-green CI for an unknown product stack, or certify a real external product. `rill setup` and `rill doctor` are not implemented yet. Existing repositories have their own pending enrollment task.
 
@@ -46,7 +42,7 @@ Local independent product tests demonstrated a real positive business result and
 
 ## Native Git Plugin update preflight (not a release)
 
-`rill update PRODUCT_ROOT --json` previews the next managed Plugin version using canonical `VERSION`, verified SemVer ordering, native Git tracking and clean-state checks. `--yes` authorizes creation of an **isolated Git review worktree** only, returning `PREPARED_NOT_VERIFIED`; it does **not** merge or alter the live consumer's source. Old managed paths absent from the new source are retained for review, rather than silently deleted. Overwritten and retained paths are reported in `pendingReview`. Dirty repositories, symlinks, untracked managed Plugins, missing manifests and non-increasing versions are rejected.
+`rill update PRODUCT_ROOT --json` previews the next managed Plugin version using canonical `VERSION`, verified SemVer ordering, native Git tracking and clean-state checks. `--yes` authorizes creation of an **isolated Git review worktree** only, returning `PREPARED_NOT_VERIFIED`; it does **not** merge or alter the live consumer's source. Old managed paths absent from the new source are retained for review, rather than silently deleted. Overwritten and retained paths are reported in `pendingReview`. A same-version review is allowed when the project lacks the native Hook file so existing enrollments can receive this discovery repair. Existing Hook files are preserved. Dirty repositories, symlinks, untracked managed Plugins, missing manifests and non-increasing versions are rejected.
 
 `bundle/plugin/skills/rill-update/SKILL.md` describes the native reviewed Git merge/revert procedure; there is no bespoke plugin updater or rollback daemon. Deterministic tests show preservation of real business files during merge/revert and fail-closed behavior on committed and uncommitted conflicts. No real product has been upgraded. The current Codex CLI supports marketplace snapshot upgrades but provides no direct `codex plugin update` command; native installed version and Hook trust must be verified separately after authorized changes.
 
