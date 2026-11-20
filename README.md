@@ -26,6 +26,12 @@ Run `pnpm install --frozen-lockfile` and `pnpm run ci` to verify the current Typ
 
 The supplied brainstorming Skill references companion files absent from the upload. Completing the dependency audit and demonstrating actual native invocation is explicitly tracked in [#57](https://github.com/hughzadora/Rill/issues/57). File presence alone is not functional integration.
 
+## Greenfield initialization (local, not yet factory-certified)
+
+The built CLI supports `rill init PATH --goal "Actual product outcome" --yes --json` for a **new non-existing** target directory. It creates a Git root, a consumer-owned PRD, agent entry instructions, versioned Codex roles, a self-contained `0.0.1` Plugin, and a project-local Plugin Marketplace. Existing directories and symbolic links are rejected, rather than overwritten; staging is discarded on failure. A separate isolated Codex CLI confirmed that a freshly initialized project exposes and installs `rill@rill-consumer` as version `0.0.1`.
+
+The command deliberately returns `CREATED_NOT_VERIFIED`: it does not install globally, trust Hooks, claim effective custom agent permissions, generate fake-green CI for an unknown product stack, or certify a real external product. `rill setup` and `rill doctor` are not implemented yet. Existing repositories have their own pending enrollment task.
+
 ## Native execution evidence
 
 Native Codex JSONL events, not model prose, determine what ran. A Codex read of an installed Rill Skill was observed in an isolated read-only session. A second session **claimed** an Explorer result, but its trace contained only an empty `wait` call and stated that project configuration was untrusted/disabled. `src/native-evidence.ts` classifies such cases as **NOT_VERIFIED** and tests these false-positive paths. Installing a plugin does **not** automatically trust its Hooks or prove agent-model/sandbox configuration. No hook-trust bypass or user-global configuration edits are authorized.

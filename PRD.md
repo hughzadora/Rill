@@ -17,7 +17,7 @@ Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified cur
 | ID | Outcome / acceptance | Proposed landing area | Status |
 |---|---|---|---|
 | FR-01 | Versioned, independently installable native Codex package; fresh trusted session proves actual loading, model/permissions/roles/Hooks and optional MCP. | `bundle/plugin/`, `.agents/plugins/marketplace.json`, `bundle/repo-common/.codex/` | [IN-PROGRESS] |
-| FR-02 | `rill setup/init/doctor` operate on real isolated new/brownfield repos without destructive consumer overwrites; explicit JSON and exit codes. | `src/`, `bundle/` | [PLANNED] |
+| FR-02 | `rill setup/init/doctor` operate on real isolated new/brownfield repos without destructive consumer overwrites; explicit JSON and exit codes. | `src/init.ts`, `src/cli.ts`, `bundle/repo-common/` | [IN-PROGRESS] |
 | FR-03 | Owner intent flows through proportionate brainstorming, primary-source research, grill and a current acceptance-ready spec before execution. | `bundle/plugin/skills/`, `PRD.md` | [PLANNED] |
 | FR-04 | Native worker roles implement scoped code and regression tests; no hand-rolled agent runtime or unnecessary owner coordination. | `bundle/repo-common/.codex/agents/`, `bundle/plugin/skills/` | [PLANNED] |
 | FR-05 | Applicable source-complete lint, type, integration, accessibility, secret, supply-chain, coverage and negative tests gate delivery and reject false PASS. | `bundle/stacks/`, `.github/workflows/` | [PLANNED] |

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const cwd = fileURLToPath(new URL("../", import.meta.url));
-const run = (args, entry = "src/cli.ts") =>
+const run = (args, entry = "dist/cli.js") =>
   spawnSync(process.execPath, [entry, ...args], { cwd, encoding: "utf8" });
 
 test("rill version prints product SemVer, not blueprint edition", () => {

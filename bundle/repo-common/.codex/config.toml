@@ -14,3 +14,7 @@ config_file = "./agents/worker.toml"
 [agents.reviewer]
 description = "Independently audit exact current diff, spec, security and tests."
 config_file = "./agents/reviewer.toml"
+
+# The matching repository Marketplace still requires native installation/trust.
+[plugins."rill@rill-consumer"]
+enabled = true
