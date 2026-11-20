@@ -12,10 +12,10 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "bun run clean && bun build ./src/*.ts --no-bundle --target=node --outdir ./dist",
+    "build": "bun run clean && bun tools/build.mjs",
     "typecheck": "bun check --no-script",
-    "lint": "biome lint src tests",
-    "format:check": "bun fmt --check src tests package.json tsconfig.json",
+    "lint": "biome lint src tests tools",
+    "format:check": "bun fmt --check src tests tools package.json tsconfig.json",
     "test": "bun test --parallel=2 --timings=.github/test-timings.json ./tests/*.test.mjs",
     "test:coverage": "c8 --all --src dist --include 'dist/**/*.js' --check-coverage --per-file --lines 80 --reporter text node --test tests/*.test.mjs",
     "ci": "bun run --parallel lint typecheck format:check build && bun run --parallel test test:coverage",

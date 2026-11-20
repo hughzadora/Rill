@@ -22,7 +22,9 @@ test("Bun 1.4.5 is the only installed package manager and a frozen upstream lock
 test("native Bun test, strict check, formatter and build are real commands, not fake green scripts", () => {
   assert.match(manifest.scripts.typecheck, /bun check --no-script/);
   assert.match(manifest.scripts["format:check"], /bun fmt --check/);
-  assert.match(manifest.scripts.build, /bun build .*--no-bundle.*--target=node/);
+  assert.match(manifest.scripts.build, /bun tools\/build\.mjs/);
+  assert.match(read("tools/build.mjs"), /new Bun\.Glob/);
+  assert.match(read("tools/build.mjs"), /--no-bundle/);
   assert.match(manifest.scripts.test, /bun test --parallel=2.*--timings=/);
   assert.match(manifest.scripts["test:coverage"], /c8 --all.*--per-file --lines 80/);
   assert.match(manifest.scripts.ci, /bun run --parallel lint typecheck format:check build/);
