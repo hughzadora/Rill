@@ -7,7 +7,14 @@ name = "rill-factory"
 dynamic = ["version"]
 description = "Standalone Rill software factory CLI"
 requires-python = ">=3.14,<3.15"
-dependencies = ["typer>=0.19", "rich>=14", "copier>=9.19.1"]
+dependencies = [
+  "typer>=0.19",
+  "rich>=14",
+  "copier>=9.19.1",
+  "textual>=1.0.0",
+  "platformdirs>=4.3.0",
+  "pydantic>=2.10.0",
+]
 
 [tool.hatch.version]
 path = "VERSION"

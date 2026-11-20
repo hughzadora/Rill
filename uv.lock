@@ -624,7 +624,10 @@ name = "rill-factory"
 source = { editable = "." }
 dependencies = [
     { name = "copier" },
+    { name = "platformdirs" },
+    { name = "pydantic" },
     { name = "rich" },
+    { name = "textual" },
     { name = "typer" },
 ]
 
@@ -642,7 +645,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "copier", specifier = ">=9.19.1" },
+    { name = "platformdirs", specifier = ">=4.3.0" },
+    { name = "pydantic", specifier = ">=2.10.0" },
     { name = "rich", specifier = ">=14" },
+    { name = "textual", specifier = ">=1.0.0" },
     { name = "typer", specifier = ">=0.19" },
 ]
 
