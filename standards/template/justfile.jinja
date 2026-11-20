@@ -9,6 +9,7 @@ setup-ci:
 {% endif %}
 
 ci:
+    @if [[ "${RILL_FULL:-0}" != "1" ]] && command -v rill >/dev/null 2>&1; then rill policy ci-receipt ci running; fi
     @neutral="$(mktemp -d)"; trap 'rmdir "$neutral"' EXIT; (cd "$neutral"; unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML; GIT_DIR="{{justfile_directory()}}/.git" GIT_WORK_TREE="{{justfile_directory()}}" mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --gitleaks-ignore-path=/dev/null --ignore-gitleaks-allow --redact --exit-code 1)
 {% if react %}    pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run lint
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run typecheck
@@ -29,11 +30,14 @@ ci:
     mise exec aqua:mvdan/sh@3.14.1 -- shfmt -d -i 2 [[ shell_sources | tojson ]]/*.sh
     mise exec aqua:bats-core/bats-core@1.14.0 -- bats [[ shell_tests | tojson ]]
 {% endif %}
+    @if [[ "${RILL_FULL:-0}" != "1" ]] && command -v rill >/dev/null 2>&1; then rill policy ci-receipt ci pass; fi
 
 # Resource-heavy browser and independent integration tests run locally, not on each PR VM.
 ci-full:
-    just ci
+    @if command -v rill >/dev/null 2>&1; then rill policy ci-receipt full running; fi
+    RILL_FULL=1 just ci
 {% if react %}    pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run test:e2e
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run test:a11y
 {% endif %}{% if python %}    uv --directory [[ python_root | tojson ]] run --locked pytest -q [[ python_integration | tojson ]]
 {% endif %}
+    @if command -v rill >/dev/null 2>&1; then rill policy ci-receipt full pass; fi

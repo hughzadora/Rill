@@ -3,6 +3,7 @@
 import json
 import secrets
 import webbrowser
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import cast
@@ -22,7 +23,7 @@ from .constants import (
     UI_TOKEN_BYTES,
 )
 from .git_policy import branch, business_changes, head_summary, history
-from .state import load, save
+from .state import load, save, write_json
 
 
 def facts(root: Path) -> dict[str, object]:
@@ -35,9 +36,12 @@ def facts(root: Path) -> dict[str, object]:
         else ""
     )
     try:
-        ci: object = json.loads(ci_file.read_text(encoding="utf-8"))
+        loaded: object = json.loads(ci_file.read_text(encoding="utf-8"))
     except OSError, ValueError:
-        ci = {}
+        loaded = None
+    ci = cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
+    if ci.get("head") != head_summary(root):
+        ci = {"result": "unverified", "reason": "No CI receipt for this Git HEAD"}
     return {
         "mode": state.get("mode", "normal"),
         "phase": state.get("phase", "ready"),
@@ -50,7 +54,7 @@ def facts(root: Path) -> dict[str, object]:
         "shortHead": head_summary(root),
         "history": history(root),
         "symbols": symbols,
-        "ci": ci if isinstance(ci, dict) else {},
+        "ci": ci,
     }
 
 
@@ -63,6 +67,19 @@ def render(root: Path, *, serving: bool = False, token: str = "") -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(html, encoding="utf-8")
     return output
+
+
+def record_ci(root: Path, tier: str, status: str) -> None:
+    """Record an observed CI execution against the current Git revision."""
+    if tier not in {"ci", "core-full", "full"} or status not in {"running", "pass", "fail"}:
+        raise ValueError("Unsupported CI receipt")
+    summary: dict[str, object] = {
+        "head": head_summary(root),
+        "tier": tier,
+        "result": status,
+        "recorded_at": datetime.now(tz=UTC).isoformat(),
+    }
+    write_json(root, CI_SUMMARY_PATH, summary)
 
 
 def receipt(root: Path, decision: str) -> None:
@@ -78,6 +95,7 @@ class _ReceiptServer(HTTPServer):
         self.root = root
         self.token = token
         self.accepted = False
+        self.page = b""
         super().__init__((UI_HOST, UI_PORT), _Handler)
 
 
@@ -87,7 +105,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         server = cast("_ReceiptServer", self.server)
-        body = (server.root / DASHBOARD_PATH).read_bytes()
+        body = server.page
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -133,7 +151,7 @@ class _Handler(BaseHTTPRequestHandler):
 def serve(root: Path, *, open_browser: bool = True) -> None:
     with _ReceiptServer(root, secrets.token_urlsafe(UI_TOKEN_BYTES)) as server:
         origin = f"http://{UI_HOST}:{server.server_port}"
-        render(root, serving=True, token=server.token)
+        server.page = render(root, serving=True, token=server.token).read_bytes()
         print(origin, flush=True)
         if open_browser:
             webbrowser.open(origin)

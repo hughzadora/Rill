@@ -78,6 +78,8 @@ checks branch, commit size and independent frontend/backend changes;
 `guardrails.py` and `hooks.py` implement scoped write warnings and bounded
 symbol extraction. `dashboard.py` renders local facts and an ephemeral
 loopback receipt endpoint, with a single-file embedded HTML asset.
+Revision-bound L2/L3 CI receipts are atomically stored in `.rill/ci-summary.json`;
+a different Git HEAD invalidates prior green evidence.
 
 `VERSION` is the source for installed `rill-factory` metadata. Paths,
 limits, roles and state keys belong to the CLI constants registry.

@@ -31,8 +31,9 @@ def load(root: Path) -> dict[str, object]:
         }
 
 
-def save(root: Path, data: dict[str, object]) -> None:
-    path = root / STATE_PATH
+def write_json(root: Path, relative: Path, data: dict[str, object]) -> None:
+    """Atomically replace a private runtime JSON anchor."""
+    path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
@@ -48,6 +49,10 @@ def save(root: Path, data: dict[str, object]) -> None:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def save(root: Path, data: dict[str, object]) -> None:
+    write_json(root, STATE_PATH, data)
 
 
 def record_error(root: Path, message: str) -> None:

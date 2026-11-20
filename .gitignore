@@ -39,3 +39,5 @@ mutants/
 .rill/state.json
 .rill/symbols.txt
 .rill/last-error.log
+.rill/ci-summary.json
+.rill/dashboard.html

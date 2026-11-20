@@ -155,6 +155,9 @@ ci mode="incremental":
     [[ "$run_py" == true ]] && tasks+=(py)
     [[ "$run_sh" == true ]] && tasks+=(sh)
 
+    tier=ci
+    [[ "$mode" == "full" ]] && tier=core-full
+    mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" running >/dev/null 2>&1
     workdir="$(mktemp -d)"
     trap 'rm -rf -- "$workdir"' EXIT
     pids=()
@@ -176,11 +179,27 @@ ci mode="incremental":
         result=1
       fi
     done
+    if [[ "$result" -eq 0 ]]; then
+      mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" pass >/dev/null 2>&1
+    else
+      mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" fail >/dev/null 2>&1 || true
+    fi
     exit "$result"
 
 ci-full:
-    @just ci full
-    @just _silent-run factory just factory-ci
+    #!/usr/bin/env bash
+    set -euo pipefail
+    record() { mise exec --locked -- uv run --locked rill policy ci-receipt full "$1" >/dev/null 2>&1; }
+    record running
+    if just ci full; then
+      record running
+      if just _silent-run factory just factory-ci; then
+        record pass
+        exit 0
+      fi
+    fi
+    record fail || true
+    exit 1
 
 # ==============================================================================
 # 4. 防假测试压测：前后端并行变异测试 (Mutation Testing)

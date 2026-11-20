@@ -5,13 +5,15 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import pytest
 
 from rill_cli.core.constants import CI_SUMMARY_PATH, DASHBOARD_PATH, MAX_SYMBOL_LINES, SYMBOLS_PATH
-from rill_cli.core.dashboard import facts, receipt, render
+from rill_cli.core.dashboard import facts, receipt, record_ci, render
+from rill_cli.core.git_policy import git, head_summary
 from rill_cli.core.installer import install
 from rill_cli.core.state import load, save
 
@@ -24,11 +26,13 @@ def project(tmp_path: Path) -> Path:
 def test_dashboard_contains_real_git_timeline_and_bounded_symbols(project: Path) -> None:
     entries = [f"src/app.py:1 FunctionDef function{index}" for index in range(MAX_SYMBOL_LINES + 1)]
     (project / SYMBOLS_PATH).write_text("\n".join(entries), encoding="utf-8")
-    (project / CI_SUMMARY_PATH).write_text('{"test":"passed"}', encoding="utf-8")
+    record_ci(project, "full", "pass")
     observed = facts(project)
     assert observed["shortHead"] != "(unborn)"
     assert len(str(observed["symbols"]).splitlines()) == MAX_SYMBOL_LINES
-    assert observed["ci"] == {"test": "passed"}
+    assert isinstance(observed["ci"], dict)
+    assert observed["ci"]["result"] == "pass"
+    assert observed["ci"]["head"] == head_summary(project)
     assert observed["history"]
     assert observed["branch"] == "feat/rill-init"
     assert observed["dirty"] == 0
@@ -70,6 +74,14 @@ def test_loopback_receipt_rejects_bad_token_and_exits_after_valid_decision(proje
         embedded = re.search(r'<script type="application/json" id="rill-data">(.+)</script>', body)
         assert embedded is not None
         token = json.loads(embedded.group(1))["token"]
+        # Another read-only refresh must not invalidate the pending HTTP receipt.
+        render(project)
+        serving_page = urlopen(origin, timeout=5).read().decode("utf-8")  # noqa: S310
+        serving_data = re.search(
+            r'<script type="application/json" id="rill-data">(.+)</script>', serving_page
+        )
+        assert serving_data is not None
+        assert json.loads(serving_data.group(1))["serving"] is True
 
         def post(value: str) -> int:
             payload = json.dumps({"token": value, "decision": "approve"}).encode()
@@ -89,3 +101,18 @@ def test_loopback_receipt_rejects_bad_token_and_exits_after_valid_decision(proje
         assert child.wait(timeout=5) == 0
     assert load(project)["owner_decision"] == "approve"
     assert '"serving":false' in (project / DASHBOARD_PATH).read_text(encoding="utf-8")
+
+
+def test_ci_receipt_is_atomic_and_rejected_for_stale_revision(project: Path) -> None:
+    record_ci(project, "ci", "running")
+    assert cast("dict[str, object]", facts(project)["ci"])["result"] == "running"
+    record_ci(project, "ci", "pass")
+    assert cast("dict[str, object]", facts(project)["ci"])["result"] == "pass"
+    payload = json.loads((project / CI_SUMMARY_PATH).read_text(encoding="utf-8"))
+    assert payload["head"] == head_summary(project)
+    (project / "new.txt").write_text("New revision\n", encoding="utf-8")
+    git(project, "add", "new.txt")
+    git(project, "-c", "core.hooksPath=/dev/null", "commit", "-m", "test(rill): change revision")
+    assert cast("dict[str, object]", facts(project)["ci"])["result"] == "unverified"
+    with pytest.raises(ValueError, match="Unsupported CI"):
+        record_ci(project, "full", "faked-green")
