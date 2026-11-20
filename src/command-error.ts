@@ -3,7 +3,9 @@ export class RillCommandError extends Error {
   constructor(
     message: string,
     readonly exitCode: 1 | 2,
-    readonly category: "USAGE" | "POLICY" | "ENVIRONMENT" = exitCode === 1 ? "POLICY" : "ENVIRONMENT",
+    readonly category: "USAGE" | "POLICY" | "ENVIRONMENT" = exitCode === 1
+      ? "POLICY"
+      : "ENVIRONMENT",
   ) {
     super(message);
   }

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
 const skill = (name) => readFileSync(join(repo, "bundle/plugin/skills", name, "SKILL.md"), "utf8");
@@ -10,7 +10,10 @@ const skill = (name) => readFileSync(join(repo, "bundle/plugin/skills", name, "S
 test("research and grill each expose exactly one native discovery entry point", () => {
   const research = skill("rill-research");
   const grill = skill("rill-grill");
-  for (const [name, body] of [["rill-research", research], ["rill-grill", grill]]) {
+  for (const [name, body] of [
+    ["rill-research", research],
+    ["rill-grill", grill],
+  ]) {
     assert.match(body, new RegExp(`^---\\nname: ${name}\\n`));
     assert.match(body, /Use the installed `rill-discovery` Skill as the single design-intake gate/);
     assert.doesNotMatch(body, /Invoke `brainstorming` directly/);
@@ -35,7 +38,10 @@ test("Supplied upstream skill dependencies have an honest executable or disabled
   assert.ok(existsSync(join(folder, "visual-companion.md")));
   assert.match(b, /Source: obra\/superpowers/);
   assert.match(b, /Visual companion server is not bundled/);
-  assert.match(readFileSync(join(folder, "visual-companion.md"), "utf8"), /not available in this Rill distribution/i);
+  assert.match(
+    readFileSync(join(folder, "visual-companion.md"), "utf8"),
+    /not available in this Rill distribution/i,
+  );
 });
 
 test("single-PRD product design and actual independent review override upstream defaults", () => {
