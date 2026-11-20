@@ -1,6 +1,7 @@
 """Global fleet domain logic: native Git/Codex tools, no CLI or TUI imports."""
 
 import fcntl
+import json
 import os
 import shutil
 import subprocess
@@ -47,7 +48,11 @@ class FleetEngine:
 
     def __init__(self, *, data_root: Path | None = None, codex_root: Path | None = None) -> None:
         self.data_root = (data_root or user_data_path(FLEET_APP_ID, appauthor=False)).resolve()
-        self.codex_root = codex_root or Path.home() / GLOBAL_CODEX_DIR
+        configured = os.environ.get("CODEX_HOME")
+        fallback = Path(configured) if configured else Path.home() / GLOBAL_CODEX_DIR
+        self.codex_root = (
+            (codex_root if codex_root is not None else fallback).expanduser().resolve()
+        )
         self.files = AssetManager(self.data_root, self.codex_root)
 
     @contextmanager
@@ -71,6 +76,34 @@ class FleetEngine:
         if registry.demo:
             raise ValueError("Demo assets must never be persisted")
         return (registry.model_dump_json(indent=2) + "\n").encode()
+
+    @staticmethod
+    def _preview_token(registry: FleetSnapshot, details: object) -> str:
+        """Bind a confirmation to the exact registry and checked mutation inputs."""
+        encoded = json.dumps(
+            {"registry": registry.model_dump(mode="json"), "impact": details},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return digest(encoded.encode())
+
+    @staticmethod
+    def _bundle_impact(
+        manifest: AgentAssetManifest, payload: Mapping[str, bytes]
+    ) -> dict[str, object]:
+        return {
+            "manifest": manifest.model_dump(mode="json"),
+            "hashes": {path: digest(data) for path, data in payload.items()},
+        }
+
+    def _rollback_token(self, desired: Mapping[Path, bytes | None]) -> str:
+        return self._preview_token(
+            self.load(),
+            {
+                str(path): digest(data) if data is not None else None
+                for path, data in desired.items()
+            },
+        )
 
     def _save(self, registry: FleetSnapshot) -> None:
         atomic_write(self.data_root / FLEET_REGISTRY_FILE, self._registry_bytes(registry))
@@ -98,7 +131,9 @@ class FleetEngine:
         updates: Mapping[str, bytes | None],
     ) -> None:
         """Backup before writes and revert only files still matching our own output."""
-        backup = self.files.backup(action, list(updates))
+        previous = self.load()
+        all_owned = {name for asset in previous.assets for name in asset.file_hashes}
+        backup = self.files.backup(action, sorted(set(updates) | all_owned))
         original = self.files.verify_backup(backup)
         changed: dict[Path, bytes | None] = {}
         try:
@@ -138,9 +173,13 @@ class FleetEngine:
             self._transact(registry, "register", project.id, {})
         return project
 
-    def unregister_project(self, project_id: str) -> None:
+    def unregister_project(self, project_id: str, *, preview_token: str | None = None) -> None:
         with self._locked():
             registry = self.load()
+            if preview_token is not None and preview_token != self._preview_token(
+                registry, {"retire_project": project_id}
+            ):
+                raise PermissionError("Project registry changed after approval")
             selected = [item for item in registry.projects if item.id == project_id]
             if not selected:
                 raise KeyError(f"Unknown project: {project_id}")
@@ -154,9 +193,16 @@ class FleetEngine:
             if stored != manifest or stored_files != payload:
                 raise ValueError("Immutable cached asset version has changed")
             return cache
-        atomic_write(cache / FLEET_ASSET_MANIFEST, manifest.model_dump_json(indent=2).encode())
-        for item in manifest.files:
-            atomic_write(cache / item.source, payload[item.target])
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="rill-bundle-", dir=cache.parent) as temporary:
+            staging = Path(temporary)
+            atomic_write(
+                staging / FLEET_ASSET_MANIFEST, manifest.model_dump_json(indent=2).encode()
+            )
+            for item in manifest.files:
+                atomic_write(staging / item.source, payload[item.target])
+            read_bundle(staging)
+            os.replace(staging, cache)
         return cache
 
     def _verify_owned(self, asset: InstalledAsset) -> None:
@@ -182,10 +228,16 @@ class FleetEngine:
             if relative not in own_files and target.exists():
                 raise PermissionError(f"Refusing to replace unowned Codex file: {relative}")
 
-    def _install(self, bundle: Path, *, action: AuditAction) -> InstalledAsset:
+    def _install(
+        self, bundle: Path, *, action: AuditAction, preview_token: str | None = None
+    ) -> InstalledAsset:
         manifest, payload = read_bundle(bundle)
         with self._locked():
             registry = self.load()
+            if preview_token is not None and preview_token != self._preview_token(
+                registry, self._bundle_impact(manifest, payload)
+            ):
+                raise PermissionError("Asset bundle or inventory changed after approval")
             old = next((asset for asset in registry.assets if asset.id == manifest.id), None)
             if (action == "install") != (old is None):
                 raise ValueError("Use install for new assets, upgrade for registered assets")
@@ -216,38 +268,62 @@ class FleetEngine:
             )
             return asset
 
-    def install_bundle(self, bundle: Path) -> InstalledAsset:
-        return self._install(bundle, action="install")
+    def install_bundle(self, bundle: Path, *, preview_token: str | None = None) -> InstalledAsset:
+        return self._install(bundle, action="install", preview_token=preview_token)
 
-    def upgrade_bundle(self, bundle: Path) -> InstalledAsset:
-        return self._install(bundle, action="upgrade")
+    def upgrade_bundle(self, bundle: Path, *, preview_token: str | None = None) -> InstalledAsset:
+        return self._install(bundle, action="upgrade", preview_token=preview_token)
 
     def preview_bundle(self, bundle: Path, *, upgrade: bool = False) -> dict[str, object]:
-        """Read-only impact description for a terminal confirmation screen."""
+        """Owner preview protected by a cryptographic input+registry token."""
         manifest, payload = read_bundle(bundle)
-        registry = self.load()
-        old = next((item for item in registry.assets if item.id == manifest.id), None)
-        if upgrade != (old is not None):
-            raise ValueError("Asset operation does not match registration")
-        self._check_destinations(registry, payload, old)
-        paths = sorted(set(payload) | (set(old.file_hashes) if old else set[str]()))
-        return {
-            "id": manifest.id,
-            "version": manifest.version,
-            "kind": manifest.kind,
-            "paths": paths,
-            "backup": True,
-        }
+        with self._locked():
+            registry = self.load()
+            old = next((item for item in registry.assets if item.id == manifest.id), None)
+            if upgrade != (old is not None):
+                raise ValueError("Asset operation does not match registration")
+            if old is not None:
+                self._verify_owned(old)
+            self._check_destinations(registry, payload, old)
+            paths = sorted(set(payload) | (set(old.file_hashes) if old else set[str]()))
+            return {
+                "id": manifest.id,
+                "version": manifest.version,
+                "kind": manifest.kind,
+                "paths": paths,
+                "backup": True,
+                "token": self._preview_token(registry, self._bundle_impact(manifest, payload)),
+            }
 
     def preview_backup(self, backup_id: str) -> dict[str, object]:
-        """Validate saved bytes before presenting the owner a rollback impact."""
-        snapshot = self.files.inspect_backup(backup_id)
-        self.files.verify_backup(snapshot)
-        return {
-            "id": backup_id,
-            "paths": [f"{entry.namespace}/{entry.path}" for entry in snapshot.entries],
-            "backup": True,
-        }
+        """Validate every historical restore effect before owner approval."""
+        with self._locked():
+            desired, paths = self._rollback_plan(backup_id)
+            return {
+                "id": backup_id,
+                "paths": paths,
+                "backup": True,
+                "token": self._rollback_token(desired),
+            }
+
+    def preview_retire(self, identity: str, *, project: bool = False) -> dict[str, object]:
+        """Bind a retire decision to a registered project or verified asset."""
+        with self._locked():
+            registry = self.load()
+            if project:
+                if not any(item.id == identity for item in registry.projects):
+                    raise KeyError(f"Unknown project: {identity}")
+                paths: list[str] = []
+            else:
+                asset = next((item for item in registry.assets if item.id == identity), None)
+                if asset is None:
+                    raise KeyError(f"Unknown asset: {identity}")
+                self._verify_owned(asset)
+                paths = sorted(asset.file_hashes)
+            token = self._preview_token(
+                registry, {"retire_project" if project else "retire_asset": identity}
+            )
+            return {"id": identity, "paths": paths, "backup": True, "token": token}
 
     def install_archive(self, archive: Path, *, upgrade: bool = False) -> InstalledAsset:
         with tempfile.TemporaryDirectory(prefix="rill-asset-") as temporary:
@@ -260,9 +336,13 @@ class FleetEngine:
             package = download_release(spec, root)
             return self.install_archive(package, upgrade=upgrade)
 
-    def retire_asset(self, asset_id: str) -> None:
+    def retire_asset(self, asset_id: str, *, preview_token: str | None = None) -> None:
         with self._locked():
             registry = self.load()
+            if preview_token is not None and preview_token != self._preview_token(
+                registry, {"retire_asset": asset_id}
+            ):
+                raise PermissionError("Asset inventory changed after retire approval")
             old = next((asset for asset in registry.assets if asset.id == asset_id), None)
             if old is None:
                 raise KeyError(f"Unknown asset: {asset_id}")
@@ -280,19 +360,64 @@ class FleetEngine:
             manifest, payload = read_bundle(Path(asset.source))
             if manifest.id != asset.id or manifest.version != asset.version:
                 raise ValueError("Cached asset manifest does not match registered version")
+            if {target: digest(data) for target, data in payload.items()} != asset.file_hashes:
+                raise PermissionError("Cached repair payload differs from registered file hashes")
             self._check_destinations(registry, payload, asset)
             self._transact(registry, "repair", asset.id, payload)
             return asset
 
-    def rollback(self, backup_id: str) -> str:
-        """Restore original file bytes; capture current bytes as an undo snapshot."""
+    def _checked_historical_backup(
+        self, backup_id: str
+    ) -> tuple[dict[Path, bytes | None], set[str]]:
+        snapshot = self.files.inspect_backup(backup_id)
+        verified = dict(self.files.verify_backup(snapshot))
+        registry_path = self.data_root / FLEET_REGISTRY_FILE
+        if registry_path not in verified:
+            raise PermissionError("Snapshot does not contain the original registry")
+        original_bytes = verified[registry_path]
+        original = (
+            FleetSnapshot.model_validate_json(original_bytes) if original_bytes else FleetSnapshot()
+        )
+        historical = {name for item in original.assets for name in item.file_hashes}
+        included = {entry.path for entry in snapshot.entries if entry.namespace == "codex"}
+        if not historical.issubset(included):
+            raise PermissionError("Historical backup lacks the complete registered asset state")
+        return verified, included
+
+    def _rollback_plan(self, backup_id: str) -> tuple[dict[Path, bytes | None], list[str]]:
+        """Build an exact old-world image, including files added after that snapshot."""
+        verified, included = self._checked_historical_backup(backup_id)
+        current = self.load()
+        for asset in current.assets:
+            self._verify_owned(asset)
+        current_paths = {name for asset in current.assets for name in asset.file_hashes}
+        for name in included - current_paths:
+            path = self.files.file("codex", name)
+            if path.exists():
+                raise PermissionError(f"Historical restore would overwrite unowned file: {name}")
+        for name in current_paths - included:
+            verified[self.files.file("codex", name)] = None
+        return verified, sorted(included | current_paths)
+
+    def rollback(self, backup_id: str, *, preview_token: str | None = None) -> str:
+        """All-or-nothing historical restore with a byte-exact undo snapshot."""
         with self._locked():
-            original = self.files.inspect_backup(backup_id)
-            contents = self.files.verify_backup(original)
-            paths = [item.path for item in original.entries if item.namespace == "codex"]
+            desired, paths = self._rollback_plan(backup_id)
+            if preview_token is not None and preview_token != self._rollback_token(desired):
+                raise PermissionError("Backup or installed files changed after approval")
             undo = self.files.backup("rollback", paths)
-            self.files.restore(contents)
-            self._record("rollback", backup_id, undo.id)
+            original_bytes = self.files.verify_backup(undo)
+            try:
+                self.files.restore(list(desired.items()))
+                self._record("rollback", backup_id, undo.id)
+            except Exception:
+                try:
+                    self.files.restore_written(original_bytes, desired)
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Rollback failed and undo restoration is blocked; snapshot: {undo.id}"
+                    ) from exc
+                raise
             return undo.id
 
     def backups(self) -> list[str]:

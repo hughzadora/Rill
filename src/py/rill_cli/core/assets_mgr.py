@@ -55,14 +55,16 @@ def atomic_write(path: Path, contents: bytes) -> None:
 
 def safe_relative(root: Path, relative: str) -> Path:
     """Deny traversal and symlink-based writes outside any owner root."""
-    entry = AssetFile.relative_path(relative)
+    entry = Path(AssetFile.relative_path(relative))
     if root.is_symlink():
         raise PermissionError(f"Managed root is a symlink: {root}")
-    candidate = root / entry
+    candidate = root
+    for part in entry.parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            raise PermissionError(f"Asset is a symlinked path or alias: {relative}")
     if not candidate.resolve().is_relative_to(root.resolve()):
         raise PermissionError(f"Unsafe asset path: {relative}")
-    if candidate.is_symlink():
-        raise PermissionError(f"Asset is a symlink: {relative}")
     return candidate
 
 

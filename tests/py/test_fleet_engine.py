@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from rill_cli.core import fleet
+from rill_cli.core import assets_mgr, fleet
 from rill_cli.core.constants import FLEET_ASSET_MANIFEST, FLEET_REGISTRY_FILE
 from rill_cli.core.fleet import FleetEngine
 from rill_cli.core.git_policy import git
@@ -300,3 +300,204 @@ def test_symlink_bundle_is_rejected(engine: FleetEngine, tmp_path: Path) -> None
     with pytest.raises(PermissionError, match=r"Unsafe asset|symlink"):
         engine.install_bundle(root)
     assert engine.load().assets == []
+
+
+def test_old_snapshot_rollback_removes_later_asset_without_orphaning(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    engine.install_bundle(bundle(tmp_path))
+    original = (engine.data_root / FLEET_REGISTRY_FILE).read_bytes()
+    first_target = engine.codex_root / "skills/demo/SKILL.md"
+    other = tmp_path / "other-asset"
+    other.mkdir()
+    (other / "SKILL.md").write_bytes(b"# Later asset\n")
+    manifest = AgentAssetManifest(
+        id="other-skill",
+        name="Other skill",
+        kind="skill",
+        version="1.0.0",
+        files=[
+            AssetFile(
+                source="SKILL.md",
+                target="skills/other/SKILL.md",
+                sha256=hashlib.sha256(b"# Later asset\n").hexdigest(),
+            )
+        ],
+    )
+    (other / FLEET_ASSET_MANIFEST).write_text(manifest.model_dump_json())
+    engine.install_bundle(other)
+    later_target = engine.codex_root / "skills/other/SKILL.md"
+    assert later_target.exists()
+    backup = engine.audit_records()[-1].backup_id
+    assert backup is not None
+    engine.rollback(backup)
+    assert (engine.data_root / FLEET_REGISTRY_FILE).read_bytes() == original
+    assert first_target.read_bytes() == b"# Skill\n"
+    assert not later_target.exists()
+    assert [asset.id for asset in engine.load().assets] == ["demo-skill"]
+
+
+def test_partial_rollback_failure_undoes_registry_and_all_written_assets(
+    engine: FleetEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine.install_bundle(bundle(tmp_path))
+    engine.upgrade_bundle(bundle(tmp_path, version="1.1.0", payload=b"# Updated\n"))
+    previous = engine.audit_records()[-1].backup_id
+    assert previous is not None
+    registry = (engine.data_root / FLEET_REGISTRY_FILE).read_bytes()
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    current = target.read_bytes()
+    real_write = assets_mgr.atomic_write
+    failed = False
+
+    def fail_once_after_write(path: Path, contents: bytes) -> None:
+        nonlocal failed
+        real_write(path, contents)
+        if path == target and not failed:
+            failed = True
+            raise OSError("simulated power loss mid-rollback")
+
+    monkeypatch.setattr(assets_mgr, "atomic_write", fail_once_after_write)
+    with pytest.raises(OSError, match="power loss"):
+        engine.rollback(previous)
+    assert failed
+    assert target.read_bytes() == current
+    assert (engine.data_root / FLEET_REGISTRY_FILE).read_bytes() == registry
+    assert engine.load().assets[0].version == "1.1.0"
+    assert engine.audit_records()[-1].operation == "upgrade"
+    assert engine.backups()
+
+
+def test_repair_rejects_valid_but_replaced_cached_bundle(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    asset = engine.install_bundle(bundle(tmp_path))
+    cache = Path(asset.source)
+    changed = b"# Different approved version's bytes\n"
+    (cache / "contents/SKILL.md").write_bytes(changed)
+    manifest_path = cache / FLEET_ASSET_MANIFEST
+    manifest = AgentAssetManifest.model_validate_json(manifest_path.read_bytes())
+    changed_manifest = manifest.model_copy(
+        update={
+            "files": [
+                manifest.files[0].model_copy(update={"sha256": hashlib.sha256(changed).hexdigest()})
+            ]
+        }
+    )
+    manifest_path.write_text(changed_manifest.model_dump_json())
+    with pytest.raises(PermissionError, match="registered file hashes"):
+        engine.repair_asset(asset.id)
+    assert (engine.codex_root / "skills/demo/SKILL.md").read_bytes() == b"# Skill\n"
+
+
+def test_codex_home_uses_native_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    location = tmp_path / "alternate-codex"
+    monkeypatch.setenv("CODEX_HOME", str(location))
+    instance = FleetEngine(data_root=tmp_path / "data")
+    assert instance.codex_root == location
+    assert not location.exists()
+
+
+def test_alias_within_codex_root_is_denied(engine: FleetEngine, tmp_path: Path) -> None:
+    engine.codex_root.mkdir(parents=True)
+    (engine.codex_root / "real-skills").mkdir()
+    (engine.codex_root / "skills").symlink_to(engine.codex_root / "real-skills")
+    with pytest.raises(PermissionError, match="symlink"):
+        engine.install_bundle(bundle(tmp_path))
+    assert engine.load().assets == []
+
+
+def test_incomplete_cache_write_can_retry_without_poisoned_version(
+    engine: FleetEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = bundle(tmp_path)
+    actual_write = fleet.atomic_write
+    failed = False
+
+    def transient(path: Path, contents: bytes) -> None:
+        nonlocal failed
+        if path.name == "SKILL.md" and "rill-bundle-" in str(path) and not failed:
+            failed = True
+            raise OSError("simulated interrupted cache publish")
+        actual_write(path, contents)
+
+    monkeypatch.setattr(fleet, "atomic_write", transient)
+    with pytest.raises(OSError, match="interrupted cache"):
+        engine.install_bundle(source)
+    cache = engine.data_root / "bundles/demo-skill/1.0.0"
+    assert failed and not cache.exists()
+    assert not (engine.codex_root / "skills/demo/SKILL.md").exists()
+    installed = engine.install_bundle(source)
+    assert Path(installed.source) == cache
+    assert (cache / "contents/SKILL.md").read_bytes() == b"# Skill\n"
+
+
+def test_tui_bundle_approval_refuses_valid_payload_changed_after_preview(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    source = bundle(tmp_path)
+    preview = engine.preview_bundle(source)
+    token = preview["token"]
+    assert isinstance(token, str)
+    replacement = b"# Replaced after approval\n"
+    (source / "contents/SKILL.md").write_bytes(replacement)
+    manifest_path = source / FLEET_ASSET_MANIFEST
+    manifest = AgentAssetManifest.model_validate_json(manifest_path.read_bytes())
+    manifest_path.write_text(
+        manifest.model_copy(
+            update={
+                "files": [
+                    manifest.files[0].model_copy(
+                        update={"sha256": hashlib.sha256(replacement).hexdigest()}
+                    )
+                ]
+            }
+        ).model_dump_json()
+    )
+    with pytest.raises(PermissionError, match="changed after approval"):
+        engine.install_bundle(source, preview_token=token)
+    assert not (engine.codex_root / "skills/demo/SKILL.md").exists()
+    assert engine.load().assets == []
+
+
+def test_registry_change_after_bundle_approval_requires_new_preview(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    source = bundle(tmp_path)
+    token = engine.preview_bundle(source)["token"]
+    assert isinstance(token, str)
+    repository = tmp_path / "another-project"
+    repository.mkdir()
+    git(repository, "init", "-q", "-b", "main")
+    engine.register_project(repository)
+    with pytest.raises(PermissionError, match="changed after approval"):
+        engine.install_bundle(source, preview_token=token)
+    assert engine.load().assets == []
+    assert engine.load().projects[0].path == repository
+
+
+def test_rollback_and_retire_approval_invalidates_after_new_registration(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    asset = engine.install_bundle(bundle(tmp_path))
+    retire = engine.preview_retire(asset.id)
+    retire_token = retire["token"]
+    assert isinstance(retire_token, str)
+    repository = tmp_path / "newer-project"
+    repository.mkdir()
+    git(repository, "init", "-q", "-b", "main")
+    engine.register_project(repository)
+    with pytest.raises(PermissionError, match="changed after retire approval"):
+        engine.retire_asset(asset.id, preview_token=retire_token)
+    assert engine.load().assets[0].id == asset.id
+    previous = engine.audit_records()[-1].backup_id
+    assert previous is not None
+    token = engine.preview_backup(previous)["token"]
+    assert isinstance(token, str)
+    engine.unregister_project(engine.load().projects[0].id)
+    with pytest.raises(PermissionError, match="changed after approval"):
+        engine.rollback(previous, preview_token=token)
+    assert engine.load().assets[0].id == asset.id
+    assert not engine.load().projects
