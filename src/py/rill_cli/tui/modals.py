@@ -117,8 +117,9 @@ class HelpModal(ModalScreen[None]):
             yield Static(
                 "↑ / ↓ or j / k  Navigate tables\n"
                 "/  Search   ·   i  Install/register   ·   u  Upgrade\n"
-                "d  Doctor   ·   x  Retire   ·   b  Rollback\n"
-                "w  Open offline dashboard   ·   r  Refresh\n"
+                "d  Doctor   ·   g  Governance   ·   x  Retire\n"
+                "b  Rollback   ·   w  Offline dashboard\n"
+                "r  Refresh\n"
                 "?  Help   ·   q  Quit\n\n"
                 "Protected actions always require explicit confirmation.",
                 classes="modal-body",

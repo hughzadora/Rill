@@ -16,6 +16,7 @@ from rill_cli.core import dashboard
 from rill_cli.core.constants import FLEET_TUI_STYLESHEET
 from rill_cli.core.fixtures import demo_fleet
 from rill_cli.core.fleet import FleetEngine
+from rill_cli.core.governance_engine import GovernanceEngine
 from rill_cli.core.models import AuditRecord, FleetSnapshot
 from rill_cli.tui.modals import ConfirmModal, HelpModal, PathWizard, WizardMode, WizardRequest
 
@@ -36,15 +37,26 @@ class FleetApp(App[None]):
         ("i", "install", "Install"),
         ("u", "upgrade", "Upgrade"),
         ("d", "doctor", "Doctor"),
+        ("g", "governance", "Governance"),
         ("x", "retire", "Retire"),
         ("b", "rollback", "Rollback"),
         ("w", "dashboard", "HTML"),
         ("?", "help", "Help"),
     ]
 
-    def __init__(self, engine: FleetEngine | None = None, *, demo: bool = False) -> None:
+    def __init__(
+        self,
+        engine: FleetEngine | None = None,
+        *,
+        demo: bool = False,
+        governance_root: Path | None = None,
+        governance_data_root: Path | None = None,
+    ) -> None:
         super().__init__()
         self.engine = engine or FleetEngine()
+        self.governance_root = governance_root or Path.cwd()
+        self.governance_data_root = governance_data_root
+        self.governance_report: dict[str, object] | None = None
         self.demo = demo
         self.snapshot = FleetSnapshot()
         self.health: dict[str, object] = {}
@@ -71,6 +83,7 @@ class FleetApp(App[None]):
                 ("Install", "install"),
                 ("Upgrade", "upgrade"),
                 ("Doctor", "doctor"),
+                ("Governance", "governance"),
                 ("Retire", "retire"),
                 ("Rollback", "rollback"),
                 ("HTML", "dashboard"),
@@ -191,6 +204,7 @@ class FleetApp(App[None]):
             "action-install": self.action_install,
             "action-upgrade": self.action_upgrade,
             "action-doctor": self.action_doctor,
+            "action-governance": self.action_governance,
             "action-retire": self.action_retire,
             "action-rollback": self.action_rollback,
             "action-dashboard": self.action_dashboard,
@@ -306,6 +320,42 @@ class FleetApp(App[None]):
             self.call_from_thread(self.notify, f"{operation.title()} completed", timeout=3)
         except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
             self.call_from_thread(self._error, str(exc))
+
+    def action_governance(self) -> None:
+        self._governance_worker()
+
+    def _governance_project(self) -> Path:
+        if self.selected is not None and self.selected[0] == "project":
+            project = next(
+                (item for item in self.snapshot.projects if item.id == self.selected[1]), None
+            )
+            if project is not None:
+                return project.path
+        return self.governance_root
+
+    @work(thread=True, group="fleet-governance")
+    def _governance_worker(self) -> None:
+        try:
+            report = GovernanceEngine(
+                self._governance_project(), data_root=self.governance_data_root
+            ).summary()
+            self.call_from_thread(self._show_governance, report)
+        except (OSError, ValueError, PermissionError, subprocess.SubprocessError) as exc:
+            self.call_from_thread(self._error, str(exc))
+
+    def _show_governance(self, report: dict[str, object]) -> None:
+        """Show only capped counters and statuses, never raw error logs."""
+        self.governance_report = report
+        entries = report.get("defects")
+        count = len(cast("list[object]", entries)) if isinstance(entries, list) else 0
+        self.query_one("#details", Static).update(
+            f"GOVERNANCE / {report['governance_gate']}\n"
+            f"L1 frozen: {report['contract_frozen']}\n"
+            f"Registered defects: {count}\n"
+            "Use rill governance status --json for individual budgets."
+        )
+        self._log(f"Governance: {report['governance_gate']} · {count} tracked defects")
+        self.notify("Governance status loaded", timeout=2)
 
     def action_doctor(self) -> None:
         self._doctor_worker()

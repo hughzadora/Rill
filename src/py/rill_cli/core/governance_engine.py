@@ -206,14 +206,46 @@ class GovernanceEngine:
             stream.flush()
             os.fsync(stream.fileno())
 
+    def summary(self) -> dict[str, object]:
+        """Bounded read-only status for CLI, TUI and future owner dashboards."""
+        ledger = self.load()
+        defects = [
+            {
+                "identity": entry.identity,
+                "severity": entry.severity.value,
+                "state": entry.state.value,
+                "attempts": entry.attempt_count,
+                "limit": entry.attempt_limit,
+                "remaining": entry.attempt_limit - entry.attempt_count,
+                "issue_number": entry.issue_number,
+            }
+            for entry in ledger.defects.values()
+        ]
+        blocked = self.release_blockers()
+        return {
+            "configured": self.state_path.exists(),
+            "contract_frozen": ledger.frozen is not None,
+            "contract_revision": ledger.frozen.revision if ledger.frozen else None,
+            "defects": defects,
+            "blockers": blocked,
+            "governance_gate": "blocked" if blocked else "pass",
+            "scope": "registered governance defects only; not a release approval",
+        }
+
     def release_blockers(self) -> list[str]:
         ledger = self.load()
         if ledger.frozen is None:
             return ["L1 contract has not been frozen"]
         allowed = {Disposition.VERIFIED, Disposition.QUARANTINED, Disposition.DEFERRED}
-        return [
+        blockers = [
             f"{item.identity}: {item.state}"
             for item in ledger.defects.values()
             if item.state not in allowed
             or (item.severity == Severity.P0 and item.state != Disposition.VERIFIED)
         ]
+        debt_path = self.root / GOVERNANCE_TECH_DEBT_PATH
+        if any(item.state == Disposition.QUARANTINED for item in ledger.defects.values()) and (
+            not debt_path.is_file() or debt_path.is_symlink()
+        ):
+            blockers.append("Quarantined P1 evidence is missing from TECH_DEBT.md")
+        return blockers
