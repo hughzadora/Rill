@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -123,8 +124,10 @@ test("applied review branch preserves custom Codex policy, app source, tests and
   );
   assert.equal(text(join(receipt.worktree, "src/core.mjs")), text(join(repo, "src/core.mjs")));
   assert.equal(text(join(receipt.worktree, "PRD.md")), text(join(repo, "PRD.md")));
-  assert.equal(existsSync(join(receipt.worktree, ".rill/plugin/plugin.json")), true);
-  assert.equal(existsSync(join(receipt.worktree, ".agents/plugins/marketplace.json")), true);
+  assert.equal(existsSync(join(receipt.worktree, ".rill/plugin/plugin.json")), false);
+  assert.equal(existsSync(join(receipt.worktree, ".codex/hooks.json")), false);
+  assert.equal(existsSync(join(receipt.worktree, ".agents/plugins/marketplace.json")), false);
+  assert.equal(receipt.nativePlugin, "REQUIRES_NATIVE_INSTALL");
   assert.ok(receipt.pendingIntegration.includes("AGENTS.md"));
   assert.ok(receipt.pendingIntegration.includes(".codex/config.toml"));
   assert.equal(receipt.nativeTrust, "REQUIRES_USER_APPROVAL");
@@ -140,6 +143,34 @@ test("applied review branch preserves custom Codex policy, app source, tests and
     "a genuine business regression must turn the product test red",
   );
   writeFileSync(join(receipt.worktree, "src/core.mjs"), originalSource);
+});
+
+test("existing project hooks remain untouched because the Plugin owns the Hook", (t) => {
+  const { repo } = fixture(t, { existingPrd: true });
+  mkdirSync(join(repo, ".codex"), { recursive: true });
+  const existingHooks = '{"hooks":{"Stop":[]}}\n';
+  writeFileSync(join(repo, ".codex/hooks.json"), existingHooks);
+  const stage = git(repo, "add", ".codex/hooks.json");
+  assert.equal(stage.status, 0, stage.stderr);
+  const commit = git(
+    repo,
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-qm",
+    "existing native hooks",
+  );
+  assert.equal(commit.status, 0, commit.stderr);
+
+  const result = call(repo, "--yes", "--json");
+  assert.equal(result.status, 0, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.ok(!receipt.pendingIntegration.includes(".codex/hooks.json"));
+  assert.equal(text(join(receipt.worktree, ".codex/hooks.json")), existingHooks);
 });
 
 test("blank agent policy and current PRD are added only if absent and goal supplied", (t) => {
@@ -165,11 +196,15 @@ test("dirty worktree is rejected without modifying source or adding review branc
   assert.equal(git(repo, "branch", "--list").stdout, before);
 });
 
-test("a product-owned .rill/plugin is a hard conflict, not an upgrade or overwrite", (t) => {
-  const { repo } = fixture(t, { existingPlugin: true });
+test("unrelated legacy plugin files are preserved because no Plugin is copied", (t) => {
+  const { repo } = fixture(t, { existingPlugin: true, existingPrd: true });
   const result = call(repo, "--yes", "--json");
-  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.status, 0, result.stderr);
   assert.equal(text(join(repo, ".rill/plugin/user-owned.txt")), "Not Rill owned");
+  assert.equal(
+    text(join(JSON.parse(result.stdout).worktree, ".rill/plugin/user-owned.txt")),
+    "Not Rill owned",
+  );
   assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
 });
 
@@ -185,8 +220,11 @@ test("standalone distribution can prepare a brownfield review without repository
   const distribution = join(parent, "standalone-rill");
   mkdirSync(distribution);
   cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
-  cpSync(join(factory, "bundle"), join(distribution, "bundle"), { recursive: true });
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
   cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
   cpSync(join(factory, "package.json"), join(distribution, "package.json"));
   const result = exec(
     process.execPath,
@@ -195,4 +233,179 @@ test("standalone distribution can prepare a brownfield review without repository
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "PREPARED_NOT_VERIFIED");
+});
+
+test("rejects a symlinked native role config and preserves consumer history", (t) => {
+  const { repo, parent, head } = fixture(t, { existingPrd: true });
+  const distribution = join(parent, "unsafe-factory");
+  mkdirSync(distribution);
+  cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
+  const original = join(repo, "src/core.mjs");
+  const nativeRole = join(distribution, ".codex/agents/reviewer.toml");
+  rmSync(nativeRole);
+  symlinkSync(original, nativeRole);
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+  assert.equal(text(original), "export const total = (a,b) => a+b;\n");
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(
+    git(repo, "worktree", "list", "--porcelain").stdout.match(/^worktree /gm)?.length,
+    1,
+  );
+});
+
+test("adoption rejects symlinked consumer template before creating a review worktree", (t) => {
+  const { repo, parent, head } = fixture(t, { existingPrd: true });
+  const distribution = join(parent, "symlinked-hook-factory");
+  mkdirSync(distribution);
+  cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
+  const sourceEntry = join(distribution, "templates/consumer/AGENTS.md");
+  rmSync(sourceEntry);
+  symlinkSync(join(factory, "templates/consumer/AGENTS.md"), sourceEntry);
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2);
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+});
+
+test("an existing consumer symlinked Codex role directory is rejected before mutation", (t) => {
+  const { repo, head } = fixture(t, { custom: false, existingPrd: true });
+  mkdirSync(join(repo, ".codex"));
+  symlinkSync(join(repo, "src"), join(repo, ".codex/agents"));
+  assert.equal(git(repo, "add", "-A").status, 0);
+  assert.equal(
+    git(
+      repo,
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "Existing unsafe role path",
+    ).status,
+    0,
+  );
+  const committed = git(repo, "rev-parse", "HEAD").stdout.trim();
+  const result = call(repo, "--yes", "--json");
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /symbolic link/);
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), committed);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(text(join(repo, "src/core.mjs")), "export const total = (a,b) => a+b;\n");
+  assert.notEqual(committed, head);
+});
+
+test("invalid PRD template fails and cleans an isolated adoption review worktree", (t) => {
+  const { repo, parent, head } = fixture(t, { custom: false });
+  const distribution = join(parent, "bad-template-factory");
+  mkdirSync(distribution);
+  for (const asset of ["dist", ".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  writeFileSync(join(distribution, "templates/consumer/PRD.md"), "# Missing outcome marker\n");
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--goal", "A product", "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /no goal marker/);
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(
+    git(repo, "worktree", "list", "--porcelain").stdout.match(/^worktree /gm)?.length,
+    1,
+  );
+});
+
+test("consumer-owned reviewer role cannot be replaced by implicit config enrollment", (t) => {
+  const { repo } = fixture(t, { custom: false, existingPrd: true });
+  mkdirSync(join(repo, ".codex/agents"), { recursive: true });
+  const reviewer = join(repo, ".codex/agents/reviewer.toml");
+  const original = "name = 'consumer-reviewer'\n";
+  writeFileSync(reviewer, original);
+  assert.equal(git(repo, "add", "-A").status, 0);
+  assert.equal(
+    git(
+      repo,
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "Owner reviewer role",
+    ).status,
+    0,
+  );
+  const result = call(repo, "--yes", "--json");
+  assert.equal(result.status, 0, result.stderr);
+  const receipt = JSON.parse(result.stdout);
+  assert.ok(receipt.pendingIntegration.includes(".codex/config.toml"));
+  assert.equal(text(reviewer), original);
+  assert.equal(text(join(receipt.worktree, ".codex/agents/reviewer.toml")), original);
+  assert.equal(existsSync(join(receipt.worktree, ".codex/config.toml")), false);
+});
+
+test("adoption rejects a nested directory instead of treating it as the Git root", (t) => {
+  const { repo, head } = fixture(t, { existingPrd: true });
+  const result = call(join(repo, "src"), "--yes", "--json");
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /root of its existing Git worktree/);
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+});
+
+test("adoption rejects symlinked native source directory ancestors", (t) => {
+  const { repo, parent, head } = fixture(t, { existingPrd: true });
+  const distribution = join(parent, "unsafe-directory-source");
+  mkdirSync(distribution);
+  cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  rmSync(join(distribution, ".codex/agents"), { recursive: true });
+  symlinkSync(join(factory, ".codex/agents"), join(distribution, ".codex/agents"));
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(
+    git(repo, "worktree", "list", "--porcelain").stdout.match(/^worktree /gm)?.length,
+    1,
+  );
 });

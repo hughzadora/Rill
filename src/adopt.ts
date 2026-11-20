@@ -25,6 +25,7 @@ export interface AdoptionReceipt {
   version: string;
   preserved: string[];
   pendingIntegration: string[];
+  nativePlugin: "REQUIRES_NATIVE_INSTALL";
   nativeTrust: "REQUIRES_USER_APPROVAL";
   branch?: string;
   worktree?: string;
@@ -62,29 +63,45 @@ function rejectSymlinkAncestors(target: string, paths: string[]): void {
 }
 
 function checkSource(root: string, version: string): void {
+  for (const path of ["templates", "templates/consumer", ".codex", ".codex/agents"]) {
+    const directory = join(root, path);
+    if (!existing(directory) || !lstatSync(directory).isDirectory()) {
+      throw new RillCommandError("The Rill source has missing or unsafe project directories.", 2);
+    }
+  }
   const required = [
-    "bundle/plugin/plugin.json",
-    "bundle/repo-common/PRD.md",
-    "bundle/repo-common/AGENTS.md",
-    "bundle/repo-common/.agents/plugins/marketplace.json",
-    "bundle/repo-common/.codex/config.toml",
+    "plugin.json",
+    "templates/consumer/PRD.md",
+    "templates/consumer/AGENTS.md",
+    ".codex/config.toml",
+    ".codex/agents/explorer.toml",
+    ".codex/agents/worker.toml",
+    ".codex/agents/reviewer.toml",
   ];
   const [manifestPath] = required;
-  if (manifestPath === undefined || required.some((path) => !existsSync(join(root, path)))) {
-    throw new RillCommandError("The Rill distribution is missing maintained consumer assets.", 2);
+  if (
+    manifestPath === undefined ||
+    required.some((path) => !existing(join(root, path)) || !lstatSync(join(root, path)).isFile())
+  ) {
+    throw new RillCommandError("The Rill distribution has missing or unsafe consumer assets.", 2);
   }
   const manifest: unknown = JSON.parse(readFileSync(join(root, manifestPath), "utf8"));
   if (
     !manifest ||
     typeof manifest !== "object" ||
     !("version" in manifest) ||
+    !("name" in manifest) ||
+    manifest.name !== "rill" ||
     manifest.version !== version
   ) {
-    throw new RillCommandError("The Rill bundle does not match the canonical VERSION.", 2);
+    throw new RillCommandError("The native Rill Plugin does not match canonical VERSION.", 2);
   }
 }
 
 function copyNew(source: string, destination: string): void {
+  if (lstatSync(source).isSymbolicLink()) {
+    throw new RillCommandError(`Refusing a symlink in Rill-managed assets: ${source}`, 2);
+  }
   if (existing(destination)) {
     throw new RillCommandError(`Managed target path already exists: ${destination}`, 1);
   }
@@ -95,6 +112,12 @@ function copyNew(source: string, destination: string): void {
       force: false,
       errorOnExist: true,
       dereference: false,
+      filter: (path) => {
+        if (lstatSync(path).isSymbolicLink()) {
+          throw new RillCommandError(`Refusing a symlink in Rill-managed assets: ${path}`, 2);
+        }
+        return true;
+      },
     });
   } else {
     copyFileSync(source, destination);
@@ -102,37 +125,27 @@ function copyNew(source: string, destination: string): void {
 }
 
 function populate(root: string, worktree: string, goal: string, preserved: string[]): void {
-  const bundle = join(root, "bundle");
-  copyNew(join(bundle, "plugin"), join(worktree, ".rill/plugin"));
-  if (!preserved.includes(".agents/plugins/marketplace.json")) {
-    copyNew(
-      join(bundle, "repo-common/.agents/plugins/marketplace.json"),
-      join(worktree, ".agents/plugins/marketplace.json"),
-    );
-  }
+  const template = join(root, "templates/consumer");
   if (!preserved.includes("AGENTS.md")) {
-    copyNew(join(bundle, "repo-common/AGENTS.md"), join(worktree, "AGENTS.md"));
+    copyNew(join(template, "AGENTS.md"), join(worktree, "AGENTS.md"));
   }
   if (!preserved.includes("PRD.md")) {
-    const template = readFileSync(join(bundle, "repo-common/PRD.md"), "utf8");
+    const prdTemplate = readFileSync(join(template, "PRD.md"), "utf8");
     const marker = "[Describe the user-facing product result.]";
-    if (!template.includes(marker)) {
+    if (!prdTemplate.includes(marker)) {
       throw new RillCommandError("The canonical product PRD has no goal marker.", 2);
     }
     writeFileSync(
       join(worktree, "PRD.md"),
-      template.replace(marker, goal.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")),
+      prdTemplate.replace(marker, goal.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")),
       { flag: "wx" },
     );
   }
   if (!preserved.includes(".codex/config.toml")) {
-    copyNew(join(bundle, "repo-common/.codex/config.toml"), join(worktree, ".codex/config.toml"));
+    copyNew(join(root, ".codex/config.toml"), join(worktree, ".codex/config.toml"));
     const roles = ["explorer.toml", "worker.toml", "reviewer.toml"];
     for (const role of roles) {
-      copyNew(
-        join(bundle, "repo-common/.codex/agents", role),
-        join(worktree, ".codex/agents", role),
-      );
+      copyNew(join(root, ".codex/agents", role), join(worktree, ".codex/agents", role));
     }
   }
 }
@@ -166,11 +179,6 @@ export function adoptProject(
   checkSource(root, version);
 
   const guarded = [
-    ".rill",
-    ".rill/plugin",
-    ".agents",
-    ".agents/plugins",
-    ".agents/plugins/marketplace.json",
     "AGENTS.md",
     "PRD.md",
     ".codex",
@@ -181,21 +189,10 @@ export function adoptProject(
     ".codex/agents/reviewer.toml",
   ];
   rejectSymlinkAncestors(target, guarded);
-  if (existing(join(target, ".rill/plugin"))) {
-    throw new RillCommandError(
-      "Existing .rill/plugin is consumer-owned or managed by another version. Refusing overwrite.",
-      1,
-    );
-  }
 
   const preserved: string[] = [];
   const pendingIntegration: string[] = [];
-  for (const path of [
-    "AGENTS.md",
-    "PRD.md",
-    ".codex/config.toml",
-    ".agents/plugins/marketplace.json",
-  ]) {
+  for (const path of ["AGENTS.md", "PRD.md", ".codex/config.toml"]) {
     if (existing(join(target, path))) {
       preserved.push(path);
       // These native files cannot be silently combined with Rill's routing/trust configuration.
@@ -227,6 +224,7 @@ export function adoptProject(
     version,
     preserved,
     pendingIntegration,
+    nativePlugin: "REQUIRES_NATIVE_INSTALL",
     nativeTrust: "REQUIRES_USER_APPROVAL",
   };
   if (!apply) return receipt;

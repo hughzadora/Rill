@@ -60,7 +60,7 @@ export function verifyNativeEvidence(jsonl: string, stderr: string): NativeEvide
       typeof args === "object" && args !== null && "path" in args
         ? (args as { path?: unknown }).path
         : null;
-    return typeof filePath === "string" && /\/skills\/rill-discovery\/SKILL\.md$/.test(filePath);
+    return typeof filePath === "string" && /\/skills\/rill-recover\/SKILL\.md$/.test(filePath);
   });
 
   // "wait" without any receiver threads does not prove delegation.

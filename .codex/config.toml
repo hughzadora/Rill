@@ -1,4 +1,4 @@
-# Rill consumer project defaults. These do not grant extra permissions.
+# Rill native project configuration. These role instructions do not grant permissions.
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 3
@@ -16,5 +16,5 @@ description = "Independently audit exact current diff, spec, security and tests.
 config_file = "./agents/reviewer.toml"
 
 # The matching repository Marketplace still requires native installation/trust.
-[plugins."rill@rill-consumer"]
+[plugins."rill@rill-source"]
 enabled = true

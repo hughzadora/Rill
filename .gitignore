@@ -11,7 +11,6 @@ coverage/
 .cache/
 .tmp/
 .temp/
-.rill/
 .pytest_cache/
 .ruff_cache/
 .venv/

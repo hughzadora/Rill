@@ -23,7 +23,7 @@ const run = (executable, args) =>
   spawnSync(process.execPath, [executable, ...args], { encoding: "utf8", cwd: repo });
 const compiled = join(repo, "dist/cli.js");
 
-test("new product gets a specific PRD, versioned Plugin, native roles and a new Git root", (t) => {
+test("new product gets a scoped PRD and native Codex config without a Plugin copy", (t) => {
   const parent = scratch();
   t.after(() => rmSync(parent, { recursive: true, force: true }));
   const target = join(parent, "equipment-portal");
@@ -46,15 +46,11 @@ test("new product gets a specific PRD, versioned Plugin, native roles and a new 
   );
   assert.equal(existsSync(join(target, "CONSTITUTION.md")), false);
   assert.equal(existsSync(join(target, ".codex/agents/reviewer.toml")), true);
-  assert.equal(existsSync(join(target, ".rill/plugin/skills/brainstorming/SKILL.md")), true);
-  assert.equal(
-    JSON.parse(readFileSync(join(target, ".rill/plugin/plugin.json"), "utf8")).version,
-    "0.0.1",
-  );
-  const marketplace = JSON.parse(
-    readFileSync(join(target, ".agents/plugins/marketplace.json"), "utf8"),
-  );
-  assert.equal(marketplace.plugins[0].source.path, "./.rill/plugin");
+  assert.equal(receipt.nativePlugin, "REQUIRES_NATIVE_INSTALL");
+  assert.equal(existsSync(join(target, ".rill/plugin")), false);
+  assert.equal(existsSync(join(target, ".agents/plugins/marketplace.json")), false);
+  assert.equal(existsSync(join(target, ".codex/hooks.json")), false);
+  assert.match(readFileSync(join(target, ".codex/config.toml"), "utf8"), /rill@rill-source/);
   assert.equal(
     existsSync(join(target, ".github/workflows/quality.yml")),
     false,
@@ -115,7 +111,10 @@ test("standalone copied distribution initializes a repo without the Rill Git che
   cpSync(join(repo, "dist"), join(distribution, "dist"), { recursive: true });
   cpSync(join(repo, "package.json"), join(distribution, "package.json"));
   cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
-  cpSync(join(repo, "bundle"), join(distribution, "bundle"), { recursive: true });
+  cpSync(join(repo, "plugin.json"), join(distribution, "plugin.json"));
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+  }
   const target = join(parent, "independent-product");
   const result = run(join(distribution, "dist/cli.js"), [
     "init",
@@ -128,7 +127,8 @@ test("standalone copied distribution initializes a repo without the Rill Git che
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "CREATED_NOT_VERIFIED");
   assert.match(readFileSync(join(target, "PRD.md"), "utf8"), /A new independent product/);
-  assert.equal(existsSync(join(target, ".rill/plugin/plugin.json")), true);
+  assert.equal(existsSync(join(target, ".rill/plugin")), false);
+  assert.equal(existsSync(join(target, ".codex/agents/reviewer.toml")), true);
 });
 
 test("missing goal reports a usage error rather than an environment failure", (t) => {
@@ -147,8 +147,11 @@ test("mismatched plugin version fails without exposing a half-created project", 
   cpSync(join(repo, "dist"), join(distribution, "dist"), { recursive: true });
   cpSync(join(repo, "package.json"), join(distribution, "package.json"));
   cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
-  cpSync(join(repo, "bundle"), join(distribution, "bundle"), { recursive: true });
-  const manifest = join(distribution, "bundle/plugin/plugin.json");
+  cpSync(join(repo, "plugin.json"), join(distribution, "plugin.json"));
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+  }
+  const manifest = join(distribution, "plugin.json");
   const data = JSON.parse(readFileSync(manifest, "utf8"));
   data.version = "9.9.9";
   writeFileSync(manifest, JSON.stringify(data));
@@ -187,4 +190,60 @@ test("missing native Git reports an environment error and cleans the staging fol
     readdirSync(parent).filter((name) => name.startsWith(".rill-init-")),
     [],
   );
+});
+
+test("missing native Codex role config refuses to initialize a partial product", (t) => {
+  const parent = scratch();
+  t.after(() => rmSync(parent, { recursive: true, force: true }));
+  const distribution = join(parent, "incomplete-factory");
+  mkdirSync(distribution);
+  for (const asset of ["dist", ".codex", "templates"]) {
+    cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
+  cpSync(join(repo, "plugin.json"), join(distribution, "plugin.json"));
+  rmSync(join(distribution, ".codex/agents/reviewer.toml"));
+  const target = join(parent, "partial-consumer");
+  const result = run(join(distribution, "dist/cli.js"), [
+    "init",
+    target,
+    "--goal",
+    "Must reject absent role config",
+    "--yes",
+    "--json",
+  ]);
+  assert.equal(result.status, 2);
+  assert.equal(existsSync(target), false);
+});
+
+test("refuses symlinked source Codex directory ancestors without creating a consumer", (t) => {
+  for (const scope of [".codex", ".codex/agents"]) {
+    const parent = scratch();
+    t.after(() => rmSync(parent, { recursive: true, force: true }));
+    const distribution = join(parent, "symlinked-codex-source");
+    mkdirSync(distribution);
+    for (const asset of ["dist", ".codex", "templates"]) {
+      cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+    }
+    cpSync(join(repo, "plugin.json"), join(distribution, "plugin.json"));
+    cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
+    rmSync(join(distribution, scope), { recursive: true });
+    symlinkSync(join(repo, scope), join(distribution, scope));
+    const target = join(parent, "must-remain-absent");
+    const result = run(join(distribution, "dist/cli.js"), [
+      "init",
+      target,
+      "--goal",
+      "Safe repository",
+      "--yes",
+      "--json",
+    ]);
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+    assert.equal(existsSync(target), false);
+    assert.deepEqual(
+      readdirSync(parent).filter((entry) => entry.startsWith(".rill-init-")),
+      [],
+    );
+  }
 });

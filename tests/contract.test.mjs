@@ -21,13 +21,13 @@ test("product version uses canonical SemVer 0.0.1, separate from blueprint 10.0.
 
 test("single living Rill PRD and independent consumer template", () => {
   assert.ok(existsSync(join(repo, "PRD.md")));
-  assert.ok(existsSync(join(repo, "bundle/repo-common/PRD.md")));
+  assert.ok(existsSync(join(repo, "templates/consumer/PRD.md")));
   for (const old of ["DESIGN.md", "ROADMAP.md", "MULTI_AGENT.md"]) {
     assert.equal(existsSync(join(repo, old)), false, `retired authority: ${old}`);
   }
-  assert.match(read("bundle/repo-common/PRD.md"), /consuming product/);
+  assert.match(read("templates/consumer/PRD.md"), /consuming product/);
   assert.doesNotMatch(
-    read("bundle/repo-common/PRD.md"),
+    read("templates/consumer/PRD.md"),
     /Rill's factory product requirements.*\n\| FR-02/,
   );
 });

@@ -1,5 +1,5 @@
 {
-  "description": "Read-only Rill discovery context; requires native host trust to run.",
+  "description": "Rill native SessionStart context routing (requires host trust)",
   "hooks": {
     "SessionStart": [
       {
