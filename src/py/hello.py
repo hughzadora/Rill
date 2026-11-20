@@ -1,6 +1,6 @@
-"""Pure greeting function for the Python quality fixture."""
+"""A fully typed greeting module used to validate the Python CI gates."""
 
 
 def hello(name: str) -> str:
-    """Return a greeting for the supplied name."""
+    """Return a greeting for the provided name without hidden defaults."""
     return f"Hello, {name}!"

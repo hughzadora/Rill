@@ -1,41 +1,24 @@
 rules:
-  - id: no-typescript-any-cast
+  - id: no-typescript-type-suppression
+    severity: ERROR
     languages: [typescript]
+    message: Avoid any-casts or TypeScript diagnostic suppression; narrow types explicitly.
+    pattern-regex: '(?m)(?:\bas\s+any\b|@ts-(?:ignore|nocheck))'
+  - id: no-unscoped-python-type-ignore
     severity: ERROR
-    message: Avoid casting to any. Use checked narrowing or unknown.
-    pattern: $X as any
-  - id: no-typescript-ignore
-    languages: [typescript, javascript]
-    severity: ERROR
-    message: Never suppress TypeScript diagnostics via @ts-ignore or @ts-nocheck.
-    pattern-regex: "@ts-(?:ignore|nocheck)"
-  - id: no-unscoped-python-ignore
     languages: [python]
+    message: Python type ignores require a specific error code.
+    pattern-regex: '#\s*type:\s*ignore(?!\s*\[)'
+  - id: no-urllib-request-clients
     severity: ERROR
-    message: Python type ignore must specify an explicit error code.
-    pattern-regex: '#\s*type:\s*ignore(?!\[)'
-  - id: no-urllib-request
     languages: [python]
-    severity: ERROR
-    message: Use httpx instead of ad hoc urllib.request network clients.
+    message: Use the maintained httpx library instead of urllib.request.
     pattern-either:
       - pattern: import urllib.request
       - pattern: from urllib import request
-      - pattern: from urllib.request import $X
-  - id: no-eval-exec-python
-    languages: [python]
+      - pattern: from urllib.request import $IMPORT
+  - id: no-dynamic-code-execution
     severity: ERROR
-    message: Dynamic code evaluation is forbidden.
-    pattern-either:
-      - pattern: eval(...)
-      - pattern: exec(...)
-  - id: no-eval-js
-    languages: [javascript, typescript]
-    severity: ERROR
-    message: Dynamic code evaluation is forbidden.
-    pattern: eval(...)
-  - id: no-eval-shell
-    languages: [bash]
-    severity: ERROR
-    message: Dynamic code evaluation is forbidden.
-    pattern-regex: "(?:^|[;[:space:]])eval[[:space:]]"
+    languages: [typescript, javascript, python, bash]
+    message: Dynamic eval/exec is forbidden.
+    pattern-regex: '(?m)(?:\b(?:eval|exec)\s*\(|(?:^|[;&|]\s*|\s+)eval[ \t]+)'

@@ -1,69 +1,23 @@
-install:
-    MISE_QUIET=1 mise install --locked node pnpm python uv just aqua:biomejs/biome aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks cargo:tokei aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo npm:typescript npm:vitest npm:@playwright/test npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard
-    HUSKY=0 MISE_QUIET=1 mise exec --locked pnpm -- pnpm install --frozen-lockfile
-    HUSKY=0 MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web install --frozen-lockfile
-    MISE_QUIET=1 mise exec --locked uv -- uv sync --python "$(mise which python)" --project quality-fixtures/python --locked
+set shell := ["bash", "-euo", "pipefail", "-c"]
+export MISE_QUIET := "1"
+export MISE_LOCKED_SCOPES := "project"
+export MISE_LOCKFILE_PLATFORMS := "linux-x64"
+# Prevent machine-level tools from silently changing the project's pinned CI.
+export MISE_CONFIG_DIR := justfile_directory() + "/.mise"
+export MISE_SYSTEM_CONFIG_DIR := justfile_directory() + "/.mise"
 
+# Mise resolves actual upstream tool versions; pnpm and uv lock dependencies.
 lock:
     mise lock
 
 lock-bump:
     mise lock --bump
 
-lint:
-    MISE_QUIET=1 mise exec --locked aqua:biomejs/biome -- biome check .
-    MISE_QUIET=1 mise exec --locked aqua:oxc-project/oxc/oxlint -- oxlint .
-    MISE_QUIET=1 mise exec --locked npm:markdownlint-cli2 -- markdownlint-cli2 '**/*.md'
-    MISE_QUIET=1 mise exec --locked aqua:astral-sh/ruff -- ruff check .
-    MISE_QUIET=1 mise exec --locked aqua:astral-sh/ruff -- ruff format --check .
-    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo check mise.toml pyproject.toml quality-fixtures/config/quality.toml quality-fixtures/python/pyproject.toml .codex/config.toml
-    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo fmt --check mise.toml pyproject.toml quality-fixtures/config/quality.toml quality-fixtures/python/pyproject.toml .codex/config.toml
-    MISE_QUIET=1 mise exec --locked aqua:koalaman/shellcheck -- shellcheck --severity=style quality-fixtures/shell/check-env.sh
-    MISE_QUIET=1 mise exec --locked aqua:mvdan/sh -- shfmt -d -i 2 quality-fixtures/shell/check-env.sh
-
-typecheck:
-    MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run typecheck
-    MISE_QUIET=1 mise exec --locked pypi:mypy -- mypy --strict quality-fixtures/python/quality_sample.py
-
-test:
-    MISE_QUIET=1 mise exec --locked pnpm -- pnpm test
-    MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run test
-    MISE_QUIET=1 mise exec --locked uv -- uv run pytest -q quality-fixtures/python
-
-build:
-    MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run build
-    test -s quality-fixtures/web/dist/index.html
-
-secret-scan:
-    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners secret --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs .venv --skip-dirs coverage --skip-dirs dist --exit-code 1 --quiet --format table .
-
-audit:
-    MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web audit --prod
-    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners vuln,misconfig,license --include-dev-deps --license-full --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs .venv --skip-dirs coverage --skip-dirs dist --exit-code 1 --quiet --format table .
-    MISE_QUIET=1 mise exec --locked pypi:pip-licenses -- pip-licenses --python quality-fixtures/python/.venv/bin/python --allow-only "MIT;MIT License;Apache Software License;BSD License;BSD-3-Clause;PSF-2.0;Mozilla Public License 2.0 (MPL 2.0)"
-
-sbom:
-    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --format cyclonedx --output quality-fixtures/web/dist/rill-quality-profile.cdx.json --skip-dirs .mise --skip-dirs dist quality-fixtures/web
-
-history-secrets:
-    MISE_QUIET=1 mise exec --locked aqua:gitleaks/gitleaks -- gitleaks git --redact --exit-code 1
-
-metrics: (project-metrics "." "quality-self")
-
-quality: lint secret-scan
-
-full-spec-ci: lint typecheck test build metrics secret-scan audit sbom history-secrets
-
-# Audit real TypeScript repositories, preserving the target worktree.
-project-metrics root profile="rill-typescript":
-    MISE_QUIET=1 mise exec --locked cargo:tokei pypi:lizard pnpm -- pnpm exec tsx tools/quality-metrics.ts --root {{quote(root)}} --profile {{quote(profile)}}
-
-# Local multi-language CI. All workers are launched before exit-status collection.
+# Full local bootstrap, including native Git hooks.
 setup:
-    MISE_LOCKED_SCOPES=project mise install --locked node pnpm python uv just aqua:biomejs/biome aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo aqua:crate-ci/typos pipx:semgrep cargo:tokei npm:typescript npm:vitest npm:@playwright/test npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard
-    HUSKY=0 MISE_LOCKED_SCOPES=project mise exec --locked -- pnpm install --frozen-lockfile
-    mise exec --locked -- uv sync --all-extras --dev --locked
-    mise exec --locked uv -- uv sync --python "$(mise which python)" --project quality-fixtures/python --locked
+    mise install --locked
+    HUSKY=0 mise exec --locked -- pnpm install --frozen-lockfile
+    mise exec --locked -- uv sync --all-extras --dev --locked --python "$(mise which python)"
     mise exec --locked -- pnpm exec husky
 
 pre-commit:
@@ -73,8 +27,117 @@ pre-commit:
 commit-msg msg_file:
     mise exec --locked -- pnpm exec commitlint --edit {{quote(msg_file)}}
 
+# Repository, security, duplication, complexity and size gates always run.
+_ci-guardrails:
+    mise exec --locked -- taplo check mise.toml pyproject.toml
+    mise exec --locked -- taplo fmt --check mise.toml pyproject.toml
+    mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**"
+    mise exec --locked -- markdownlint-cli2 '**/*.md' '#node_modules' '#.venv'
+    mise exec --locked -- gitleaks git --redact --exit-code 1
+    mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
+    mise exec --locked -- pnpm exec jscpd src/
+    @warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi
+    mise exec --locked -- tokei src/
+    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --exit-code 1 --quiet .
+
+_ci-ts:
+    mise exec --locked -- biome check .
+    mise exec --locked -- oxlint .
+    mise exec --locked -- pnpm exec tsc --noEmit
+    mise exec --locked -- pnpm exec knip
+    mise exec --locked -- pnpm exec vitest run --coverage --passWithNoTests
+
+_ci-py:
+    mise exec --locked -- ruff check .
+    mise exec --locked -- ruff format --check .
+    mise exec --locked -- uv run --python "$(mise which python)" pyright
+    mise exec --locked -- pip-licenses --python .venv/bin/python --allow-only "MIT;MIT License;Apache Software License;Apache-2.0;BSD License;BSD-2-Clause;BSD-3-Clause;PSF-2.0;Apache-2.0 OR BSD-2-Clause;Mozilla Public License 2.0 (MPL 2.0)"
+    mise exec --locked -- uv run --python "$(mise which python)" pytest --cov=src/py --cov-fail-under=80
+
+_ci-sh:
+    mise exec --locked -- shellcheck --severity=style -x src/sh/*.sh
+    mise exec --locked -- shfmt -d -i 2 -ci src/sh/*.sh
+    mise exec --locked -- bats --jobs 4 tests/sh
+
+# A single Just shebang recipe owns diff detection and the actual worker pool.
 ci mode="incremental":
-    bash scripts/local-ci.sh {{quote(mode)}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    mode={{quote(mode)}}
+    if [[ "$mode" != "incremental" && "$mode" != "full" ]]; then
+      printf 'Unknown CI mode: %s\n' "$mode" >&2
+      exit 2
+    fi
+
+    changed=()
+    if [[ "$mode" == "incremental" ]]; then
+      if git rev-parse --verify origin/main >/dev/null 2>&1; then
+        base="$(git merge-base HEAD origin/main)"
+      elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+        base="HEAD~1"
+      else
+        base="$(git hash-object -t tree /dev/null)"
+      fi
+      mapfile -d '' -t changed < <(
+        {
+          git diff --name-only -z "$base" --
+          git ls-files --others --exclude-standard -z
+        } | sort -zu
+      )
+    fi
+
+    run_all=false
+    [[ "$mode" == "full" ]] && run_all=true
+    run_ts=false
+    run_py=false
+    run_sh=false
+
+    for path in "${changed[@]}"; do
+      case "$path" in
+        justfile|mise.toml|mise.lock|package.json|pnpm-lock.yaml|uv.lock|pyproject.toml|AGENTS.md|.editorconfig|.jscpd.json|.semgrep.yml|biome.json|knip.json|tsconfig.json|vitest.config.ts|.github/workflows/*)
+          run_all=true ;;
+        *.ts|*.tsx|*.js|*.jsx|*.json|*.jsonc)
+          run_ts=true ;;
+        *.py)
+          run_py=true ;;
+        *.sh|*.bats)
+          run_sh=true ;;
+      esac
+    done
+
+    if [[ "$run_all" == true ]]; then
+      run_ts=true
+      run_py=true
+      run_sh=true
+    fi
+
+    tasks=(guardrails)
+    [[ "$run_ts" == true ]] && tasks+=(ts)
+    [[ "$run_py" == true ]] && tasks+=(py)
+    [[ "$run_sh" == true ]] && tasks+=(sh)
+
+    workdir="$(mktemp -d)"
+    trap 'rm -rf -- "$workdir"' EXIT
+    pids=()
+    for name in "${tasks[@]}"; do
+      printf '[ci] START %s\n' "$name"
+      just "_ci-$name" >"$workdir/$name.log" 2>&1 &
+      pids+=("$!")
+    done
+
+    result=0
+    for index in "${!pids[@]}"; do
+      name="${tasks[index]}"
+      if wait "${pids[index]}"; then
+        printf '[ci] PASS %s\n' "$name"
+      else
+        printf '[ci] FAIL %s\n' "$name" >&2
+        result=1
+      fi
+      cat "$workdir/$name.log"
+    done
+    exit "$result"
 
 ci-full:
     just ci full

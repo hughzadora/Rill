@@ -1,24 +1,19 @@
-# Rill repository engineering policy
+# Rill engineering policy
 
-- Preserve native upstream tools and active quality-profile behavior.
-  Do not create a parallel harness.
-- Production sources: `src/ts`, `src/py`, `src/sh`; corresponding tests
-  in `tests/ts`, `tests/py`, `tests/sh`. Existing `tools/`, `tests/`,
-  and `quality-fixtures/` remain in scope.
-- Prefer maintained libraries over hand-rolled infrastructure:
-  `fetch` for TypeScript HTTP, `httpx` for Python HTTP;
-  `commander` / `typer` for new CLI products.
-- Never use explicit `any`, unscoped Python `type: ignore`,
-  `@ts-ignore`, dynamic `eval` / `exec`, magic numbers, or
-  hard-coded global configuration.
-- Keep functions at most 50 lines, cyclomatic complexity at most 12,
-  and avoid copy-pasted code. Apply rules to new code and refactoring
-  rather than suppressing existing unrelated failures.
-- Add deterministic, typed tests; verify meaningful coverage and
-  use strict type checking.
-- Before delivering code, run `just ci-full` locally and ensure
-  all checks pass; never report success without evidence.
-- Use `mise lock` to resolve stable tool releases and commit
-  package manager lockfiles.
-- Maintain GitHub issue and PR as authoritative delivery records,
-  with real test evidence.
+1. **No append-only patching.** Refactor coherently and remove obsolete code.
+   Never preserve dead code or invent legacy compatibility directories.
+2. **Single source of truth.** Mise manages CLI tool versions and their lock.
+   The root justfile owns every CI task. No external orchestration wrappers.
+3. **Standard layout.** Put source in src/ts, src/py or src/sh. Put unit tests
+   in tests/ts, tests/py or tests/sh.
+4. **Use upstream libraries.** For Python HTTP use httpx; avoid hand-rolled
+   networking or CLI frameworks. Forbid as-any casts, TypeScript ignores,
+   and unspecific Python type ignores; fix causes instead of suppressing checks.
+5. **Complexity limits.** Functions must be at most 60 lines, have
+   cyclomatic complexity at most 12, and accept at most five parameters.
+   Never duplicate code by copy-pasting blocks over five lines.
+6. **Proof before delivery.** Run just ci-full and require exit status zero,
+   including coverage, tests, security checks and original regression tests.
+   Never claim a gate passed without checking actual execution.
+7. **Preserve Git history.** Document the change in its issue and PR.
+   The CI pipeline must remain reproducible on a clean machine.

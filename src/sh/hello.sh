@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
+# Print one greeting, with no hidden global state.
 set -euo pipefail
 
-hello() {
-  printf 'Hello, %s!\n' "$1"
-}
-
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  hello "$@"
-fi
+printf 'Hello, %s!\n' "$1"

@@ -1,40 +1,19 @@
 {
-  "name": "rill-quality-standard-profile",
+  "name": "rill-local-quality-foundation",
   "private": true,
   "type": "module",
   "scripts": {
-    "quality": "tsx tools/quality-cli.ts",
-    "test": "vitest run tests quality-fixtures/node",
-    "typecheck": "tsc --noEmit",
-    "prepare": "husky",
-    "ci": "just ci",
-    "ci:full": "just ci-full"
+    "prepare": "husky"
   },
-  "dependencies": {
-    "@modelcontextprotocol/server": "2.4.0",
-    "zod": "4.6.7"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.6.8",
-    "@commitlint/cli": "^21.2.4",
-    "@commitlint/config-conventional": "^21.2.4",
-    "@modelcontextprotocol/client": "2.4.0",
-    "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^5.1.1",
-    "husky": "9.1.7",
-    "jscpd": "^5.4.3",
-    "knip": "^6.46.1",
-    "lint-staged": "^17.6.1",
-    "tsx": "4.23.15",
-    "typescript": "7.0.2",
-    "vitest": "5.1.0"
+  "engines": {
+    "node": ">=24"
   },
   "lint-staged": {
     "*.toml": [
       "mise exec --locked -- taplo fmt"
     ],
     "*.{js,ts,jsx,tsx,json}": [
-      "mise exec --locked -- pnpm exec biome check --write --no-errors-on-unmatched"
+      "mise exec --locked -- biome check --write --no-errors-on-unmatched"
     ],
     "*.py": [
       "mise exec --locked -- uv run ruff check --fix",
@@ -44,8 +23,23 @@
       "mise exec --locked -- shfmt -w -i 2 -ci",
       "mise exec --locked -- shellcheck -x"
     ],
+    "*.md": [
+      "mise exec --locked -- markdownlint-cli2 --fix"
+    ],
     "*": [
-      "mise exec --locked -- typos --force-exclude"
+      "mise exec --locked -- typos --force-exclude --exclude \"**/.mise/locks/**\""
     ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^5.1.1",
+    "husky": "^9.1.7",
+    "jscpd": "^5.4.3",
+    "knip": "^6.46.1",
+    "lint-staged": "^17.6.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
   }
 }

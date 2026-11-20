@@ -1,11 +1,6 @@
 {
-  "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["src/ts/**/*.ts", "tests/**/*.test.ts", "quality-fixtures/node/**/*.test.ts"],
-  "project": ["tools/**/*.ts", "src/ts/**/*.ts", "tests/**/*.ts", "quality-fixtures/node/**/*.ts"],
-  "ignoreDependencies": ["@biomejs/biome", "@commitlint/cli", "jscpd", "lint-staged"],
-  "ignoreBinaries": ["just", "mise"],
-  "ignoreIssues": {
-    "tools/quality-binding.ts": ["exports", "types"],
-    "tools/quality-runtime.ts": ["exports"]
-  }
+  "entry": ["tests/ts/**/*.test.ts"],
+  "project": ["src/ts/**/*.{ts,tsx}", "tests/ts/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["@commitlint/cli", "jscpd", "lint-staged"],
+  "ignoreBinaries": ["mise"]
 }
