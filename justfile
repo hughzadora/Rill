@@ -19,7 +19,7 @@ setup:
     HUSKY=0 mise exec --locked -- pnpm install --frozen-lockfile
     mise exec --locked -- uv sync --all-extras --dev --locked --python "$(mise which python)"
     mise exec --locked -- pnpm exec husky
-    @if [[ "${CI:-}" == "true" ]]; then mise exec --locked -- pnpm exec playwright install --with-deps chromium; else mise exec --locked -- pnpm exec playwright install chromium; fi
+    @if [[ "${CI:-}" == "true" ]]; then mise exec --locked -- pnpm exec playwright install --with-deps chromium chrome; else mise exec --locked -- pnpm exec playwright install chromium chrome; fi
 
 pre-commit:
     mise exec --locked -- gitleaks git --staged --redact --no-banner
@@ -34,13 +34,14 @@ _ci-guardrails:
     mise exec --locked -- taplo check mise.toml pyproject.toml
     mise exec --locked -- taplo fmt --check mise.toml pyproject.toml
     mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**" --exclude "**/dist/**" --exclude "**/playwright-report/**" --exclude "**/test-results/**"
-    mise exec --locked -- markdownlint-cli2 '**/*.md' '#node_modules' '#.venv' '#dist' '#playwright-report' '#test-results'
+    git ls-files -z -- '*.md' | xargs -0 -r mise exec --locked -- markdownlint-cli2
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
     mise exec --locked -- pnpm exec jscpd src/
     @warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi
     mise exec --locked -- tokei src/
-    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .
+    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .
+    mise exec --locked -- pnpm audit --prod --audit-level moderate
 
 # The browser tests run against the verified production build, not a dev server.
 _ci-ts:
@@ -147,6 +148,7 @@ ci mode="incremental":
 
 ci-full:
     just ci full
+    just factory-ci
 
 # ==============================================================================
 # 4. 防假测试压测：前后端并行变异测试 (Mutation Testing)
@@ -190,3 +192,15 @@ verify-tests:
       fi
     done
     exit "$failed"
+
+# Rill's distributed factory is a product of the same #39 CI, not a
+# competing workspace-level quality framework.
+factory-ci:
+    mise exec --locked -- ruff check tools/adopt_rill.py standards/template/.codex/hooks/rill.py
+    mise exec --locked -- ruff format --check tools/adopt_rill.py standards/template/.codex/hooks/rill.py
+    mise exec --locked -- pnpm --dir apps/console run typecheck
+    mise exec --locked -- pnpm --dir apps/console run test:coverage
+    mise exec --locked -- pnpm --dir apps/console run build
+    mise exec --locked -- node --test tests/preview.test.mjs
+    mise exec --locked -- node --test tests/standard-adoption.test.mjs
+    mise exec --locked -- pnpm exec playwright test -c playwright.console.config.mjs

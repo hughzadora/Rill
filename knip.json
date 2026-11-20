@@ -5,7 +5,9 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "tests/ts/**/*.test.{ts,tsx}",
-    "tests/e2e/**/*.spec.ts"
+    "tests/e2e/**/*.spec.ts",
+    "playwright.console.config.mjs",
+    "e2e/**/*.spec.mjs"
   ],
   "project": [
     "src/ts/**/*.{ts,tsx}",
@@ -13,7 +15,9 @@
     "tests/e2e/**/*.ts",
     "vite.config.ts",
     "vitest.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "playwright.console.config.mjs",
+    "e2e/**/*.mjs"
   ],
   "ignoreDependencies": ["@commitlint/cli", "jscpd", "lint-staged"],
   "ignoreBinaries": ["mise"]

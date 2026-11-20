@@ -17,7 +17,15 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-src = ["src/rill_quality", "tests/py"]
+src = [
+  "src/rill_quality",
+  "tests/py",
+  "tests/fixtures/independent-python-shell/services/python/src",
+]
+
+# This distributed Hook invokes the consumer system Python (3.11+).
+[tool.ruff.per-file-target-version]
+"standards/template/.codex/hooks/rill.py" = "py311"
 
 [tool.ruff.lint]
 select = [

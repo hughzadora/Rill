@@ -84,6 +84,26 @@ url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-linux-x64.ta
 url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357264"
 provenance = "github-attestations"
 
+[[tools."aqua:rhysd/actionlint"]]
+version = "1.7.12"
+backend = "aqua:rhysd/actionlint"
+specifiers = ["1.7.12"]
+
+[tools."aqua:rhysd/actionlint"."platforms.linux-x64"]
+checksum = "sha256:8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924896"
+provenance = "github-attestations"
+
+[[tools."pypi:copier"]]
+version = "9.19.1"
+backend = "pypi:copier"
+specifiers = ["9.19.1"]
+uv = { path = ".mise/locks/pypi-copier/9.19.1~6529b928", digest = "sha256:13a1952c54c29128482a6205dbe933ca95a7f88eb74c5b9e7516c61857903651" }
+
+[tools."pypi:copier".options]
+python = "3.14.10"
+
 [[tools."pypi:lizard"]]
 version = "1.26.1"
 backend = "pypi:lizard"
@@ -99,7 +119,10 @@ uv = { path = ".mise/locks/pypi-pip-licenses/5.5.5", digest = "sha256:a54cd9c0f2
 [[tools.python]]
 version = "3.14.10"
 backend = "core:python"
-specifiers = ["3.14"]
+specifiers = [
+    "3.14",
+    "3.14.10",
+]
 
 [tools.python."platforms.linux-x64"]
 checksum = "sha256:c2ff2e97422f5d3896a16e0317fd212ba977bbf2688d93a6f7a03d817506bd30"

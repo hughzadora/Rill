@@ -38,3 +38,16 @@
 3. **前后端契约唯一来源**：前后端交互数据模型必须由后端
    （如 FastAPI OpenAPI）自动导出 Schema，前端使用
    `openapi-typescript` 生成类型，严禁前后端各自手写重复接口定义。
+
+## Reusable factory and agent execution
+
+Rill's distributable factory is in `standards/template/`: native Codex
+roles, portable Skills, lifecycle Hooks, optional MCP, and project adoption.
+Use `tools/adopt_rill.py` and the published Copier template instead of
+reimplementing these for each project. Confirm effective runtime loading;
+the presence of config files does not prove a Hook or model was used.
+
+`just ci-full` runs the #39 native-quality foundation **and** the
+consumer factory/console checks. Follow the installed native handoff and
+independent-review roles. Repository state and GitHub are authoritative,
+and privileged operations require owner approval.

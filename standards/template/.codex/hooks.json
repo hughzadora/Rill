@@ -1,0 +1,53 @@
+{
+  "description": "Opt-in, reviewed Rill lifecycle hooks for the current repository.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" start",
+            "timeout": 12,
+            "additionalContextLimit": 1200
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" subagent",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" check",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" stop",
+            "timeout": 8
+          }
+        ]
+      }
+    ]
+  }
+}

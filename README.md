@@ -62,3 +62,23 @@ which conflicts with existing Python tooling. The Python mutation stage
 requires at least one tested mutant and rejects all outcomes other than
 `killed`, so an empty, untested or surviving result cannot pass.
 Mutation tests execute the two language runners concurrently.
+
+## Reusable software factory (PR #33)
+
+The #39 local four-language quality foundation above is the **only**
+repository-level CI baseline. The reusable factory layers on the upstream
+native Codex `.codex` roles, Copier distribution in `standards/template`,
+four maintained `.agents/skills/`, reviewed lifecycle Hook handlers,
+a read-only optional documentation MCP declaration, a Git-native installer,
+and an independent delivery console in `apps/console`.
+
+Preview an adoption without changing the target:
+`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag>`.
+Install only after native trust and target authorization:
+`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag> --apply`.
+Existing product-owned agent files remain protected.
+
+`just factory-ci` validates the reusable release in isolation;
+`just ci-full` runs the full #39 foundation and then its factory checks.
+Passing these is not proof of real consumer Codex Hook/MCP calls,
+continuous agent recovery or owner-approved product release.
