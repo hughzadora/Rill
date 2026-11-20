@@ -12,3 +12,4 @@
 10. No blanket delete of consumer repositories, destructive reset, forced push, extra spend, production change, merge or release without explicit scoped authorization.
 11. Every ticket is a testable vertical slice. Review the exact candidate independently. Follow native Issue blockers and stop at real failure without gaming thresholds.
 12. The current branch is a **non-releasable rebuild baseline** until the external greenfield/brownfield acceptance in PRD succeeds.
+13. After interruption, use the installed `rill-recover` Skill and live GitHub blockers/CI/PR SHAs to recover before resuming; do not rely on conversation memory.

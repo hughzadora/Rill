@@ -6,3 +6,4 @@ This is the consuming product, not the Rill factory source repository.
 3. For substantive design, use the installed Rill discovery/brainstorming skills and current primary sources before new implementation.
 4. Existing product code and tools are user-owned. Do not overwrite, delete, merge, deploy, expand privileges or spend money without the required native approval.
 5. Do not mistake a plugin's presence for its actual installation, Hook trust or custom agent runtime proof. Treat unverified capability as not verified.
+6. After context loss, use the installed `rill-recover` Skill to verify current GitHub issue/PR, source SHA and applicable checks; if unavailable, report the capability UNKNOWN.
