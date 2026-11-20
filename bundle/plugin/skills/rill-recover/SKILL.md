@@ -1,0 +1,17 @@
+---
+name: rill-recover
+description: Recover an interrupted Rill issue, pull request, or product delivery from live Git/GitHub and exact-SHA CI evidence in a fresh Codex session with no prior chat. Use for handoffs, session interruption, compaction, or resuming approved work; never treat old transcripts, stale checks or permissions as current proof.
+---
+
+# Rill Recovery
+
+Recover from upstream authorities, not conversational memory or an invented state database.
+
+1. **Identify the actual repository and revision.** Use native `git rev-parse --show-toplevel`, `git rev-parse HEAD`, `git status --porcelain=v1`, `git branch --show-current`, and `gh repo view --json nameWithOwner,defaultBranchRef`. Check the remote base with `git status -sb`; never silently discard a dirty worktree. If GitHub access fails, report **UNKNOWN**, not a green result.
+2. **Locate the exact task.** Use the supplied Issue/PR number, or discover current open assignments via `gh issue list` and `gh pr list`. Read the relevant issue with `gh issue view NUMBER --json number,title,state,body,updatedAt,url`; read linked comments and PR history only as needed. Verify native issue dependencies via GitHub GraphQL `Issue.blockedBy` and `Issue.subIssues`, rather than relying on text that may be stale. If a dependency relation cannot be queried, report **UNKNOWN**.
+3. **Recover current requirements.** Read root `CONSTITUTION.md` **if present** for Rill factory standing authority; consumer projects may correctly have only `AGENTS.md` and `PRD.md`. Search only relevant `FR-`/`NFR-` IDs in the single living `PRD.md` using `git grep -n`. Respect existing target-product decisions: the Rill v10.0.1 blueprint never approves new consumer product scope. Do not reopen settled decisions. Never treat `[DONE]` text or a closed issue as evidence that code executed.
+4. **Bind checks to the actual candidate.** Query `gh pr view NUMBER --json headRefOid,baseRefOid,reviewDecision,statusCheckRollup,mergeStateStatus` and `gh run list --branch BRANCH --json headSha,status,conclusion,workflowName,url`. Compare each `headSha` to the **exact current candidate**. The latest successful run on an older SHA is **STALE**, not PASS. A successful unrelated workflow is not proof that applicable quality tests passed. A queued run, missing check, absent independent review or untrusted Hook is **NOT_VERIFIED**. When there is no PR, use the current Git HEAD as the candidate and name that limitation.
+5. **Recover only a justified next step.** Identify native blockers, incomplete applicable tests, actual independent review status, local dirty files, protected authorization and the next safe action. Re-run existing native quality commands against the exact current tree before calling any check current. Do not modify anything during read-only discovery, spend credits, reset branches, bypass Hook trust, merge, release or create new scope.
+6. **Return a compact recovery packet:** repository, branch and HEAD; target Issue/PR and relevant FR/NFR; native blockers; exact CI SHA/URL/conclusion; actual review/Hook trust observations; dirty/clean status; **one safe next action** and any genuine owner authorization needed. Cite live GitHub links and distinguish **OBSERVED / STALE / UNKNOWN / BLOCKED** explicitly. Persist durable changes in existing GitHub Issues/PRs only after verified execution; do not create shadow task logs.
+
+This Skill provides an evidence-driven recovery procedure, not an agent runtime or proof that a fresh session already resumed a genuine interrupted task.

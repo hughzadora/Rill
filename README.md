@@ -50,6 +50,10 @@ Local independent product tests demonstrated a real positive business result and
 
 `bundle/plugin/skills/rill-update/SKILL.md` describes the native reviewed Git merge/revert procedure; there is no bespoke plugin updater or rollback daemon. Deterministic tests show preservation of real business files during merge/revert and fail-closed behavior on committed and uncommitted conflicts. No real product has been upgraded. The current Codex CLI supports marketplace snapshot upgrades but provides no direct `codex plugin update` command; native installed version and Hook trust must be verified separately after authorized changes.
 
+## Fresh-session recovery preflight (not certified)
+
+The native `rill-recover` Skill reconstructs an interrupted issue from actual current Git HEAD/worktree state, native GitHub blocker relations, the single living PRD, PR review decisions and workflow runs bound to the **same exact candidate SHA**. It reports stale/missing checks as UNKNOWN/NOT_VERIFIED, never replays chat transcripts or writes a shadow state database. The Skill can be installed with the existing versioned Rill Plugin; real interruption-to-fresh-agent execution and consumer acceptance remain required before #61 can be closed.
+
 ## Native execution evidence
 
 Native Codex JSONL events, not model prose, determine what ran. A Codex read of an installed Rill Skill was observed in an isolated read-only session. A second session **claimed** an Explorer result, but its trace contained only an empty `wait` call and stated that project configuration was untrusted/disabled. `src/native-evidence.ts` classifies such cases as **NOT_VERIFIED** and tests these false-positive paths. Installing a plugin does **not** automatically trust its Hooks or prove agent-model/sandbox configuration. No hook-trust bypass or user-global configuration edits are authorized.
