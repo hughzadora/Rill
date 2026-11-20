@@ -14,7 +14,7 @@ from rill_cli.core.git_policy import git, revision
 from rill_cli.core.governance_contract import DefectRecord, Severity
 from rill_cli.core.governance_engine import GovernanceEngine
 from rill_cli.core.governance_gate import check_pre_commit, release_gate
-from rill_cli.core.governance_git import freeze_contracts
+from rill_cli.core.governance_git import RepairWorkspace, freeze_contracts
 from rill_cli.core.installer import install
 
 
@@ -241,3 +241,103 @@ def test_generated_ci_fails_closed_when_release_cli_is_unavailable(tmp_path: Pat
     generated = (project / "justfile").read_text(encoding="utf-8")
     assert "if True" not in generated and "if False" not in generated
     assert '[ "$(git rev-parse HEAD)" != "$START_HEAD" ]' in generated
+
+
+def test_root_actions_pin_real_event_baselines_with_complete_history() -> None:
+    root = Path(__file__).resolve().parents[2]
+    quality = (root / ".github/workflows/quality.yml").read_text(encoding="utf-8")
+    release = (root / ".github/workflows/release-rill.yml").read_text(encoding="utf-8")
+    assert "github.event.pull_request.base.sha || github.event.before" in quality
+    assert "fetch-depth: 0" in quality
+    assert "RILL_CI_BASE_SHA=$(git rev-parse HEAD^)" in release
+    assert "fetch-depth: 0" in release
+    assert "tags: ['v*']" in release
+
+
+def test_registration_before_freeze_can_recover_without_disabling_gate(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "registered-first"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "feat/candidate")
+    (root / "api.json").write_text("{}\n", encoding="utf-8")
+    git(root, "add", "api.json")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: contract",
+    )
+    engine = GovernanceEngine(root, data_root=tmp_path / "data")
+    engine.register(
+        DefectRecord(
+            identity="pre-freeze",
+            severity=Severity.P0,
+            baseline_revision=revision(root),
+            root_cause="unverified initial defect",
+        )
+    )
+    check_pre_commit(root, data_root=tmp_path / "data")
+    with pytest.raises(PermissionError, match="No frozen L1"):
+        RepairWorkspace(engine, "pre-freeze").open()
+    freeze_contracts(engine, ["api.json"])
+    check_pre_commit(root, data_root=tmp_path / "data")
+    (root / "api.json").write_text('{"changed":true}\n', encoding="utf-8")
+    git(root, "add", "api.json")
+    with pytest.raises(PermissionError, match="L1 contract"):
+        check_pre_commit(root, data_root=tmp_path / "data")
+
+
+def test_nonroot_copier_python_test_deletion_staged_and_committed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "custom-tests"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "feat/candidate")
+    tests = root / "services/worker/tests"
+    tests.mkdir(parents=True)
+    (tests / "test_edge.py").write_text("def test_edge():\n    assert True\n")
+    (root / ".rill").mkdir()
+    (root / ".rill/copier-answers.yml").write_text(
+        "python: true\npython_root: services/worker\npython_tests: tests\n"
+    )
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: baseline",
+    )
+    baseline = revision(root)
+    git(root, "rm", "services/worker/tests/test_edge.py")
+    with pytest.raises(PermissionError, match="deleted tests"):
+        check_pre_commit(root, data_root=tmp_path / "data")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: malicious deletion",
+    )
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("RILL_CI_BASE_SHA", baseline)
+    with pytest.raises(PermissionError, match="Committed test deletions"):
+        check_pre_commit(root, data_root=tmp_path / "data")

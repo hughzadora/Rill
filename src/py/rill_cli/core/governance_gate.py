@@ -8,8 +8,11 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
+import yaml
+
 from .constants import (
     CI_SUMMARY_PATH,
+    COPIER_ANSWERS,
     FLEET_COMMAND_TIMEOUT_SECONDS,
     GOVERNANCE_ROOT_QUALITY_WORKFLOW,
     GOVERNANCE_TEMPLATE_QUALITY_WORKFLOW,
@@ -19,6 +22,55 @@ from .governance_engine import GovernanceEngine
 from .governance_git import check_frozen
 
 
+def _test_roots(root: Path) -> tuple[str, ...]:
+    """Use the persisted Copier profile, not a fixed repository layout."""
+    roots = {"tests/"}
+    config = root / COPIER_ANSWERS
+    if not config.is_file():
+        return tuple(sorted(roots))
+    raw: object = yaml.safe_load(config.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid Rill Copier answers")
+    answers = cast("dict[str, object]", raw)
+    for enabled, keys in (
+        ("python", ("python_root", "python_tests")),
+        ("shell", ("shell_tests",)),
+    ):
+        if answers.get(enabled) is not True:
+            continue
+        parts: list[str] = []
+        for key in keys:
+            value = answers.get(key)
+            if not isinstance(value, str):
+                raise ValueError(f"Missing configured test directory: {enabled}")
+            parts.append(value)
+        relative = Path(*parts)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise PermissionError("Unsafe configured test directory")
+        roots.add(relative.as_posix().rstrip("/") + "/")
+    return tuple(sorted(roots))
+
+
+def committed_test_deletions(root: Path, baseline: str) -> bool:
+    """Review native history across all known test roots, regardless of CI."""
+    ancestors = git(root, "merge-base", "--is-ancestor", baseline, "HEAD", check=False)
+    if ancestors.returncode:
+        raise PermissionError("Governance baseline is not an ancestor of HEAD")
+    history = git(
+        root,
+        "log",
+        "--format=",
+        "--no-renames",
+        "--diff-filter=D",
+        "--name-only",
+        "-z",
+        f"{baseline}..HEAD",
+        "--",
+        *_test_roots(root),
+    ).stdout
+    return bool(history.strip("\0\n"))
+
+
 def check_ci_committed_test_deletions(root: Path) -> None:
     """CI must inspect committed diffs, not only an empty checkout index."""
     if os.environ.get("CI") != "true":
@@ -26,7 +78,7 @@ def check_ci_committed_test_deletions(root: Path) -> None:
     baseline = os.environ.get("RILL_CI_BASE_SHA", "")
     if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", baseline) is None:
         raise PermissionError("CI has no trustworthy native event base SHA")
-    if _committed_test_deletions(root, baseline):
+    if committed_test_deletions(root, baseline):
         raise PermissionError("Committed test deletions violate CI baseline")
 
 
@@ -42,33 +94,14 @@ def check_pre_commit(root: Path, *, data_root: Path | None = None) -> None:
         "--name-only",
         "-z",
         "--",
-        "tests/",
+        *_test_roots(root),
     ).stdout
     if deleted:
         paths = sorted(filter(None, deleted.split("\0")))
         raise PermissionError(f"Native Git detected deleted tests: {', '.join(paths)}")
     engine = GovernanceEngine(root, data_root=data_root)
-    if engine.state_path.exists():
+    if engine.state_path.exists() and engine.load().frozen is not None:
         check_frozen(engine)
-
-
-def _committed_test_deletions(root: Path, baseline: str) -> bool:
-    """Git history, not just staged files, detects tests deleted in earlier commits."""
-    ancestry = git(root, "merge-base", "--is-ancestor", baseline, "HEAD", check=False)
-    if ancestry.returncode:
-        raise PermissionError("Frozen contract baseline is not an ancestor of HEAD")
-    history = git(
-        root,
-        "log",
-        "--format=",
-        "--diff-filter=D",
-        "--name-only",
-        "-z",
-        f"{baseline}..HEAD",
-        "--",
-        "tests/",
-    ).stdout
-    return bool(history.strip("\0\n"))
 
 
 def _remote_quality_observed(root: Path, head: str) -> bool:
@@ -122,7 +155,7 @@ def _candidate_blockers(root: Path, engine: GovernanceEngine) -> list[str]:
     frozen = engine.load().frozen
     if frozen is not None:
         try:
-            if _committed_test_deletions(root, frozen.revision):
+            if committed_test_deletions(root, frozen.revision):
                 blockers.append("Committed test deletions violate frozen L1 baseline")
         except (OSError, ValueError, PermissionError, subprocess.SubprocessError) as exc:
             blockers.append(str(exc))
