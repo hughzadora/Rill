@@ -118,10 +118,14 @@ jobs:
         run: |
           inventory=$(mktemp)
           report=$(mktemp --suffix=.json)
-          trap 'rm -f "$inventory" "$report"' EXIT
+          native_tests=$(mktemp --suffix=.json)
+          trap 'rm -f "$inventory" "$report" "$native_tests"' EXIT
+          pnpm exec vitest list --filesOnly --json > "$native_tests"
+          jq -e 'type == "array"' "$native_tests" >/dev/null
           git ls-files -z -- [[ react_sources | tojson ]] tests > "$inventory"
           unit=()
           while IFS= read -r -d '' file; do
+            jq -e --arg file "$(realpath -- "$file")" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || continue
             case "$file" in
               *integration*.test.*|*integration*.spec.*) continue ;;
               *.test.*|*.spec.*)
@@ -151,10 +155,14 @@ jobs:
         run: |
           inventory=$(mktemp)
           report=$(mktemp --suffix=.json)
-          trap 'rm -f "$inventory" "$report"' EXIT
+          native_tests=$(mktemp --suffix=.json)
+          trap 'rm -f "$inventory" "$report" "$native_tests"' EXIT
+          pnpm exec vitest list --filesOnly --json > "$native_tests"
+          jq -e 'type == "array"' "$native_tests" >/dev/null
           git ls-files -z -- [[ react_sources | tojson ]] tests > "$inventory"
           integration=()
           while IFS= read -r -d '' file; do
+            jq -e --arg file "$(realpath -- "$file")" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || continue
             case "$file" in
               *integration*.test.*|*integration*.spec.*)
                 case "$file" in
@@ -224,7 +232,7 @@ jobs:
               .analyze();
             expect(report.violations).toEqual([]);
             if (process.env.GITHUB_OUTPUT) {
-              appendFileSync(process.env.GITHUB_OUTPUT, `product_url=${baseURL}\n`);
+              appendFileSync(process.env.GITHUB_OUTPUT, `product_url=${page.url()}\n`);
             }
           });
           BROWSER
@@ -364,9 +372,22 @@ jobs:
         shell: bash
         run: |
           policy=$(mktemp --suffix=.json)
-          trap 'rm -f "$policy"' EXIT
+          inventory=$(mktemp)
+          trap 'rm -f "$policy" "$inventory"' EXIT
           printf '{}\n' > "$policy"
-          pnpm exec c8 --config "$policy" --all --src [[ node_sources | tojson ]] --include [[ (node_sources ~ "/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}") | tojson ]] --extension .ts --extension .tsx --extension .js --extension .jsx --extension .mjs --extension .cjs --extension .mts --extension .cts --check-coverage --per-file --lines=[[ node_coverage ]] node --experimental-strip-types --test
+          git ls-files -z -- [[ node_sources | tojson ]] tests > "$inventory"
+          native_tests=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.test.*|*.spec.*)
+                case "$file" in
+                  *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.mts|*.cts) native_tests+=("$file") ;;
+                esac
+                ;;
+            esac
+          done < "$inventory"
+          test -n "${native_tests[0]:-}"
+          pnpm exec c8 --config "$policy" --all --src [[ node_sources | tojson ]] --include [[ (node_sources ~ "/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}") | tojson ]] --extension .ts --extension .tsx --extension .js --extension .jsx --extension .mjs --extension .cjs --extension .mts --extension .cts --check-coverage --per-file --lines=[[ node_coverage ]] node --experimental-strip-types --test "${native_tests[@]}"
       - name: Execute actual Node unit tests
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
         shell: bash

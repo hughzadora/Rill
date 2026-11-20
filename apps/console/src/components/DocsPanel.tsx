@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
-import { MarkdownContent } from "./MarkdownContent";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface DocumentLink {
   title: string;
   path: string;
+}
+
+function documentRequest(path: string) {
+  return "/api/document?path=" + encodeURIComponent(path);
+}
+
+function resolveDocumentLink(href: string, active: string) {
+  try {
+    const base = new URL("/" + active, window.location.origin);
+    return new URL(href, base);
+  } catch {
+    return null;
+  }
 }
 
 export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
@@ -15,20 +29,74 @@ export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
     const controller = new AbortController();
     setContent(null);
     setError(false);
-    fetch("/api/document?path=" + encodeURIComponent(active), {
+    fetch(documentRequest(active), {
       signal: controller.signal,
     })
       .then((response) => {
         if (!response.ok) throw new Error("Document not available");
         return response.text();
       })
-      .then((text) => setContent(text))
+      .then((text) => {
+        if (!controller.signal.aborted) setContent(text);
+      })
       .catch((reason) => {
-        if (reason instanceof Error && reason.name !== "AbortError")
+        if (!controller.signal.aborted && reason instanceof Error)
           setError(true);
       });
     return () => controller.abort();
   }, [active]);
+
+  const markdownComponents: Components = {
+    a: ({ href, children, title }) => {
+      if (!href) return <>{children}</>;
+      if (href.startsWith("#"))
+        return (
+          <a href={href} title={title}>
+            {children}
+          </a>
+        );
+      const target = resolveDocumentLink(href, active);
+      if (!target) return <>{children}</>;
+      if (target.origin !== window.location.origin) {
+        return (
+          <a href={href} title={title}>
+            {children}
+          </a>
+        );
+      }
+
+      const path = target.pathname.slice(1);
+      if (!documents.some((document) => document.path === path)) {
+        return <>{children}</>;
+      }
+
+      return (
+        <a
+          href={documentRequest(path) + target.hash}
+          title={title}
+          onClick={(event) => {
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
+            event.preventDefault();
+            setActive(path);
+          }}
+        >
+          {children}
+        </a>
+      );
+    },
+    input: ({ type, checked }) =>
+      type === "checkbox" ? (
+        <span role="img" aria-label={checked ? "已完成" : "待完成"}>
+          {checked ? "✓" : "○"}
+        </span>
+      ) : null,
+  };
 
   return (
     <div className="page-grid">
@@ -62,7 +130,12 @@ export function DocsPanel({ documents }: { documents: DocumentLink[] }) {
             <>
               <div className="document-source">版本化源码 / {active}</div>
               <div className="markdown-reading long-form">
-                <MarkdownContent>{content}</MarkdownContent>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {content}
+                </ReactMarkdown>
               </div>
             </>
           ) : error ? (

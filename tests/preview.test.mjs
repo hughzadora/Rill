@@ -31,9 +31,11 @@ let directory;
 let service;
 let origin;
 
-async function runServer(data) {
+async function runServer(data, projectPages) {
   const port = await freePort();
   const fixture = join(directory, "github-response.json");
+  const projectFixture = join(directory, "project-response");
+  await writeFile(projectFixture, JSON.stringify(projectPages ?? []));
   await writeFile(fixture, JSON.stringify({ data: { repository: data } }));
   const child = spawn(process.execPath, ["tools/preview.mjs", "22", "23"], {
     cwd: repository,
@@ -42,6 +44,8 @@ async function runServer(data) {
       PORT: String(port),
       PATH: join(directory, "bin") + ":" + process.env.PATH,
       FAKE_ISSUES: fixture,
+      FAKE_PROJECT: projectFixture,
+      RILL_GITHUB_PROJECT_ID: projectPages ? "PVT_test" : "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -76,7 +80,15 @@ before(async () => {
       "#!/bin/sh",
       'case "$1 $2" in',
       "'repo view') printf '%s\\n' 'hughzadora/Rill' ;;",
-      "'api graphql') cat \"$FAKE_ISSUES\" ;;",
+      `'api graphql')
+        case "$3 $4" in
+          *ProjectFields*)
+            case " $* " in
+              *" projectId=PVT_test --paginate --slurp "*) cat "$FAKE_PROJECT" ;;
+              *) exit 42 ;;
+            esac ;;
+          *) cat "$FAKE_ISSUES" ;;
+        esac ;;`,
       "'pr list'|'run list') printf '[]\\n' ;;",
       "*) exit 42 ;;",
       "esac",
@@ -268,6 +280,68 @@ test("incomplete GitHub pagination is surfaced as unavailable, not a successful 
     const payload = await partial.json();
     assert.equal(payload.issueData, null);
     assert.ok(payload.errors.some((error) => error.includes("GitHub")));
+  } finally {
+    child.kill();
+  }
+});
+
+test("joins configured ProjectV2 fields by native issue URL across project pages", async () => {
+  const issues = structuredClone(dashboard.issueData);
+  const [first, second] = issues.parent.subIssues.nodes;
+  second.number = first.number;
+  second.url = "https://github.com/other/repo/issues/" + first.number;
+  const page = (nodes, hasNextPage) => ({
+    data: {
+      node: { items: { nodes, pageInfo: { hasNextPage, endCursor: "next" } } },
+    },
+  });
+  const { child, base } = await runServer(issues, [
+    page(
+      [
+        {
+          content: { url: first.url },
+          status: { name: "In review" },
+          priority: null,
+        },
+      ],
+      true,
+    ),
+    page(
+      [
+        {
+          content: { url: second.url },
+          status: null,
+          priority: { name: "P0" },
+        },
+      ],
+      false,
+    ),
+  ]);
+  try {
+    const payload = await (await fetch(base + "/api/progress")).json();
+    const nodes = payload.parent.subIssues.nodes;
+    assert.deepEqual(nodes[0].projectFields, {
+      status: "In review",
+      priority: null,
+    });
+    assert.deepEqual(nodes[1].projectFields, { status: null, priority: "P0" });
+    assert.equal(nodes[2].projectFields, null);
+  } finally {
+    child.kill();
+  }
+});
+
+test("missing or inaccessible projects preserve the issue tree with unknown fields", async () => {
+  const { child, base } = await runServer(dashboard.issueData, [
+    { errors: [{ message: "Project access denied" }] },
+  ]);
+  try {
+    for (const endpoint of [origin, base]) {
+      const response = await fetch(endpoint + "/api/progress");
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.parent.subIssues.nodes[0].projectFields, null);
+    }
   } finally {
     child.kill();
   }

@@ -8,6 +8,7 @@ export interface IssueRef {
 }
 
 export interface Issue extends IssueRef {
+  projectFields?: { status: string | null; priority: string | null } | null;
   body: string;
   updatedAt: string;
   labels: { nodes: { name: string }[] };

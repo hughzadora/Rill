@@ -28,13 +28,7 @@ function StateText({ issue }: { issue: Issue }) {
   return <span className={"status-text status-" + key}>{label}</span>;
 }
 
-function TaskInspector({
-  issue,
-  repository,
-}: {
-  issue: Issue;
-  repository: string;
-}) {
+function TaskInspector({ issue }: { issue: Issue }) {
   const acceptance = acceptanceItems(issue.body);
   const sections = issueSections(issue.body);
   const blockers = outstandingBlocks(issue);
@@ -65,6 +59,14 @@ function TaskInspector({
           <dd>
             <StateText issue={issue} />
           </dd>
+        </div>
+        <div>
+          <dt>GitHub Projects 阶段</dt>
+          <dd>{issue.projectFields?.status ?? "未知"}</dd>
+        </div>
+        <div>
+          <dt>GitHub Projects 优先级</dt>
+          <dd>{issue.projectFields?.priority ?? "未知"}</dd>
         </div>
         <div>
           <dt>负责人</dt>
@@ -117,7 +119,7 @@ function TaskInspector({
         {blockers.length ? (
           <ul className="ref-list">
             {blockers.map((task) => (
-              <li key={task.number}>
+              <li key={task.url}>
                 <a href={task.url} target="_blank" rel="noopener noreferrer">
                   #{task.number} {task.title}
                 </a>
@@ -135,7 +137,7 @@ function TaskInspector({
             ? linkedPrs.map((pr) => (
                 <a
                   className="inline-link"
-                  key={pr.number}
+                  key={pr.url}
                   href={pr.url}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -169,7 +171,7 @@ function TaskInspector({
         </div>
         <a
           className="footnote-link"
-          href={"https://github.com/" + repository + "/issues/" + issue.number}
+          href={issue.url}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -182,14 +184,13 @@ function TaskInspector({
 
 export function TaskBoard({
   parent,
-  repository,
 }: {
   parent: IssueParent;
-  repository: string;
+  repository?: string;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("all");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const tasks = parent.subIssues.nodes;
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -217,7 +218,7 @@ export function TaskBoard({
       });
   }, [tasks, query, filter]);
   const active =
-    tasks.find((item) => item.number === selected) ?? visible[0] ?? null;
+    tasks.find((item) => item.url === selected) ?? visible[0] ?? null;
   const blocked = tasks.filter(
     (item) => issueClassification(item) === "blocked",
   ).length;
@@ -305,17 +306,14 @@ export function TaskBoard({
             </thead>
             <tbody>
               {visible.map((issue) => (
-                <tr
-                  key={issue.number}
-                  data-selected={active?.number === issue.number}
-                >
+                <tr key={issue.url} data-selected={active?.url === issue.url}>
                   <td>
                     <button
                       className="task-select"
                       type="button"
-                      onClick={() => setSelected(issue.number)}
+                      onClick={() => setSelected(issue.url)}
                       aria-current={
-                        active?.number === issue.number ? "true" : undefined
+                        active?.url === issue.url ? "true" : undefined
                       }
                     >
                       <span className="task-id">#{issue.number}</span>
@@ -350,11 +348,7 @@ export function TaskBoard({
         </p>
       </div>
       {active ? (
-        <TaskInspector
-          key={active.number}
-          issue={active}
-          repository={repository}
-        />
+        <TaskInspector key={active.url} issue={active} />
       ) : (
         <aside className="task-inspector">
           <p className="small-muted">请选择任务以查看验收和交接。</p>

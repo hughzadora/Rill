@@ -51,6 +51,25 @@ const query =
   "bugs:issue(number:$bugs){number title state url subIssues(first:100){" +
   "pageInfo{hasNextPage} nodes{number title state url updatedAt}}}}}";
 
+const projectQuery = `query ProjectFields($projectId: ID!, $endCursor: String) {
+  node(id: $projectId) {
+    ... on ProjectV2 {
+      items(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          content { ... on Issue { url } }
+          status: fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+          priority: fieldValueByName(name: "Priority") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+        }
+      }
+    }
+  }
+}`;
+
 const execute = async (command, args) => {
   const { stdout } = await executeFile(command, args, {
     cwd: root,
@@ -58,6 +77,45 @@ const execute = async (command, args) => {
     maxBuffer: 4 * 1024 * 1024,
   });
   return stdout.trim();
+};
+
+const projectFieldName = (field) =>
+  typeof field?.name === "string" && field.name.trim() ? field.name : null;
+
+const readProjectFields = async (projectId) => {
+  const fieldsByUrl = new Map();
+  if (!projectId) return fieldsByUrl;
+
+  // Keep Projects permission and pagination failures separate from the issue tree.
+  const raw = await execute("gh", [
+    "api",
+    "graphql",
+    "-f",
+    "query=" + projectQuery,
+    "-f",
+    "projectId=" + projectId,
+    "--paginate",
+    "--slurp",
+  ]);
+  const pages = JSON.parse(raw);
+  for (const page of pages) {
+    const items = page.data?.node?.items;
+    if (page.errors?.length || !Array.isArray(items?.nodes)) {
+      throw new Error("GitHub Project fields unavailable");
+    }
+    for (const item of items.nodes) {
+      if (item?.content?.url) {
+        fieldsByUrl.set(item.content.url, {
+          status: projectFieldName(item.status),
+          priority: projectFieldName(item.priority),
+        });
+      }
+    }
+  }
+  if (pages.at(-1)?.data?.node?.items?.pageInfo?.hasNextPage !== false) {
+    throw new Error("Incomplete GitHub Project items");
+  }
+  return fieldsByUrl;
 };
 
 const github = async () => {
@@ -98,6 +156,12 @@ const github = async () => {
     )
   ) {
     throw new Error("Incomplete authoritative GitHub issue tree");
+  }
+  const projectFields = await readProjectFields(
+    process.env.RILL_GITHUB_PROJECT_ID?.trim(),
+  ).catch(() => new Map());
+  for (const issue of result.parent.subIssues.nodes) {
+    issue.projectFields = projectFields.get(issue.url) ?? null;
   }
   return result;
 };

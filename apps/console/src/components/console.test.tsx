@@ -116,6 +116,63 @@ describe("factory delivery console components", () => {
     expect(within(inspector).getByText("1 项尚未关闭")).toBeInTheDocument();
   });
 
+  it("selects and links to the correct issue when repository numbers collide", async () => {
+    const user = userEvent.setup();
+    const crossRepoUrl = "https://github.com/hughzadora/Another/issues/24";
+    const crossRepoParent = {
+      ...parent,
+      subIssues: {
+        ...parent.subIssues,
+        nodes: [
+          makeIssue(24),
+          makeIssue(24, { title: "Cross-repository task", url: crossRepoUrl }),
+        ],
+      },
+    };
+    render(<TaskBoard parent={crossRepoParent} repository="hughzadora/Rill" />);
+    const native = screen.getByRole("button", { name: /Native continuity/ });
+    const crossRepo = screen.getByRole("button", {
+      name: /Cross-repository task/,
+    });
+    await user.click(crossRepo);
+    expect(crossRepo).toHaveAttribute("aria-current", "true");
+    expect(native).not.toHaveAttribute("aria-current");
+    const inspector = screen.getByRole("complementary", { name: "任务详情" });
+    expect(
+      within(inspector).getByRole("heading", { name: "Cross-repository task" }),
+    ).toBeInTheDocument();
+    for (const link of within(inspector).getAllByRole("link")) {
+      expect(link).toHaveAttribute("href", crossRepoUrl);
+    }
+  });
+
+  it("shows native project status and priority with explicit unknown values", async () => {
+    const user = userEvent.setup();
+    const assigned = {
+      ...makeIssue(24),
+      projectFields: { status: "In review", priority: "P1" },
+    };
+    render(
+      <TaskBoard
+        parent={{
+          ...parent,
+          subIssues: { ...parent.subIssues, nodes: [assigned, makeIssue(25)] },
+        }}
+        repository="hughzadora/Rill"
+      />,
+    );
+    expect(screen.getByText("In review")).toBeInTheDocument();
+    expect(screen.getByText("P1")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /Visual delivery console/ }),
+    );
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "任务详情" }),
+      ).getAllByText("未知"),
+    ).toHaveLength(2);
+  });
+
   it("filters tasks using live issue properties, not title-only matching", async () => {
     const user = userEvent.setup();
     render(<TaskBoard parent={parent} repository="hughzadora/Rill" />);
@@ -198,6 +255,57 @@ describe("factory delivery console components", () => {
     expect(screen.getByText("未达到正式工业交付标准")).toBeInTheDocument();
     expect(screen.getByText("未发现当前提交的 CI")).toBeInTheDocument();
     expect(screen.getByText("Native continuity")).toBeInTheDocument();
+  });
+
+  it("follows relative links within the allowlisted engineering documents", async () => {
+    const user = userEvent.setup();
+    const content: Record<string, string> = {
+      "PRD.md": "[Quality](QUALITY_STANDARD.md)",
+      "QUALITY_STANDARD.md": "[Adoption](standards/README.md)",
+      "standards/README.md":
+        "[Product][prd] · [Private](../.git/config) · [API](/api/dashboard) · " +
+        "[External](https://github.com) · [Unsafe](javascript:alert%281%29)\n\n" +
+        "[prd]: ../PRD.md",
+    };
+    const fetcher = vi.fn(async (url: string) => ({
+      ok: true,
+      text: async () => content[decodeURIComponent(url.split("=")[1])],
+    }));
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <DocsPanel
+        documents={Object.keys(content).map((path) => ({ title: path, path }))}
+      />,
+    );
+    await user.click(await screen.findByRole("link", { name: "Quality" }));
+    await user.click(await screen.findByRole("link", { name: "Adoption" }));
+    expect(
+      await screen.findByRole("link", { name: "Product" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "External" })).toHaveAttribute(
+      "href",
+      "https://github.com",
+    );
+    for (const name of ["Private", "API", "Unsafe"]) {
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "P" &&
+            (element.textContent?.includes(name) ?? false),
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    }
+    await user.click(screen.getByRole("link", { name: "Product" }));
+    expect(
+      await screen.findByRole("link", { name: "Quality" }),
+    ).toBeInTheDocument();
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "/api/document?path=PRD.md",
+      "/api/document?path=QUALITY_STANDARD.md",
+      "/api/document?path=standards%2FREADME.md",
+      "/api/document?path=PRD.md",
+    ]);
   });
 
   it("reads allowed engineering documentation and preserves loading failures", async () => {

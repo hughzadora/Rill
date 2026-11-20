@@ -592,6 +592,31 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     project,
   );
 
+  const specOnlyModule = join(project, "src/spec-only.ts");
+  const specOnlyTest = join(project, "tests/spec.integration.spec.ts");
+  writeFileSync(
+    specOnlyModule,
+    "export function specOnly(): number { return 17; }\n",
+  );
+  writeFileSync(
+    specOnlyTest,
+    'import { test } from "node:test";\nimport { strict as assert } from "node:assert";\nimport { specOnly } from "../src/spec-only.ts";\ntest("runs integration spec by explicit native inventory", () => assert.equal(specOnly(), 17));\n',
+  );
+  git(project, ["add", "src/spec-only.ts", "tests/spec.integration.spec.ts"]);
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+  );
+  rmSync(specOnlyModule);
+  rmSync(specOnlyTest);
+  git(project, [
+    "reset",
+    "--",
+    "src/spec-only.ts",
+    "tests/spec.integration.spec.ts",
+  ]);
+
   executeGeneratedStep(
     workflow,
     "Node security and correctness lint with Oxlint",
@@ -1250,6 +1275,11 @@ test("generated React browser gates require page activity and scan the configure
     "server.mjs",
     `import { createServer } from "node:http";
 createServer((request, response) => {
+  if (request.url === "/" && process.env.PRODUCT_REDIRECT_TARGET) {
+    response.writeHead(302, { Location: process.env.PRODUCT_REDIRECT_TARGET });
+    response.end();
+    return;
+  }
   const status = request.url === "/health"
     ? 200
     : request.url === (process.env.PRODUCT_ROUTE ?? "/")
@@ -1357,6 +1387,25 @@ test("@e2e @a11y opens the product", async ({ page }) => {
       },
     );
   }
+  await t.test("axe exports the final URL after a product redirect", () => {
+    const redirected = "/app/inventory/";
+    run(proof, {
+      env: { PRODUCT_REDIRECT_TARGET: redirected, PRODUCT_ROUTE: redirected },
+    });
+    assert.match(
+      readFileSync(receipt, "utf8"),
+      /product_url=http:\/\/127\.0\.0\.1:4178\/app\/inventory\//,
+    );
+    writeFileSync(
+      spec,
+      `import { test } from "@playwright/test";\ntest("@e2e canonical product", async ({ page }) => { await page.goto("${redirected}"); });\n`,
+    );
+    run("Execute native Chrome E2E test cases", {
+      env: { PRODUCT_ROUTE: redirected },
+    });
+    writeFileSync(spec, original);
+    run(proof);
+  });
   await t.test(
     "axe preserves the Chrome project and scans its configured route with custom TypeScript discovery",
     () => {
@@ -1420,6 +1469,12 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
           ].includes(segment),
         ),
   });
+  const foreignBrowser = join(project, "tests/browser/separate.spec.ts");
+  mkdirSync(dirname(foreignBrowser), { recursive: true });
+  writeFileSync(
+    foreignBrowser,
+    'import { test } from "@playwright/test";\ntest("@e2e independent browser spec", async ({ page }) => { await page.goto("/"); });\n',
+  );
   const component = join(project, "src/Counter.tsx");
   const original = readFileSync(component, "utf8");
   const originalManifest = readFileSync(join(project, "package.json"), "utf8");
