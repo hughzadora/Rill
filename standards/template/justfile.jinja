@@ -13,6 +13,7 @@ ci:
     START_HEAD="$(git rev-parse HEAD)" || exit 1
     set -euo pipefail
     receipt() { if command -v rill >/dev/null 2>&1; then rill policy ci-receipt ci "$1" "$START_HEAD"; fi; }
+    if command -v rill >/dev/null 2>&1; then rill policy governance-check; fi
     if [[ "${RILL_FULL:-0}" != "1" ]]; then receipt running; fi
     neutral="$(mktemp -d)"; trap 'rmdir "$neutral"' EXIT; (cd "$neutral"; unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML; GIT_DIR="{{justfile_directory()}}/.git" GIT_WORK_TREE="{{justfile_directory()}}" mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --gitleaks-ignore-path=/dev/null --ignore-gitleaks-allow --redact --exit-code 1)
 {% if react %}    pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run lint

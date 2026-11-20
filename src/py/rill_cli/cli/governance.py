@@ -52,3 +52,124 @@ def status(
     if isinstance(blockers, list):
         for blocker in cast("list[object]", blockers):
             errors.print(f"BLOCKED: {blocker}", style="yellow")
+
+
+def _authorize(yes: bool) -> None:
+    if not yes:
+        raise typer.BadParameter("Explicit --yes is required for governance mutations")
+
+
+@app.command()
+def freeze(
+    path: Path = typer.Argument(Path(".")),  # noqa: B008 - Typer API
+    files: list[str] = typer.Option(..., "--file", help="Git-tracked L1 source"),  # noqa: B008
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Pin a clean Git revision and its native L1 source object IDs once."""
+    from rill_cli.core.governance_git import freeze_contracts  # noqa: PLC0415
+
+    _authorize(yes)
+    try:
+        frozen = freeze_contracts(GovernanceEngine(path), files)
+        typer.echo(json.dumps(frozen.model_dump(mode="json"), ensure_ascii=False))
+    except (OSError, ValueError, PermissionError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def register(
+    identity: str,
+    severity: str = typer.Option(..., "--severity"),
+    cause: str = typer.Option(..., "--cause"),
+    hard_gate: bool = typer.Option(True, "--hard-gate/--noncritical"),
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Register a durable repair budget for the current Git repository."""
+    from rill_cli.core.git_policy import revision  # noqa: PLC0415
+    from rill_cli.core.governance_contract import DefectRecord, Severity  # noqa: PLC0415
+
+    _authorize(yes)
+    try:
+        engine = GovernanceEngine(Path.cwd())
+        grade = Severity(severity)
+        item = engine.register(
+            DefectRecord(
+                identity=identity,
+                severity=grade,
+                baseline_revision=revision(engine.root),
+                root_cause=cause,
+                hard_gate=hard_gate or grade == Severity.P0,
+            )
+        )
+        typer.echo(item.model_dump_json())
+    except (OSError, ValueError, PermissionError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def begin(
+    identity: str,
+    path: Path = typer.Argument(Path(".")),  # noqa: B008 - Typer API
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Consume a repair attempt and create an isolated native Git worktree."""
+    from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
+
+    _authorize(yes)
+    try:
+        checkout = RepairWorkspace(GovernanceEngine(path), identity).open()
+        typer.echo(json.dumps({"checkout": str(checkout), "status": "ATTEMPTING"}))
+    except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def check(
+    ctx: typer.Context,
+    identity: str,
+    path: Path = typer.Option(Path("."), "--repo"),  # noqa: B008 - Typer API
+) -> None:
+    """Run an argv-only test in the owned checkout; failure rolls it back."""
+    from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
+
+    command = [part for part in ctx.args if part != "--"]
+    if not command:
+        raise typer.BadParameter("Provide a native command after --")
+    try:
+        receipt = RepairWorkspace(GovernanceEngine(path), identity).run_check(command)
+        typer.echo(receipt.model_dump_json())
+        if receipt.exit_code:
+            raise typer.Exit(1)
+        typer.echo("CHECK PASSED; Git revision and independent release gates remain required.")
+    except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def abort(
+    identity: str,
+    path: Path = typer.Argument(Path(".")),  # noqa: B008 - Typer API
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Cancel an owned attempt, consume its budget, verify scratch cleanup."""
+    from rill_cli.core.git_policy import revision  # noqa: PLC0415
+    from rill_cli.core.governance_contract import AttemptEvidence  # noqa: PLC0415
+    from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
+
+    _authorize(yes)
+    try:
+        worker = RepairWorkspace(GovernanceEngine(path), identity)
+        receipt = AttemptEvidence(
+            revision=revision(worker.path()),
+            command="rill governance abort",
+            exit_code=1,
+            summary="Owner cancelled attempt; no test result claimed",
+        )
+        typer.echo(worker.abort(receipt).model_dump_json())
+    except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc

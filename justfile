@@ -65,6 +65,7 @@ _ci-guardrails:
     git -c core.quotePath=false ls-files -z -- '*.md' | xargs -0 -r mise exec --locked -- markdownlint-cli2
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
+    mise exec --locked -- uv run rill policy governance-check
     mise exec --locked -- pnpm exec jscpd src/
     @if [[ "${RILL_CI_TIER:-L2}" == "L3" ]]; then if warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; then if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi; else printf '%s\n' "$warnings" >&2; exit 1; fi; mise exec --locked -- tokei src/; mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --include-dev-deps --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .; mise exec --locked -- pnpm audit --prod --audit-level moderate; fi
 

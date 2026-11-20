@@ -91,7 +91,7 @@ def record_ci(root: Path, tier: str, status: str, start_head: str) -> None:
         "recorded_at": datetime.now(tz=UTC).isoformat(),
     }
     if status == "pass":
-        if git(root, "status", "--porcelain", "-z").stdout:
+        if git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout:
             summary["result"] = "unverified"
             summary["reason"] = "Checks passed on uncommitted files; HEAD is not verified"
         else:
