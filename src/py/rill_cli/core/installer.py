@@ -3,6 +3,7 @@
 import hashlib
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import cast
 
@@ -23,13 +24,15 @@ from .constants import (
     INIT_COMMIT,
     JUSTFILE,
     MANAGED_DIRECTORIES,
+    PROTECTED_BRANCHES,
     REVIEW_FILE,
     RUNTIME_ANCHORS,
     SCHEMA_VERSION,
+    STATE_PATH,
     TEMPLATE_SCHEMA,
     UPGRADE_COMMIT,
 )
-from .git_policy import commit, ensure_branch, git, head_summary
+from .git_policy import branch, commit, ensure_branch, git, revision
 from .state import load, save
 
 
@@ -44,7 +47,15 @@ def preflight(path: Path) -> Path:
     if not root.exists():
         root.mkdir(parents=True)
     result = subprocess.run(  # noqa: S603 - trusted Git binary, no shell
-        [shutil.which("git") or "/usr/bin/git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        [
+            shutil.which("git") or "/usr/bin/git",
+            "-c",
+            "core.quotePath=false",
+            "-C",
+            str(root),
+            "rev-parse",
+            "--show-toplevel",
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -55,6 +66,8 @@ def preflight(path: Path) -> Path:
         changes = subprocess.run(  # noqa: S603 - trusted Git binary, no shell
             [
                 shutil.which("git") or "/usr/bin/git",
+                "-c",
+                "core.quotePath=false",
                 "-C",
                 str(root),
                 "status",
@@ -224,7 +237,12 @@ def _finalize(
         state.setdefault("task_scope", list(DEFAULT_SCOPE))
     changed = [name for name in owned if before.get(name) != after.get(name)]
     try:
-        commit(root, UPGRADE_COMMIT if upgrade else INIT_COMMIT, changed)
+        commit(
+            root,
+            UPGRADE_COMMIT if upgrade else INIT_COMMIT,
+            changed,
+            trusted_detached=upgrade,
+        )
     except subprocess.CalledProcessError:
         if not upgrade:
             _undo_uncommitted_init(root, before, after)
@@ -232,8 +250,89 @@ def _finalize(
     save(root, state)
 
 
-def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
-    supplied = select_data(data or [])
+def _upgrade_in_worktree(
+    root: Path,
+    state: dict[str, object],
+    tracked: dict[str, object],
+    values: dict[str, object],
+    before: dict[str, str],
+) -> Path:
+    """Native Git worktree isolates Copier, signing and commit failures."""
+    start_head = revision(root)
+    start_branch = branch(root)
+    with tempfile.TemporaryDirectory(prefix="rill-upgrade-") as directory:
+        scratch = Path(directory) / "checkout"
+        git(root, "worktree", "add", "--detach", str(scratch), start_head)
+        try:
+            state_path = root / STATE_PATH
+            if state_path.is_file():
+                output = scratch / STATE_PATH
+                output.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(state_path, output)
+            state["rollback_head"] = start_head
+            copier.run_copy(
+                src_path=str(source()),
+                dst_path=scratch,
+                defaults=True,
+                data=values,
+                overwrite=True,
+                unsafe=False,
+                quiet=True,
+            )
+            _finalize(scratch, state, before, tracked, True)
+            candidate = revision(scratch)
+            _apply_upgraded_commit(root, candidate, start_head, start_branch, state)
+        finally:
+            git(root, "worktree", "remove", "--force", str(scratch))
+    return root
+
+
+def _drop_created_branch(
+    root: Path,
+    created: bool,
+    start_head: str,
+    start_branch: str,
+    selected: str,
+) -> None:
+    """Never switch or delete a branch that this upgrade did not create."""
+    if created and revision(root) == start_head and branch(root) == selected:
+        git(root, "switch", start_branch)
+        git(root, "branch", "-d", selected)
+
+
+def _apply_upgraded_commit(
+    root: Path,
+    candidate: str,
+    start_head: str,
+    start_branch: str,
+    state: dict[str, object],
+) -> None:
+    """Merge only into the original branch; clean up only our own branch."""
+    if (
+        revision(root) != start_head
+        or branch(root) != start_branch
+        or git(root, "status", "--porcelain", "-z").stdout
+    ):
+        raise RuntimeError("Project changed while rendering upgrade; no files overwritten")
+    created = start_branch in PROTECTED_BRANCHES
+    ensure_branch(root, upgrade=True, version=__version__)
+    selected = branch(root)
+    try:
+        if revision(root) != start_head or branch(root) != selected:
+            raise RuntimeError("Project branch changed before applying upgrade")
+        git(root, "merge", "--ff-only", "--no-overwrite-ignore", candidate)
+        try:
+            save(root, state)
+        except OSError:
+            if revision(root) == candidate and branch(root) == selected:
+                git(root, "reset", "--keep", start_head)
+            raise
+    except Exception:
+        _drop_created_branch(root, created, start_head, start_branch, selected)
+        raise
+
+
+def _prepare_target(path: Path, upgrade: bool, supplied: dict[str, str]) -> Path:
     if upgrade and supplied:
         raise ValueError("Upgrade uses recorded profile; no implicit scope changes")
     target = path.expanduser().resolve()
@@ -242,19 +341,27 @@ def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None)
     root = preflight(path)
     if not upgrade and (root / COPIER_ANSWERS).exists():
         raise ValueError("Already installed: use rill upgrade")
+    return root
+
+
+def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
+    supplied = select_data(data or [])
+    root = _prepare_target(path, upgrade, supplied)
     before = fingerprint(root)
     state = load(root)
     tracked, values = _profile_data(root, upgrade, supplied, state, before)
-    ensure_branch(root, upgrade=upgrade, version=__version__)
-    state["rollback_head"] = head_summary(root) if upgrade else None
+    if upgrade:
+        return _upgrade_in_worktree(root, state, tracked, values, before)
+    ensure_branch(root, upgrade=False, version=__version__)
+    state["rollback_head"] = None
     copier.run_copy(
         src_path=str(source()),
         dst_path=root,
         defaults=True,
         data=values,
-        overwrite=upgrade,
+        overwrite=False,
         unsafe=False,
         quiet=True,
     )
-    _finalize(root, state, before, tracked, upgrade)
+    _finalize(root, state, before, tracked, False)
     return root

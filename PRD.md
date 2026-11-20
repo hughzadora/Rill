@@ -74,10 +74,13 @@ An initialized project must receive a clean Git repository, a protected
 feature branch, versioned Copier assets, an atomic harness initialization
 commit, and a compact private state anchor. Upgrade must require a clean
 worktree, verify managed-file hashes and retain the prior Git HEAD as a
-restore point; product-owned files remain outside Rill's upgrade scope.
+restore point. Copier and Git perform the actual update; no manually
+reimplemented commit parser or unsafe blanket reset may replace them.
+Product-owned files remain outside Rill's upgrade scope.
 The dashboard is an offline HTML view of real state, bounded symbols, Git
-history and revision-bound CI receipts; a one-shot localhost decision records
-owner input but does not authorize releases or destructive operations.
+history and revision-bound CI receipts. A dirty working tree cannot certify
+a Git commit; a one-shot localhost decision records owner input but does not
+authorize releases or destructive operations.
 
 The native agent roster contains Explorer, module-owner Worker (including
 its tests) and read-only Reviewer, with a three-child limit and maximum

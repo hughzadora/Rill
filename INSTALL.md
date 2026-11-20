@@ -25,8 +25,13 @@ Pin a release; do not rely on latest. Review
 
 For an empty or clean Git repository use `rill init PATH --yes`; the CLI
 creates `feat/rill-init` when necessary and records one initialization commit.
-For a previously adopted clean repository use `rill upgrade PATH --yes`;
-the CLI checks managed hashes and commits only changed managed assets.
+After updating the global `rill` binary, run `rill upgrade PATH --yes`
+**before** running the project's `just ci` or `just ci-full`. The native
+versioned template is the only source of updated CLI command contracts;
+Rill does not maintain a second legacy command compatibility layer.
+An upgrade checks managed hashes, uses a temporary Git worktree and applies
+only a native fast-forward commit to a clean, unchanged target. A conflict
+stops without deleting user files or replacing a concurrent edit.
 `rill status PATH`, `rill doctor PATH`, and `rill ui PATH --no-open` are
 safe local observations. `rill ui PATH --serve` temporarily serves the
 single-file dashboard on loopback, accepts one owner decision and exits.

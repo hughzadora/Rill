@@ -72,14 +72,27 @@ report stale or partial source data and do not infer absent fields as passed.
 ## Installed Rill CLI ownership and runtime
 
 `src/py/rill_cli/cli/` routes Typer/Rich commands and Git policy entrypoints;
-`core/installer.py` provides clean-repo Copier init/upgrade and atomic Git
-commits. `state.py` writes `.rill/state.json` atomically; `git_policy.py`
+`core/installer.py` delegates template rendering to Copier and versioned
+changes to Git. Upgrades render and commit in a detached Git worktree; only a
+clean unchanged project HEAD may receive the native `git merge --ff-only`.
+State remains atomic; if its final write fails, native `git reset --keep`
+attempts a safe revert and refuses to overwrite concurrent edits. No
+hand-rolled file deletion or `reset --hard` rollback is used. `state.py`
+writes `.rill/state.json` atomically; `git_policy.py`
 checks branch, commit size and independent frontend/backend changes;
 `guardrails.py` and `hooks.py` implement scoped write warnings and bounded
 symbol extraction. `dashboard.py` renders local facts and an ephemeral
 loopback receipt endpoint, with a single-file embedded HTML asset.
-Revision-bound L2/L3 CI receipts are atomically stored in `.rill/ci-summary.json`;
-a different Git HEAD invalidates prior green evidence.
+Revision-bound L2/L3 CI receipts are atomically stored in `.rill/ci-summary.json`.
+Only tests on a clean worktree may certify `last_verified_sha`;
+uncommitted edits and a changed Git HEAD invalidate prior green evidence.
+
+Git's native hooks call the upstream `@commitlint/config-conventional`
+through `pnpm exec commitlint`. There is no second Python commit-message
+parser or hand-maintained type enum. Rill's Python Git checks cover only
+Rill-specific atomic file boundaries, not the Conventional Commits grammar.
+Copier's native `run_update` needs a Git-versioned template; the embedded
+snapshot currently uses `run_copy` inside a linked Git worktree instead.
 
 `VERSION` is the source for installed `rill-factory` metadata. Paths,
 limits, roles and state keys belong to the CLI constants registry.
