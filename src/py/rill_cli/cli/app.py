@@ -12,6 +12,7 @@ from rich.console import Console
 
 from rill_cli import __version__
 from rill_cli.assets import template_version
+from rill_cli.cli.fleet import app as fleet_app
 from rill_cli.cli.policy import app as policy_app
 from rill_cli.core import dashboard, doctor, hooks, installer
 from rill_cli.core.constants import COPIER_ANSWERS, HOOK_EVENTS
@@ -20,6 +21,7 @@ from rill_cli.core.git_policy import branch, changed_paths, head_summary
 app = typer.Typer(no_args_is_help=True, help="Rill software-factory lifecycle CLI")
 console = Console()
 app.add_typer(policy_app, name="policy")
+app.add_typer(fleet_app, name="fleet")
 
 
 @app.callback()
