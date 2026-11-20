@@ -2,7 +2,7 @@
   "name": "@rill/factory",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.21.0",
+  "packageManager": "bun@1.4.5",
   "description": "Rill native-first software factory CLI (development candidate)",
   "bin": {
     "rill": "./dist/cli.js"
@@ -12,12 +12,15 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "pnpm run clean && tsc --project tsconfig.json",
-    "check": "tsc --project tsconfig.json --noEmit",
-    "lint": "biome check src tests package.json tsconfig.json biome.json",
-    "test": "node --test tests/*.test.mjs",
+    "build": "bun run clean && bun build ./src/*.ts --no-bundle --target=node --outdir ./dist",
+    "typecheck": "bun check --no-script",
+    "lint": "biome lint src tests",
+    "format:check": "bun fmt --check src tests package.json tsconfig.json",
+    "test": "bun test --parallel=2 --timings=.github/test-timings.json ./tests/*.test.mjs",
     "test:coverage": "c8 --all --src dist --include 'dist/**/*.js' --check-coverage --per-file --lines 80 --reporter text node --test tests/*.test.mjs",
-    "ci": "pnpm run lint && pnpm run check && pnpm run build && pnpm run test:coverage"
+    "ci": "bun run --parallel lint typecheck format:check build && bun run --parallel test test:coverage",
+    "test:changed": "bun test --changed=main --timings=.github/test-timings.json ./tests/*.test.mjs",
+    "test:timings": "bun test --timings=.github/test-timings.json --update-timings ./tests/*.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",

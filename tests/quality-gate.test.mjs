@@ -39,7 +39,7 @@ function fixture(t) {
 }
 
 function covered(dir) {
-  return spawnSync("pnpm", ["run", "test:coverage"], {
+  return spawnSync("bun", ["run", "test:coverage"], {
     cwd: dir,
     encoding: "utf8",
     timeout: 30_000,
@@ -71,7 +71,7 @@ test("a fake-green test script cannot conceal no source test execution", (t) => 
     join(dir, "tests/total.test.mjs"),
     'import test from "node:test";\nimport assert from "node:assert/strict";\ntest("fake PASS", () => assert.ok(true));\n',
   );
-  const falseGreen = spawnSync("pnpm", ["test"], { cwd: dir, encoding: "utf8" });
+  const falseGreen = spawnSync("bun", ["run", "test"], { cwd: dir, encoding: "utf8" });
   assert.equal(falseGreen.status, 0, falseGreen.stderr);
   const result = covered(dir);
   assert.notEqual(result.status, 0, result.stdout + result.stderr);

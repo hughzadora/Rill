@@ -128,12 +128,12 @@ test("applied review branch preserves custom Codex policy, app source, tests and
   assert.ok(receipt.pendingIntegration.includes("AGENTS.md"));
   assert.ok(receipt.pendingIntegration.includes(".codex/config.toml"));
   assert.equal(receipt.nativeTrust, "REQUIRES_USER_APPROVAL");
-  const tests = exec(process.execPath, ["--test", "tests/core.test.mjs"], receipt.worktree);
+  const tests = exec("bun", ["test", "./tests/core.test.mjs"], receipt.worktree);
   assert.equal(tests.status, 0, tests.stderr);
-  assert.match(tests.stdout + tests.stderr, /pass 1/);
+  assert.match(tests.stdout + tests.stderr, /1 pass/);
   const originalSource = text(join(receipt.worktree, "src/core.mjs"));
   writeFileSync(join(receipt.worktree, "src/core.mjs"), "export const total = () => 0;\n");
-  const regression = exec(process.execPath, ["--test", "tests/core.test.mjs"], receipt.worktree);
+  const regression = exec("bun", ["test", "./tests/core.test.mjs"], receipt.worktree);
   assert.notEqual(
     regression.status,
     0,

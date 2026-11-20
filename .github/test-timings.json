@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "files": {
+    "tests/quality-gate.test.mjs": 980,
+    "tests/update.test.mjs": 372,
+    "tests/build-output.test.mjs": 295,
+    "tests/adopt.test.mjs": 277,
+    "tests/init.test.mjs": 191,
+    "tests/versioned-update.test.mjs": 161,
+    "tests/cli.test.mjs": 68,
+    "tests/plugin.test.mjs": 58,
+    "tests/contract.test.mjs": 6,
+    "tests/native-evidence.test.mjs": 3,
+    "tests/bun-toolchain.test.mjs": 2,
+    "tests/discovery.test.mjs": 2,
+    "tests/quality-workflow.test.mjs": 2,
+    "tests/recovery.test.mjs": 2
+  }
+}
