@@ -12,7 +12,7 @@ from rill_cli.core.fleet import FleetEngine
 from rill_cli.core.git_policy import git
 from rill_cli.core.models import AgentAssetManifest, AssetFile
 from rill_cli.tui.app import FleetApp
-from rill_cli.tui.modals import ConfirmModal, HelpModal, PathWizard, WizardRequest
+from rill_cli.tui.modals import ConfirmModal, HelpModal, PathWizard
 
 
 def engine_at(tmp_path: Path) -> FleetEngine:
@@ -122,8 +122,12 @@ def test_preview_approval_rejects_bundle_replaced_before_confirmation(tmp_path: 
         app = FleetApp(engine=engine)
         async with app.run_test(size=(120, 42)) as pilot:
             await pilot.pause(0.2)
-            app._preview_worker("install", WizardRequest(str(source)))
-            await pilot.pause(0.25)
+            await pilot.press("i")
+            await pilot.pause()
+            assert isinstance(app.screen, PathWizard)
+            app.screen.query_one("#path", Input).value = str(source)
+            app.screen.query_one("#continue", Button).press()
+            await pilot.pause(0.3)
             assert isinstance(app.screen, ConfirmModal)
             replacement = b"# Changed after inspection\n"
             (source / "SKILL.md").write_bytes(replacement)
