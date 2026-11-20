@@ -134,7 +134,7 @@ export function acceptanceItems(body: string): AcceptanceItem[] {
       if (
         sectionDepth === null &&
         /^(acceptance(?: criteria)?|验收(?:标准|条件)?)(?:[:：])?$/i.test(
-          heading[2].trim(),
+          heading[2].replace(/\s+#+\s*$/, "").trim(),
         )
       ) {
         sectionDepth = depth;

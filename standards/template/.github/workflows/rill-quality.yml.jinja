@@ -178,6 +178,7 @@ jobs:
             ' "$report" >/dev/null
           done
       - name: Verify actual product in system Chrome with axe-core
+        id: rill_product_proof
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
         run: |
@@ -210,6 +211,7 @@ jobs:
           BROWSER_CONFIG
           cat > "$proof/proof.mjs" <<'BROWSER'
           import AxeBuilder from "@axe-core/playwright";
+          import { appendFileSync } from "node:fs";
           import { expect, test } from "@playwright/test";
 
           test("@rill-product-chrome-axe-proof", async ({ page, baseURL }, testInfo) => {
@@ -221,12 +223,17 @@ jobs:
               .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
               .analyze();
             expect(report.violations).toEqual([]);
+            if (process.env.GITHUB_OUTPUT) {
+              appendFileSync(process.env.GITHUB_OUTPUT, `product_url=${baseURL}\n`);
+            }
           });
           BROWSER
           RILL_BROWSER_PROOF_DIR="$PWD/$proof" pnpm exec playwright test --config="$config" --project=chrome --grep '@rill-product-chrome-axe-proof' --repeat-each=1 --output="$proof/results" --reporter=json > "$proof/report.json" || { cat "$proof/report.json"; exit 1; }
           jq -e '[.suites[] | recurse(.suites[]?) | .specs[]? | select(.title == "@rill-product-chrome-axe-proof") | .tests[]? | select(.projectName == "chrome") | .results[]? | select(.status == "passed")] | length == 1' "$proof/report.json"
 {% for tag, label in [("e2e", "E2E"), ("a11y", "accessibility")] %}
       - name: Execute native Chrome [[ label ]] test cases
+        env:
+          RILL_PRODUCT_URL: ${{ steps.rill_product_proof.outputs.product_url }}
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
         run: |
@@ -239,8 +246,8 @@ jobs:
             | select(.status == "passed") | .attachments[]?
             | select(.name == "trace" and .path != null) | .path
           ' "$traces/report.json" > "$traces/passed-traces"
-          base_url=$(pnpm exec playwright test --list --project=chrome --reporter=json | jq -er '.config.webServer | if type == "array" then .[0].url else .url end')
-          python3 - "$traces/passed-traces" "$base_url" <<'TRACE'
+          test -n "$RILL_PRODUCT_URL"
+          python3 - "$traces/passed-traces" "$RILL_PRODUCT_URL" <<'TRACE'
           import json
           from pathlib import Path
           import sys
@@ -249,7 +256,7 @@ jobs:
 
           product = urlsplit(sys.argv[2])
           if product.scheme not in ("http", "https") or not product.netloc:
-              sys.exit("No valid Playwright product webServer URL configured")
+              sys.exit("No valid product URL from successful Chrome/axe proof")
 
           def visited_page(path):
               with ZipFile(path) as archive:
@@ -263,8 +270,10 @@ jobs:
                                   continue
                               frame = event["snapshot"]
                               url = urlsplit(frame["frameUrl"])
+                              product_path = product.path.rstrip("/")
+                              on_product = url.path == (product.path or "/") or url.path.startswith(product_path + "/")
                               if (frame["isMainFrame"] and url.scheme == product.scheme
-                                      and url.netloc == product.netloc):
+                                      and url.netloc == product.netloc and on_product):
                                   return True
               return False
 

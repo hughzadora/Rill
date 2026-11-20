@@ -1289,15 +1289,26 @@ createServer((_request, response) => {
   ]);
 
   const proof = "Verify actual product in system Chrome with axe-core";
-  const run = (label, options = {}) =>
-    executeGeneratedStep(workflow, label, project, {
+  const receipt = join(project, "browser-proof-output.txt");
+  const run = (label, options = {}) => {
+    const lastProductUrl = existsSync(receipt)
+      ? readFileSync(receipt, "utf8")
+          .match(/product_url=(.+)/g)
+          ?.at(-1)
+          ?.slice("product_url=".length)
+      : undefined;
+    return executeGeneratedStep(workflow, label, project, {
       ...options,
       env: {
         PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
         PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+        ...(label === proof
+          ? { GITHUB_OUTPUT: receipt }
+          : { RILL_PRODUCT_URL: lastProductUrl }),
         ...options.env,
       },
     });
+  };
 
   const spec = join(project, "e2e/inventory.spec.mjs");
   const original = readFileSync(spec, "utf8");
@@ -1306,6 +1317,7 @@ test("@e2e @a11y opens the product", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
 });`;
+  run(proof);
   for (const [tag, label] of [
     ["@e2e", "Execute native Chrome E2E test cases"],
     ["@a11y", "Execute native Chrome accessibility test cases"],
@@ -1368,7 +1380,7 @@ test("@e2e @a11y opens the product", async ({ page }) => {
       run(proof, { env: { PRODUCT_ROUTE: "/inventory/" } });
       writeFileSync(
         join(browserDir, "inventory.check.ts"),
-        `import { test } from "@playwright/test";\ntest("@e2e wrong route", async ({ page }) => { await page.goto("http://127.0.0.1:4179/"); });\n`,
+        `import { test } from "@playwright/test";\ntest("@e2e wrong route", async ({ page }) => { await page.goto("http://127.0.0.1:4178/health"); });\n`,
       );
       assert.match(
         run("Execute native Chrome E2E test cases", {
@@ -1611,13 +1623,23 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   );
   rmSync(quotedModule);
   git(project, ["reset", "--", "src/非ASCII模块.ts"]);
+  const browserReceipt = join(project, "browser-proof-output.txt");
   executeGeneratedStep(
     workflow,
     "Verify actual product in system Chrome with axe-core",
     project,
+    { env: { GITHUB_OUTPUT: browserReceipt } },
+  );
+  const productUrl = readFileSync(browserReceipt, "utf8").match(
+    /product_url=(.+)/,
+  )?.[1];
+  assert.ok(
+    productUrl,
+    "A successful Chrome/axe proof must export the native product URL",
   );
   const browserIsolated = {
     env: {
+      RILL_PRODUCT_URL: productUrl,
       PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
     },

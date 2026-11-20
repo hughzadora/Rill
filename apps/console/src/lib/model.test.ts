@@ -72,6 +72,12 @@ describe("native issue evidence model", () => {
     ).toEqual([{ text: "Real owner pilot", checked: false }]);
   });
 
+  it("accepts GitHub heading closing hashes", () => {
+    expect(acceptanceItems("## Acceptance ##\n- [ ] Actual checklist")).toEqual(
+      [{ text: "Actual checklist", checked: false }],
+    );
+  });
+
   it("ignores fenced headings and checklist examples", () => {
     expect(
       acceptanceItems(
