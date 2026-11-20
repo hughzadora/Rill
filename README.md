@@ -10,7 +10,7 @@ OpenAI's [Plugin packaging contract](https://developers.openai.com/plugins/build
 
 - `plugin.json` — **single portable Plugin identity at repository root**, with the OpenAI extension.
 - `skills/rill-recover/`, `skills/rill-update/` — the two Rill-specific, progressively disclosed Skills; upstream design/research Skills are not copied.
-- `hooks/hooks.json`, `hooks/session-start.mjs` — **one** native `SessionStart` Hook, using `PLUGIN_ROOT`. Codex must explicitly trust the active definition.
+- `hooks/hooks.json`, `hooks/session-start.mjs` — **one** native `SessionStart` Hook, using `PLUGIN_ROOT`. Codex must explicitly trust the active definition. Even after trust, the Hook contributes context only to the Rill factory or an opted-in consumer using Rill's recognizable `AGENTS.md` entry, not to unrelated projects merely because they have a `PRD.md`.
 - `.agents/plugins/marketplace.json` — repository Marketplace, pointing at `./`, not a second Plugin directory.
 - `.codex/config.toml` and `.codex/agents/` — official project-scoped Codex settings and role guidance. A role prompt does not create a security sandbox.
 

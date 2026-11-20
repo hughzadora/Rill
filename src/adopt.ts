@@ -63,6 +63,12 @@ function rejectSymlinkAncestors(target: string, paths: string[]): void {
 }
 
 function checkSource(root: string, version: string): void {
+  for (const path of ["templates", "templates/consumer", ".codex", ".codex/agents"]) {
+    const directory = join(root, path);
+    if (!existing(directory) || !lstatSync(directory).isDirectory()) {
+      throw new RillCommandError("The Rill source has missing or unsafe project directories.", 2);
+    }
+  }
   const required = [
     "plugin.json",
     "templates/consumer/PRD.md",

@@ -382,3 +382,30 @@ test("adoption rejects a nested directory instead of treating it as the Git root
   assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
   assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
 });
+
+test("adoption rejects symlinked native source directory ancestors", (t) => {
+  const { repo, parent, head } = fixture(t, { existingPrd: true });
+  const distribution = join(parent, "unsafe-directory-source");
+  mkdirSync(distribution);
+  cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
+  for (const asset of [".codex", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "plugin.json"), join(distribution, "plugin.json"));
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  rmSync(join(distribution, ".codex/agents"), { recursive: true });
+  symlinkSync(join(factory, ".codex/agents"), join(distribution, ".codex/agents"));
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(
+    git(repo, "worktree", "list", "--porcelain").stdout.match(/^worktree /gm)?.length,
+    1,
+  );
+});

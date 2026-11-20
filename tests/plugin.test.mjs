@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -95,4 +96,35 @@ test("Hook is silent in a project without a PRD", () => {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "");
+});
+
+test("globally installed Hook is silent in unrelated PRD projects", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "rill-unrelated-hook-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(join(directory, "PRD.md"), "# Unrelated Product Specification\n");
+  writeFileSync(join(directory, "AGENTS.md"), "# Unrelated Agent Instructions\n");
+  const result = spawnSync(process.execPath, [join(root, "hooks/session-start.mjs")], {
+    cwd: directory,
+    encoding: "utf8",
+    input: JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd: directory }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "");
+});
+
+test("Rill consumer template explicitly opts into bounded Hook context", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "rill-enrolled-hook-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(join(directory, "PRD.md"), "# Product Specification\n");
+  writeFileSync(join(directory, "AGENTS.md"), read("templates/consumer/AGENTS.md"));
+  const result = spawnSync(process.execPath, [join(root, "hooks/session-start.mjs")], {
+    cwd: directory,
+    encoding: "utf8",
+    input: JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd: directory }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    JSON.parse(result.stdout).hookSpecificOutput.additionalContext,
+    /Rill project detected/,
+  );
 });
