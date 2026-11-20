@@ -4,18 +4,18 @@ import {
   cpSync,
   existsSync,
   lstatSync,
-  mkdtempSync,
   mkdirSync,
-  readFileSync,
+  mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
 const scratch = () => mkdtempSync(join(tmpdir(), "rill-init-test-"));
@@ -27,21 +27,42 @@ test("new product gets a specific PRD, versioned Plugin, native roles and a new 
   const parent = scratch();
   t.after(() => rmSync(parent, { recursive: true, force: true }));
   const target = join(parent, "equipment-portal");
-  const result = run(compiled, ["init", target, "--goal", "Track commercial kitchen service tickets", "--yes", "--json"]);
+  const result = run(compiled, [
+    "init",
+    target,
+    "--goal",
+    "Track commercial kitchen service tickets",
+    "--yes",
+    "--json",
+  ]);
   assert.equal(result.status, 0, result.stderr);
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.status, "CREATED_NOT_VERIFIED");
   assert.equal(receipt.version, "0.0.1");
   assert.equal(receipt.path, target);
-  assert.match(readFileSync(join(target, "PRD.md"), "utf8"), /Track commercial kitchen service tickets/);
+  assert.match(
+    readFileSync(join(target, "PRD.md"), "utf8"),
+    /Track commercial kitchen service tickets/,
+  );
   assert.equal(existsSync(join(target, "CONSTITUTION.md")), false);
   assert.equal(existsSync(join(target, ".codex/agents/reviewer.toml")), true);
   assert.equal(existsSync(join(target, ".rill/plugin/skills/brainstorming/SKILL.md")), true);
-  assert.equal(JSON.parse(readFileSync(join(target, ".rill/plugin/plugin.json"), "utf8")).version, "0.0.1");
-  const marketplace = JSON.parse(readFileSync(join(target, ".agents/plugins/marketplace.json"), "utf8"));
+  assert.equal(
+    JSON.parse(readFileSync(join(target, ".rill/plugin/plugin.json"), "utf8")).version,
+    "0.0.1",
+  );
+  const marketplace = JSON.parse(
+    readFileSync(join(target, ".agents/plugins/marketplace.json"), "utf8"),
+  );
   assert.equal(marketplace.plugins[0].source.path, "./.rill/plugin");
-  assert.equal(existsSync(join(target, ".github/workflows/quality.yml")), false, "no fake-green CI for unknown product stack");
-  const git = spawnSync("git", ["-C", target, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  assert.equal(
+    existsSync(join(target, ".github/workflows/quality.yml")),
+    false,
+    "no fake-green CI for unknown product stack",
+  );
+  const git = spawnSync("git", ["-C", target, "rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  });
   assert.equal(git.status, 0, git.stderr);
   assert.equal(git.stdout.trim(), target);
 });
@@ -52,7 +73,14 @@ test("refuses existing data without modifying user-owned files, even with --yes"
   const target = join(parent, "existing");
   mkdirSync(target);
   writeFileSync(join(target, "important.txt"), "must survive");
-  const result = run(compiled, ["init", target, "--goal", "An existing project", "--yes", "--json"]);
+  const result = run(compiled, [
+    "init",
+    target,
+    "--goal",
+    "An existing project",
+    "--yes",
+    "--json",
+  ]);
   assert.equal(result.status, 1, result.stderr);
   assert.equal(readFileSync(join(target, "important.txt"), "utf8"), "must survive");
   assert.equal(existsSync(join(target, "PRD.md")), false);
@@ -89,7 +117,14 @@ test("standalone copied distribution initializes a repo without the Rill Git che
   cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
   cpSync(join(repo, "bundle"), join(distribution, "bundle"), { recursive: true });
   const target = join(parent, "independent-product");
-  const result = run(join(distribution, "dist/cli.js"), ["init", target, "--goal", "A new independent product", "--yes", "--json"]);
+  const result = run(join(distribution, "dist/cli.js"), [
+    "init",
+    target,
+    "--goal",
+    "A new independent product",
+    "--yes",
+    "--json",
+  ]);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "CREATED_NOT_VERIFIED");
   assert.match(readFileSync(join(target, "PRD.md"), "utf8"), /A new independent product/);
@@ -119,7 +154,12 @@ test("mismatched plugin version fails without exposing a half-created project", 
   writeFileSync(manifest, JSON.stringify(data));
   const target = join(parent, "must-not-exist");
   const result = run(join(distribution, "dist/cli.js"), [
-    "init", target, "--goal", "Must fail closed", "--yes", "--json",
+    "init",
+    target,
+    "--goal",
+    "Must fail closed",
+    "--yes",
+    "--json",
   ]);
   assert.equal(result.status, 2);
   assert.equal(existsSync(target), false);
@@ -131,15 +171,20 @@ test("missing native Git reports an environment error and cleans the staging fol
   const parent = scratch();
   t.after(() => rmSync(parent, { recursive: true, force: true }));
   const target = join(parent, "no-git");
-  const result = spawnSync(process.execPath, [
-    compiled, "init", target, "--goal", "Git failure path", "--yes", "--json",
-  ], {
-    cwd: repo,
-    encoding: "utf8",
-    env: { ...process.env, PATH: "/__rill_missing_git_binary__" },
-  });
+  const result = spawnSync(
+    process.execPath,
+    [compiled, "init", target, "--goal", "Git failure path", "--yes", "--json"],
+    {
+      cwd: repo,
+      encoding: "utf8",
+      env: { ...process.env, PATH: "/__rill_missing_git_binary__" },
+    },
+  );
   assert.equal(result.status, 2);
   assert.match(JSON.parse(result.stderr).error.message, /Git/);
   assert.equal(existsSync(target), false);
-  assert.deepEqual(readdirSync(parent).filter((name) => name.startsWith(".rill-init-")), []);
+  assert.deepEqual(
+    readdirSync(parent).filter((name) => name.startsWith(".rill-init-")),
+    [],
+  );
 });

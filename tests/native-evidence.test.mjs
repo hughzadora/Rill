@@ -20,8 +20,16 @@ const acceptedSpawn = event("item.completed", {
 test("rejects a model claim of delegation when native events only show empty wait", () => {
   const trace = [
     event("thread.started"),
-    event("item.completed", { type: "collab_tool_call", tool: "wait", receiver_thread_ids: [], status: "completed" }),
-    event("item.completed", { type: "agent_message", text: "The explorer replied; spawn accepted." }),
+    event("item.completed", {
+      type: "collab_tool_call",
+      tool: "wait",
+      receiver_thread_ids: [],
+      status: "completed",
+    }),
+    event("item.completed", {
+      type: "agent_message",
+      text: "The explorer replied; spawn accepted.",
+    }),
     event("turn.completed"),
   ].join("\n");
   const proof = verifyNativeEvidence(trace, "");
@@ -30,7 +38,9 @@ test("rejects a model claim of delegation when native events only show empty wai
 });
 
 test("counts actual completed skill read and explicit nonempty spawn event only", () => {
-  const trace = [event("thread.started"), skillRead, acceptedSpawn, event("turn.completed")].join("\n");
+  const trace = [event("thread.started"), skillRead, acceptedSpawn, event("turn.completed")].join(
+    "\n",
+  );
   const proof = verifyNativeEvidence(trace, "");
   assert.equal(proof.skillRead, "OBSERVED");
   assert.equal(proof.delegation, "OBSERVED");
@@ -40,13 +50,19 @@ test("counts actual completed skill read and explicit nonempty spawn event only"
 
 test("untrusted project configuration warning blocks native role claims", () => {
   const trace = [skillRead, acceptedSpawn, event("turn.completed")].join("\n");
-  const proof = verifyNativeEvidence(trace, "warning: Untrusted project-local configuration is disabled.");
+  const proof = verifyNativeEvidence(
+    trace,
+    "warning: Untrusted project-local configuration is disabled.",
+  );
   assert.equal(proof.projectConfig, "DISABLED");
   assert.equal(proof.customRoles, "NOT_VERIFIED");
 });
 
 test("corrupted JSONL cannot be counted as proof", () => {
-  assert.throws(() => verifyNativeEvidence(event("thread.started") + "\n{not json", ""), /Invalid Codex JSONL/);
+  assert.throws(
+    () => verifyNativeEvidence(`${event("thread.started")}\n{not json`, ""),
+    /Invalid Codex JSONL/,
+  );
 });
 
 test("missing turn completion fails closed even if a skill was read", () => {
