@@ -1,1 +1,2 @@
-mise exec --locked just -- just lint
+#!/usr/bin/env sh
+just pre-commit

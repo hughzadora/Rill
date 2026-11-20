@@ -18,11 +18,9 @@ jobs:
       - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
         with:
           install: false
-      - name: Install locked tools
-        run: mise exec --locked just -- just install
-      - name: Install locked project dependencies
-        env:
-          HUSKY: "0"
-        run: mise exec --locked node pnpm -- pnpm install --frozen-lockfile
-      - name: Run project quality checks
-        run: mise exec --locked just -- just full-spec-ci
+      - name: Install locked Just
+        run: mise exec --locked just -- just --version
+      - name: Bootstrap project tools and dependencies
+        run: mise exec --locked just -- just setup
+      - name: Run the full local quality gate
+        run: mise exec --locked just -- just ci-full

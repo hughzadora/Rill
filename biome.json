@@ -1,63 +1,62 @@
 {
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
   "files": {
     "includes": [
-      "**/*.{js,jsx,ts,tsx,json,jsonc,css,scss,html,md,yml,yaml,graphql}",
-      "!node_modules",
-      "!dist",
-      "!vendor",
-      "!.mise"
+      "src/ts/**/*",
+      "tests/ts/**/*",
+      "tests/e2e/**/*",
+      "*.json",
+      "vite.config.ts",
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "index.html",
+      "!**/dist",
+      "!**/playwright-report",
+      "!**/test-results",
+      "!**/coverage",
+      "!**/node_modules",
+      "!**/.venv"
     ]
   },
   "formatter": {
-    "indentStyle": "space"
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
   },
-  "html": {
-    "experimentalFullSupportEnabled": true
+  "tailwind": {
+    "stylesheet": "./src/ts/index.css",
+    "attributes": ["class", "className"],
+    "mergeFunctions": ["clsx", "cn"],
+    "variantFunctions": ["cva"]
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
+    "enabled": true,
     "rules": {
       "preset": "recommended",
-      "correctness": {
-        "noUndeclaredVariables": "error"
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        }
+      },
+      "style": {
+        "noNonNullAssertion": "error"
       },
       "suspicious": {
-        "noDebugger": "error"
+        "noExplicitAny": "error",
+        "noConsole": "error"
       },
       "nursery": {
         "useTailwindSortedClasses": "error"
       }
     }
-  },
-  "overrides": [
-    {
-      "includes": ["**/*.{ts,tsx}"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUndeclaredVariables": "error"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["**/*.md"],
-      "formatter": {
-        "enabled": true
-      }
-    },
-    {
-      "includes": ["**/*.html"],
-      "formatter": {
-        "enabled": true
-      },
-      "linter": {
-        "enabled": true
-      }
-    }
-  ]
+  }
 }

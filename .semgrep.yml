@@ -1,0 +1,24 @@
+rules:
+  - id: no-typescript-type-suppression
+    severity: ERROR
+    languages: [typescript]
+    message: Avoid any-casts or TypeScript diagnostic suppression; narrow types explicitly.
+    pattern-regex: '(?m)(?:\bas\s+any\b|@ts-(?:ignore|nocheck))'
+  - id: no-unscoped-python-type-ignore
+    severity: ERROR
+    languages: [python]
+    message: Python type ignores require a specific error code.
+    pattern-regex: '#\s*type:\s*ignore(?!\s*\[)'
+  - id: no-urllib-request-clients
+    severity: ERROR
+    languages: [python]
+    message: Use the maintained httpx library instead of urllib.request.
+    pattern-either:
+      - pattern: import urllib.request
+      - pattern: from urllib import request
+      - pattern: from urllib.request import $IMPORT
+  - id: no-dynamic-code-execution
+    severity: ERROR
+    languages: [typescript, javascript, python, bash]
+    message: Dynamic eval/exec is forbidden.
+    pattern-regex: '(?m)(?:\b(?:eval|exec)\s*\(|(?:^|[;&|]\s*|\s+)eval[ \t]+)'

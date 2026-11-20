@@ -1,0 +1,20 @@
+{
+  "entry": [
+    "src/ts/main.tsx",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "tests/ts/**/*.test.{ts,tsx}",
+    "tests/e2e/**/*.spec.ts"
+  ],
+  "project": [
+    "src/ts/**/*.{ts,tsx}",
+    "tests/ts/**/*.{ts,tsx}",
+    "tests/e2e/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ],
+  "ignoreDependencies": ["@commitlint/cli", "jscpd", "lint-staged"],
+  "ignoreBinaries": ["mise"]
+}
