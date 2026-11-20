@@ -24,6 +24,7 @@ from .governance_contract import (
     AttemptEvidence,
     DefectRecord,
     Disposition,
+    FrozenContract,
     GovernanceLedger,
     IsolationEvidence,
     Severity,
@@ -73,6 +74,21 @@ class GovernanceEngine:
             checked = GovernanceLedger.model_validate_json(ledger.model_dump_json())
             atomic_write(self.state_path, (checked.model_dump_json(indent=2) + "\n").encode())
             return checked
+
+    def freeze(self, contract: FrozenContract) -> FrozenContract:
+        """A committed L1 freeze cannot silently be replaced by later workers."""
+        if contract.schema_digest != schema_digest():
+            raise ValueError("Freeze must use the installed Pydantic contract schema")
+
+        def set_once(ledger: GovernanceLedger) -> None:
+            if ledger.frozen is not None:
+                raise PermissionError("L1 contract is already frozen")
+            ledger.frozen = contract
+
+        saved = self._update(set_once).frozen
+        if saved is None:
+            raise RuntimeError("L1 freeze did not persist")
+        return saved
 
     def register(self, record: DefectRecord) -> DefectRecord:
         """Defect identity, grade and root cause cannot be rewritten to reset budget."""
