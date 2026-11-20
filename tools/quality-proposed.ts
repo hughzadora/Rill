@@ -10,11 +10,7 @@ import {
   type QualityResult,
 } from "./quality-state.js";
 
-function defaultProfileCommand(
-  cwd: string,
-  argv: string[],
-  _options: { shell: false },
-) {
+function defaultProfileCommand(cwd: string, argv: string[], _options: { shell: false }) {
   void _options;
   const process = spawnSync(argv[0] ?? "", argv.slice(1), {
     cwd,
@@ -44,21 +40,15 @@ export function runProfileMetrics(
     result.projectRoot,
   ];
   const start = performance.now();
-  const outcome = (dependencies.runCommand ?? defaultProfileCommand)(
-    sourceRoot,
-    argv,
-    { shell: false },
-  );
+  const outcome = (dependencies.runCommand ?? defaultProfileCommand)(sourceRoot, argv, {
+    shell: false,
+  });
   const current = projectFacts(result.projectRoot);
   const changed =
     current.revision !== result.revision ||
     current.workingTree.contentSha256 !== result.workingTree.contentSha256;
   const status: GateStatus =
-    changed || outcome.error
-      ? "blocked"
-      : outcome.exitCode === 0
-        ? "pass"
-        : "fail";
+    changed || outcome.error ? "blocked" : outcome.exitCode === 0 ? "pass" : "fail";
   return {
     id: "profile-metrics",
     status,
@@ -69,8 +59,6 @@ export function runProfileMetrics(
     durationMs: Math.round(performance.now() - start),
     stdoutSha256: digest(outcome.stdout),
     stderrSha256: digest(outcome.stderr),
-    reason: changed
-      ? "Project candidate changed during profile metrics."
-      : outcome.error,
+    reason: changed ? "Project candidate changed during profile metrics." : outcome.error,
   };
 }

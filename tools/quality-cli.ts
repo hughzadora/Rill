@@ -51,10 +51,7 @@ function readCliOptions(operation: string, args: string[]): CliOptions {
   return { values, execute, apply };
 }
 
-function parseDebt(
-  root: string,
-  values: Map<string, string>,
-): QualityCommandInput {
+function parseDebt(root: string, values: Map<string, string>): QualityCommandInput {
   const action = values.get("action") ?? "list";
   if (action !== "list" && action !== "show")
     throw new QualityCommandError("debt action must be list or show", 64);
@@ -69,8 +66,7 @@ function parseDebt(
 function parseSetup(root: string, options: CliOptions): QualityCommandInput {
   if (!options.values.has("plan") || !options.values.has("release"))
     throw new QualityCommandError("setup requires --plan and --release", 64);
-  if (!options.apply)
-    throw new QualityCommandError("setup requires --apply", 64);
+  if (!options.apply) throw new QualityCommandError("setup requires --apply", 64);
   return {
     operation: "setup",
     root,
@@ -79,11 +75,7 @@ function parseSetup(root: string, options: CliOptions): QualityCommandInput {
   };
 }
 
-function cliInput(
-  operation: string,
-  root: string,
-  options: CliOptions,
-): QualityCommandInput {
+function cliInput(operation: string, root: string, options: CliOptions): QualityCommandInput {
   const { values, execute } = options;
   switch (operation) {
     case "profile":
@@ -102,8 +94,7 @@ function cliInput(
     case "run":
       return { operation: "run", root, gate: values.get("gate") ?? "" };
     case "plan":
-      if (!values.has("release"))
-        throw new QualityCommandError("plan requires --release", 64);
+      if (!values.has("release")) throw new QualityCommandError("plan requires --release", 64);
       return { operation: "plan", root, release: values.get("release") };
     case "setup":
       return parseSetup(root, options);
@@ -148,9 +139,7 @@ function mcpResult(result: QualityResult) {
     structuredContent: result,
     isError:
       result.execution?.started === false ||
-      result.gateResults.some(
-        (gate) => gate.status === "fail" || gate.status === "blocked",
-      ),
+      result.gateResults.some((gate) => gate.status === "fail" || gate.status === "blocked"),
   };
 }
 
@@ -168,25 +157,19 @@ function registration(server: McpServer): RegisterTool {
     schema: z.ZodType,
     operation: (args: Record<string, unknown>) => QualityCommandInput,
   ) => {
-    server.registerTool(
-      name,
-      { description, inputSchema: schema },
-      async (args) => {
-        try {
-          return mcpResult(
-            runQualityCommand(operation(args as Record<string, unknown>), {
-              mcpReadOnly: true,
-            }),
-          );
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unexpected quality command failure";
-          return { content: [{ type: "text", text: message }], isError: true };
-        }
-      },
-    );
+    server.registerTool(name, { description, inputSchema: schema }, async (args) => {
+      try {
+        return mcpResult(
+          runQualityCommand(operation(args as Record<string, unknown>), {
+            mcpReadOnly: true,
+          }),
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected quality command failure";
+        return { content: [{ type: "text", text: message }], isError: true };
+      }
+    });
   };
 }
 
@@ -285,12 +268,10 @@ function registerStatusReads(
   register: RegisterTool,
   rootSchema: z.ZodObject<{ root: z.ZodString }>,
 ) {
-  register(
-    "quality_status",
-    "Read-only current quality status.",
-    rootSchema,
-    (args) => ({ operation: "status", root: String(args.root) }),
-  );
+  register("quality_status", "Read-only current quality status.", rootSchema, (args) => ({
+    operation: "status",
+    root: String(args.root),
+  }));
   register(
     "quality_ready",
     "Read-only readiness evaluation; unknown requirements fail closed.",
@@ -337,15 +318,9 @@ async function main() {
     process.exitCode = exitFor(result);
   } catch (error) {
     const exitCode = error instanceof QualityCommandError ? error.exitCode : 70;
-    process.stderr.write(
-      `${error instanceof Error ? error.message : "Unexpected failure"}\n`,
-    );
+    process.stderr.write(`${error instanceof Error ? error.message : "Unexpected failure"}\n`);
     process.exitCode = exitCode;
   }
 }
 
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  void main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) void main();

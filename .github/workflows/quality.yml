@@ -24,5 +24,11 @@ jobs:
         env:
           HUSKY: "0"
         run: mise exec --locked node pnpm -- pnpm install --frozen-lockfile
+      - name: Initialize pinned local quality tools
+        env:
+          HUSKY: "0"
+        run: mise exec --locked just -- just setup
+      - name: Run local multi-language quality gate
+        run: mise exec --locked just -- just ci-full
       - name: Run project quality checks
         run: mise exec --locked just -- just full-spec-ci

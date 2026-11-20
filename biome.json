@@ -10,11 +10,14 @@
       "!node_modules",
       "!dist",
       "!vendor",
-      "!.mise"
+      "!.mise",
+      "!quality-standards"
     ]
   },
   "formatter": {
-    "indentStyle": "space"
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
   },
   "html": {
     "experimentalFullSupportEnabled": true
@@ -26,10 +29,23 @@
         "noUndeclaredVariables": "error"
       },
       "suspicious": {
-        "noDebugger": "error"
+        "noDebugger": "error",
+        "noExplicitAny": "error",
+        "noConsole": "error"
       },
       "nursery": {
         "useTailwindSortedClasses": "error"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        }
+      },
+      "style": {
+        "noNonNullAssertion": "error"
       }
     }
   },
@@ -58,6 +74,23 @@
       "linter": {
         "enabled": true
       }
+    },
+    {
+      "includes": ["tools/**/*.ts", "tests/*.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
 }

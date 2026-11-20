@@ -1,21 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  readlinkSync,
-  realpathSync,
-} from "node:fs";
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { readBoundProfile } from "./quality-binding.js";
 
-export type GateStatus =
-  | "pass"
-  | "fail"
-  | "blocked"
-  | "unknown"
-  | "not-applicable";
+export type GateStatus = "pass" | "fail" | "blocked" | "unknown" | "not-applicable";
 
 export type QualityCommandInput =
   | {
@@ -98,11 +87,7 @@ export interface CommandOutcome {
 }
 
 export interface QualityCommandDependencies {
-  runCommand?: (
-    cwd: string,
-    argv: string[],
-    options: { shell: false },
-  ) => CommandOutcome;
+  runCommand?: (cwd: string, argv: string[], options: { shell: false }) => CommandOutcome;
   allowLocalApply?: boolean;
   mcpReadOnly?: boolean;
 }
@@ -133,13 +118,7 @@ function runGit(root: string, args: string[]): string {
 }
 
 function treeContentDigest(root: string): string {
-  const files = runGit(root, [
-    "ls-files",
-    "-z",
-    "--cached",
-    "--others",
-    "--exclude-standard",
-  ])
+  const files = runGit(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
     .split("\0")
     .filter(Boolean)
     .sort();
@@ -152,15 +131,9 @@ function treeContentDigest(root: string): string {
       hash.update(String(stat.mode));
       if (stat.isFile()) hash.update(readFileSync(path));
       else if (stat.isSymbolicLink()) hash.update(readlinkSync(path));
-      else
-        throw new QualityCommandError("Unsupported project entry: " + file, 64);
+      else throw new QualityCommandError("Unsupported project entry: " + file, 64);
     } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "ENOENT"
-      )
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
         hash.update("deleted");
       else throw error;
     }
@@ -176,26 +149,13 @@ export function projectFacts(requestedRoot: string) {
   try {
     realRequestedRoot = realpathSync(requestedRoot);
   } catch {
-    throw new QualityCommandError(
-      `Project root does not exist: ${requestedRoot}`,
-      64,
-    );
+    throw new QualityCommandError(`Project root does not exist: ${requestedRoot}`, 64);
   }
-  const projectRoot = runGit(realRequestedRoot, [
-    "rev-parse",
-    "--show-toplevel",
-  ]);
+  const projectRoot = runGit(realRequestedRoot, ["rev-parse", "--show-toplevel"]);
   const revision = runGit(projectRoot, ["rev-parse", "HEAD"]);
-  const status = runGit(projectRoot, [
-    "status",
-    "--porcelain=v1",
-    "-z",
-    "--untracked-files=all",
-  ]);
+  const status = runGit(projectRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
   const records = status.split("\0").filter(Boolean);
-  const untrackedFiles = records.filter((item) =>
-    item.startsWith("?? "),
-  ).length;
+  const untrackedFiles = records.filter((item) => item.startsWith("?? ")).length;
   const changedFiles = records.length;
   return {
     projectRoot: realpathSync(projectRoot),
@@ -225,9 +185,7 @@ function emptyResult(
     coverage: {
       status: "unknown",
       knownRoots: markers,
-      unknowns: [
-        "No verified immutable quality profile is available for this project.",
-      ],
+      unknowns: ["No verified immutable quality profile is available for this project."],
     },
     conflicts: [
       {
@@ -243,16 +201,13 @@ function emptyResult(
       {
         id: "native-approval",
         status: "blocked",
-        reason:
-          "This CLI has no native approval adapter; setup cannot apply changes.",
+        reason: "This CLI has no native approval adapter; setup cannot apply changes.",
       },
     ],
     readiness: {
       state: "unprofiled",
       ready: false,
-      blockers: [
-        "No verified immutable standard/profile is bound to this project.",
-      ],
+      blockers: ["No verified immutable standard/profile is bound to this project."],
     },
     nextActions: [
       "Review and bind an owner-approved immutable quality profile before planning setup.",
@@ -266,16 +221,10 @@ function updateBinding(result: QualityResult, root: string) {
     result.standardDigest = binding.bound.standardDigest;
     result.profileDigest = binding.digest;
     result.conflicts = [];
-    result.coverage.unknowns = [
-      "Binding recorded; effective gate coverage is not yet verified.",
-    ];
+    result.coverage.unknowns = ["Binding recorded; effective gate coverage is not yet verified."];
     result.readiness.state = "profiled-unverified";
-    result.readiness.blockers = [
-      "No verified full-spec gate receipt for this project revision.",
-    ];
-    result.nextActions = [
-      "Install and validate project-specific gates before claiming readiness.",
-    ];
+    result.readiness.blockers = ["No verified full-spec gate receipt for this project revision."];
+    result.nextActions = ["Install and validate project-specific gates before claiming readiness."];
   } else if (binding) {
     result.conflicts[0] = {
       code: "binding-invalid",

@@ -48,8 +48,7 @@ const config = {
   },
 };
 afterEach(() => {
-  for (const root of roots.splice(0))
-    rmSync(root, { recursive: true, force: true });
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 test("reports a complete passing real Tokei/Lizard baseline", () => {
   const root = sample();

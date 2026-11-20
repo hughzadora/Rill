@@ -16,8 +16,8 @@ lint:
     MISE_QUIET=1 mise exec --locked npm:markdownlint-cli2 -- markdownlint-cli2 '**/*.md'
     MISE_QUIET=1 mise exec --locked aqua:astral-sh/ruff -- ruff check .
     MISE_QUIET=1 mise exec --locked aqua:astral-sh/ruff -- ruff format --check .
-    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo check '**/*.toml'
-    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo fmt --check '**/*.toml'
+    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo check mise.toml pyproject.toml quality-fixtures/config/quality.toml quality-fixtures/python/pyproject.toml .codex/config.toml
+    MISE_QUIET=1 mise exec --locked aqua:tamasfe/taplo -- taplo fmt --check mise.toml pyproject.toml quality-fixtures/config/quality.toml quality-fixtures/python/pyproject.toml .codex/config.toml
     MISE_QUIET=1 mise exec --locked aqua:koalaman/shellcheck -- shellcheck --severity=style quality-fixtures/shell/check-env.sh
     MISE_QUIET=1 mise exec --locked aqua:mvdan/sh -- shfmt -d -i 2 quality-fixtures/shell/check-env.sh
 
@@ -28,19 +28,19 @@ typecheck:
 test:
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm test
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run test
-    MISE_QUIET=1 mise exec --locked pypi:pytest -- pytest -q quality-fixtures/python
+    MISE_QUIET=1 mise exec --locked uv -- uv run pytest -q quality-fixtures/python
 
 build:
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web run build
     test -s quality-fixtures/web/dist/index.html
 
 secret-scan:
-    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners secret --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs dist --exit-code 1 --quiet --format table .
+    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners secret --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs .venv --skip-dirs coverage --skip-dirs dist --exit-code 1 --quiet --format table .
 
 audit:
     MISE_QUIET=1 mise exec --locked pnpm -- pnpm --dir quality-fixtures/web audit --prod
-    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners vuln,misconfig,license --include-dev-deps --license-full --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs dist --exit-code 1 --quiet --format table .
-    MISE_QUIET=1 mise exec --locked pypi:pip-licenses -- pip-licenses --python quality-fixtures/python/.venv/bin/python --allow-only "MIT;MIT License;Apache Software License;BSD License;BSD-3-Clause;Mozilla Public License 2.0 (MPL 2.0)"
+    MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --scanners vuln,misconfig,license --include-dev-deps --license-full --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs quality-fixtures/web/node_modules --skip-dirs quality-fixtures/python/.venv --skip-dirs .venv --skip-dirs coverage --skip-dirs dist --exit-code 1 --quiet --format table .
+    MISE_QUIET=1 mise exec --locked pypi:pip-licenses -- pip-licenses --python quality-fixtures/python/.venv/bin/python --allow-only "MIT;MIT License;Apache Software License;BSD License;BSD-3-Clause;PSF-2.0;Mozilla Public License 2.0 (MPL 2.0)"
 
 sbom:
     MISE_QUIET=1 mise exec --locked aqua:aquasecurity/trivy -- trivy fs --format cyclonedx --output quality-fixtures/web/dist/rill-quality-profile.cdx.json --skip-dirs .mise --skip-dirs dist quality-fixtures/web
@@ -57,3 +57,24 @@ full-spec-ci: lint typecheck test build metrics secret-scan audit sbom history-s
 # Audit real TypeScript repositories, preserving the target worktree.
 project-metrics root profile="rill-typescript":
     MISE_QUIET=1 mise exec --locked cargo:tokei pypi:lizard pnpm -- pnpm exec tsx tools/quality-metrics.ts --root {{quote(root)}} --profile {{quote(profile)}}
+
+# Local multi-language CI. All workers are launched before exit-status collection.
+setup:
+    MISE_LOCKED_SCOPES=project mise install --locked node pnpm python uv just aqua:biomejs/biome aqua:oxc-project/oxc/oxlint aqua:astral-sh/ruff aqua:aquasecurity/trivy aqua:gitleaks/gitleaks aqua:koalaman/shellcheck aqua:mvdan/sh aqua:bats-core/bats-core aqua:tamasfe/taplo aqua:crate-ci/typos pipx:semgrep cargo:tokei npm:typescript npm:vitest npm:@playwright/test npm:markdownlint-cli2 pypi:mypy pypi:pytest pypi:pip-licenses pypi:lizard
+    HUSKY=0 MISE_LOCKED_SCOPES=project mise exec --locked -- pnpm install --frozen-lockfile
+    mise exec --locked -- uv sync --all-extras --dev --locked
+    mise exec --locked uv -- uv sync --python "$(mise which python)" --project quality-fixtures/python --locked
+    mise exec --locked -- pnpm exec husky
+
+pre-commit:
+    mise exec --locked -- gitleaks git --staged --redact --no-banner
+    mise exec --locked -- pnpm exec lint-staged
+
+commit-msg msg_file:
+    mise exec --locked -- pnpm exec commitlint --edit {{quote(msg_file)}}
+
+ci mode="incremental":
+    bash scripts/local-ci.sh {{quote(mode)}}
+
+ci-full:
+    just ci full

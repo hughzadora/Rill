@@ -7,7 +7,11 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["tools/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/ts/**/*.ts", "tests/ts/**/*.ts", "vitest.config.ts"]
 }

@@ -1,0 +1,54 @@
+[project]
+name = "rill-local-quality-fixtures"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["ruff", "pyright", "pytest", "pytest-cov", "pytest-xdist"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src/py", "tests/py"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "S",
+  "C90",
+  "PL",
+  "SIM",
+  "ASYNC",
+  "RUF",
+]
+ignore = ["S603", "S607"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-statements = 50
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004"]
+"quality-fixtures/python/test_*.py" = ["S101", "PLR2004"]
+
+[tool.pyright]
+include = ["src/py", "tests/py"]
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src/py"]
+
+[tool.pytest.ini_options]
+addopts = "-n auto --strict-markers --tb=short"
+testpaths = ["tests/py"]
+pythonpath = ["src/py"]

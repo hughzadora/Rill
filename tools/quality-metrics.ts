@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -45,20 +45,12 @@ function gitListedSources(root: string, patterns: string[], config: Config) {
   const files = output
     .split("\0")
     .filter(Boolean)
-    .filter(
-      (file) =>
-        config.extensions.includes(extname(file)) &&
-        existsSync(resolve(root, file)),
-    );
+    .filter((file) => config.extensions.includes(extname(file)) && existsSync(resolve(root, file)));
   return [...new Set(files)].sort();
 }
 
 function gitSources(root: string, config: Config) {
-  return gitListedSources(
-    root,
-    [...config.sourcePaths, ...config.optionalSourcePaths],
-    config,
-  );
+  return gitListedSources(root, [...config.sourcePaths, ...config.optionalSourcePaths], config);
 }
 
 function timedCommand(root: string, name: string, args: string[]) {
@@ -111,9 +103,7 @@ function coverage(expected: string[], measured: MeasuredFile[]) {
 
 function projectRoot(path: string) {
   const root = realpathSync(path);
-  const gitRoot = realpathSync(
-    git(root, ["rev-parse", "--show-toplevel"]).trim(),
-  );
+  const gitRoot = realpathSync(git(root, ["rev-parse", "--show-toplevel"]).trim());
   if (root !== gitRoot) throw new Error("Expected the exact project root");
   return root;
 }
@@ -122,23 +112,12 @@ function measuredInputs(root: string, config: Config) {
   const expected = gitSources(root, config);
   const allSources = gitListedSources(root, ["*.ts", "*.tsx"], config);
   const outsideRoots = allSources.filter((file) => !expected.includes(file));
-  if (expected.length === 0)
-    throw new Error("No tracked/untracked source files were found");
+  if (expected.length === 0) throw new Error("No tracked/untracked source files were found");
   const sources = [...config.sourcePaths, ...config.optionalSourcePaths];
-  const checkedPaths = sources.filter((path) =>
-    existsSync(resolve(root, path)),
-  );
-  const missingRoots = config.sourcePaths.filter(
-    (path) => !checkedPaths.includes(path),
-  );
-  const tokei = timedCommand(root, "tokei", [
-    "--files",
-    "--output",
-    "json",
-    ...checkedPaths,
-  ]);
-  if (tokei.exitCode !== 0)
-    throw new Error("Tokei did not run: " + tokei.stderr);
+  const checkedPaths = sources.filter((path) => existsSync(resolve(root, path)));
+  const missingRoots = config.sourcePaths.filter((path) => !checkedPaths.includes(path));
+  const tokei = timedCommand(root, "tokei", ["--files", "--output", "json", ...checkedPaths]);
+  if (tokei.exitCode !== 0) throw new Error("Tokei did not run: " + tokei.stderr);
   const measured = tokeiFiles(tokei.stdout).filter((file) =>
     config.extensions.includes(extname(file.path)),
   );
@@ -179,10 +158,7 @@ function scanComplexity(root: string, config: Config, checkedPaths: string[]) {
   return { scan, analyzedFiles, warnings };
 }
 
-function scanReceipt(
-  scan: ReturnType<typeof timedCommand>,
-  warnings?: string | null,
-) {
+function scanReceipt(scan: ReturnType<typeof timedCommand>, warnings?: string | null) {
   return {
     command: scan.argv,
     exitCode: scan.exitCode,
@@ -216,14 +192,8 @@ export function measureProject(rootArgument: string, config: Config) {
     schemaVersion: 1 as const,
     root,
     revision: git(root, ["rev-parse", "HEAD"]).trim(),
-    worktreeStatus: git(root, [
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=all",
-    ]),
-    configSha256: createHash("sha256")
-      .update(JSON.stringify(config))
-      .digest("hex"),
+    worktreeStatus: git(root, ["status", "--porcelain=v1", "--untracked-files=all"]),
+    configSha256: createHash("sha256").update(JSON.stringify(config)).digest("hex"),
     filesExpected: inputs.expected.length,
     filesMeasured: inputs.measured.length,
     lizardAnalyzed: complexity.analyzedFiles,
@@ -245,28 +215,20 @@ function main() {
     (args.length !== 2 && args.length !== 4) ||
     (args.length === 4 && args[2] !== "--profile")
   )
-    throw new Error(
-      "Usage: quality-metrics.ts --root <project> [--profile <name>]",
-    );
+    throw new Error("Usage: quality-metrics.ts --root <project> [--profile <name>]");
   const name = args[3] ?? "rill-typescript";
-  if (!/^[a-z][a-z0-9-]*$/.test(name))
-    throw new Error("Invalid metrics profile name");
-  const configPath = fileURLToPath(
-    new URL(
-      "../quality-standards/0.1.0/" + name + "-metrics.json",
-      import.meta.url,
-    ),
-  );
-  const config = configSchema.parse(
-    JSON.parse(readFileSync(configPath, "utf8")),
-  );
+  if (!/^[a-z][a-z0-9-]*$/.test(name)) throw new Error("Invalid metrics profile name");
+  const standardsRoot = fileURLToPath(new URL("../quality-standards/", import.meta.url));
+  const releases = readdirSync(standardsRoot)
+    .filter((entry) => /^\d+\.\d+\.\d+$/.test(entry))
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  const latestRelease = releases.at(-1);
+  if (!latestRelease) throw new Error("No versioned quality standards were found");
+  const configPath = resolve(standardsRoot, latestRelease, `${name}-metrics.json`);
+  const config = configSchema.parse(JSON.parse(readFileSync(configPath, "utf8")));
   const result = measureProject(args[1], config);
   process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   if (!result.passed) process.exitCode = 1;
 }
 
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

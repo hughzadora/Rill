@@ -1,9 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-  applyBinding,
-  type BindingPlan,
-  bindingPlan,
-} from "./quality-binding.js";
+import { applyBinding, type BindingPlan, bindingPlan } from "./quality-binding.js";
 import { runProfileMetrics } from "./quality-proposed.js";
 import type {
   CommandOutcome,
@@ -13,12 +9,7 @@ import type {
   QualityCommandInput,
   QualityResult,
 } from "./quality-state.js";
-import {
-  baseResult,
-  digest,
-  projectFacts,
-  QualityCommandError,
-} from "./quality-state.js";
+import { baseResult, digest, projectFacts, QualityCommandError } from "./quality-state.js";
 
 export const GATES = {
   lint: ["just", "lint"],
@@ -45,9 +36,7 @@ function defaultRunCommand(cwd: string, argv: string[]): CommandOutcome {
     signal: result.signal,
     error:
       error ??
-      (performance.now() - started >= 30 * 60 * 1000
-        ? "Command exceeded 30 minute limit."
-        : null),
+      (performance.now() - started >= 30 * 60 * 1000 ? "Command exceeded 30 minute limit." : null),
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
   };
@@ -75,34 +64,23 @@ function runGate(
   id: string,
   dependencies: QualityCommandDependencies,
 ): GateResult {
-  if (!Object.hasOwn(GATES, id))
-    throw new QualityCommandError(`Unknown gate: ${id}`, 64);
+  if (!Object.hasOwn(GATES, id)) throw new QualityCommandError(`Unknown gate: ${id}`, 64);
   const gateId = id as GateId;
   if (!nativeRecipeNames(result.projectRoot).has(gateId)) {
-    return blockedGate(
-      id,
-      result.projectRoot,
-      "Native Just gate is not declared.",
-    );
+    return blockedGate(id, result.projectRoot, "Native Just gate is not declared.");
   }
   const argv = [...GATES[gateId]];
   const started = performance.now();
-  const outcome = (dependencies.runCommand ?? defaultRunCommand)(
-    result.projectRoot,
-    argv,
-    { shell: false },
-  );
+  const outcome = (dependencies.runCommand ?? defaultRunCommand)(result.projectRoot, argv, {
+    shell: false,
+  });
   const durationMs = Math.round(performance.now() - started);
   const observed = projectFacts(result.projectRoot);
   const candidateChanged =
     observed.revision !== result.revision ||
     observed.workingTree.contentSha256 !== result.workingTree.contentSha256;
   const status: GateStatus =
-    outcome.error || candidateChanged
-      ? "blocked"
-      : outcome.exitCode === 0
-        ? "pass"
-        : "fail";
+    outcome.error || candidateChanged ? "blocked" : outcome.exitCode === 0 ? "pass" : "fail";
   return {
     id,
     status,
@@ -115,17 +93,11 @@ function runGate(
     stderrSha256: digest(outcome.stderr),
     reason:
       outcome.error ??
-      (candidateChanged
-        ? "Project candidate changed while gate was running."
-        : null),
+      (candidateChanged ? "Project candidate changed while gate was running." : null),
   };
 }
 
-function blockedGate(
-  id: string,
-  projectRoot: string,
-  reason: string,
-): GateResult {
+function blockedGate(id: string, projectRoot: string, reason: string): GateResult {
   return {
     id,
     status: "blocked",
@@ -164,11 +136,7 @@ function appendProposedMetrics(
     execute
       ? runProfileMetrics(result, dependencies)
       : {
-          ...blockedGate(
-            "profile-metrics",
-            result.projectRoot,
-            "Preview only; pass --execute.",
-          ),
+          ...blockedGate("profile-metrics", result.projectRoot, "Preview only; pass --execute."),
           status: "unknown",
         },
   );
@@ -184,8 +152,7 @@ function handleAudit(
   }
   if (
     input.execute &&
-    (dependencies.mcpReadOnly ||
-      (input.mode === "proposed" && !result.standardDigest))
+    (dependencies.mcpReadOnly || (input.mode === "proposed" && !result.standardDigest))
   ) {
     result.gateResults = [
       blockedGate(
@@ -196,9 +163,7 @@ function handleAudit(
           : "Proposed audit execution requires an owner-approved profile.",
       ),
     ];
-    result.nextActions = [
-      "Obtain an approved profile before executing proposed checks.",
-    ];
+    result.nextActions = ["Obtain an approved profile before executing proposed checks."];
     return;
   }
   const gate = preferredBaselineGate(result.projectRoot);
@@ -212,9 +177,7 @@ function handleAudit(
     ];
     return;
   }
-  result.gateResults = [
-    nativeAuditResult(result, gate, !!input.execute, dependencies),
-  ];
+  result.gateResults = [nativeAuditResult(result, gate, !!input.execute, dependencies)];
   if (input.mode === "proposed") {
     appendProposedMetrics(result, !!input.execute, dependencies);
   }
@@ -227,8 +190,7 @@ function handlePlan(
   result: QualityResult,
   input: Extract<QualityCommandInput, { operation: "plan" }>,
 ) {
-  if (!input.release)
-    throw new QualityCommandError("A release is required", 64);
+  if (!input.release) throw new QualityCommandError("A release is required", 64);
   const plan = bindingPlan(
     result.projectRoot,
     result.revision ?? "",
@@ -245,9 +207,7 @@ function handlePlan(
 
 function rejectSetup(result: QualityResult, reason: string) {
   result.execution = { started: false, error: reason };
-  result.nextActions = [
-    "Resolve the plan conflict or use local CLI after review.",
-  ];
+  result.nextActions = ["Resolve the plan conflict or use local CLI after review."];
 }
 
 function applySetup(
@@ -267,10 +227,7 @@ function applySetup(
       "Binding recorded; install and validate project-specific gates before feature work.",
     ];
   } catch (error) {
-    rejectSetup(
-      result,
-      error instanceof Error ? error.message : "Profile apply failed.",
-    );
+    rejectSetup(result, error instanceof Error ? error.message : "Profile apply failed.");
   }
 }
 
@@ -287,10 +244,7 @@ function handleSetup(
   );
   result.plan = plan;
   if (!dependencies.allowLocalApply || dependencies.mcpReadOnly) {
-    rejectSetup(
-      result,
-      "MCP is read-only; use the native local CLI with --apply.",
-    );
+    rejectSetup(result, "MCP is read-only; use the native local CLI with --apply.");
     return;
   }
   if (plan.status === "ready" && plan.planId === input.planId) {
@@ -303,8 +257,7 @@ function handleSetup(
     code: "stale-plan",
     status: "blocked",
     sources: [result.projectRoot],
-    reason:
-      "The reviewed plan is stale or its target conflicts with existing files.",
+    reason: "The reviewed plan is stale or its target conflicts with existing files.",
   });
   rejectSetup(result, "Plan or target changed; nothing applied.");
 }
@@ -338,9 +291,7 @@ export function runQualityCommand(
   const result = baseResult(input.operation, input.root);
   switch (input.operation) {
     case "profile":
-      result.nextActions = [
-        "Review markers and bind verified profile before claiming coverage.",
-      ];
+      result.nextActions = ["Review markers and bind verified profile before claiming coverage."];
       break;
     case "audit":
       handleAudit(result, input, dependencies);
@@ -350,9 +301,7 @@ export function runQualityCommand(
     case "debt":
       if (input.action === "show" && !input.findingId)
         throw new QualityCommandError("debt show requires a finding ID", 64);
-      result.nextActions = [
-        "Bind an authoritative debt source; never infer findings.",
-      ];
+      result.nextActions = ["Bind an authoritative debt source; never infer findings."];
       break;
     case "plan":
       handlePlan(result, input);
@@ -365,14 +314,10 @@ export function runQualityCommand(
       break;
     case "status":
     case "readiness":
-      result.nextActions = [
-        "Verify applicable gates before readiness can advance.",
-      ];
+      result.nextActions = ["Verify applicable gates before readiness can advance."];
       break;
     case "reconcile":
-      result.nextActions = [
-        "No managed baseline available; reconciliation is unknown.",
-      ];
+      result.nextActions = ["No managed baseline available; reconciliation is unknown."];
       break;
   }
   return result;

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "release": "0.1.1",
+  "stage": "candidate",
+  "policy": {
+    "commit": "lint",
+    "pullRequest": "full-spec-ci",
+    "unverified": "blocked"
+  },
+  "stacks": [
+    {
+      "id": "node-typescript",
+      "markers": [
+        "package.json",
+        "tsconfig.json"
+      ],
+      "gates": [
+        "lint",
+        "typecheck",
+        "test",
+        "build",
+        "metrics",
+        "secret-scan",
+        "audit"
+      ]
+    },
+    {
+      "id": "react-tailwind",
+      "markers": [
+        "package.json",
+        "src"
+      ],
+      "gates": [
+        "lint",
+        "typecheck",
+        "test",
+        "build",
+        "metrics",
+        "secret-scan",
+        "audit",
+        "a11y-if-ui"
+      ]
+    },
+    {
+      "id": "python",
+      "markers": [
+        "pyproject.toml"
+      ],
+      "gates": [
+        "ruff",
+        "mypy",
+        "pytest",
+        "lizard",
+        "tokei",
+        "secret-scan",
+        "audit"
+      ]
+    },
+    {
+      "id": "markdown",
+      "markers": [
+        "README.md"
+      ],
+      "gates": [
+        "markdownlint-cli2",
+        "secret-scan",
+        "links-if-published"
+      ]
+    },
+    {
+      "id": "shell",
+      "markers": [
+        "*.sh"
+      ],
+      "gates": [
+        "shellcheck",
+        "shfmt",
+        "bats-if-executable",
+        "secret-scan"
+      ]
+    }
+  ],
+  "fileSha256": {
+    ".github/workflows/quality.yml": "493088911ff56a03fb83704b870becef2440e10f3dd57257e8a19212b0b00f5b",
+    ".husky/pre-commit": "4dd0adb68510f6174013ec399c9b9f2e02170ac3de145d06d795ed4811efe922",
+    ".markdownlint-cli2.yaml": "bcb062300bda2cb0800fbb549550e450a4618b028d3459597c21585f746533dd",
+    ".oxlintrc.json": "09e06f34a9b6955360d7e207e7133490969cfe071da44a3876e365c4a4f6eacd",
+    "biome.json": "ff4cea725abd0efb1d73fd497e47800d19ab4a21bc42dbaa9664801fe149b1c8",
+    "justfile": "b5adf30ec0441e9d8783300c94060d2d2822c205de9afb8639e0eb2bdb878729",
+    "mise.lock": "2a5a08e8b32e08cfb3480943ccdf7bd1cfe090d5b2d529af60b678e0b13b3939",
+    "mise.toml": "074fefae171222b98aac79374f9705107f0e9c72f8fc102ff7019502e23ec3e4",
+    "package.json": "242bbdaf3442fbbe39bf7b705a39d0e6efba6d3720d6065840839ab8947b43fb",
+    "pnpm-lock.yaml": "ec710d35b6f29f3766d07cace25079f112b680be2453d293e67e7a11f7a3d882",
+    "pnpm-workspace.yaml": "1bb5d6bef774e6c39c86c2b957d6109f0da3c21757ec811296ae55a31146c08c",
+    "quality-standards/0.1.0/quality-self-metrics.json": "afce459bdcc940bb091a630caa9516282ba9644c90ef813dcde6de1cf04607db",
+    "quality-standards/0.1.0/rill-typescript-metrics.json": "750ac43e1a4540f49fb559dd6872eb68c5bb0787835aeaa12d83fb463f0b5983",
+    "tools/quality-binding.ts": "88d190da98a0d21b9626ccab7a0c3c22fadac2f87efce27065221795385fd052",
+    "tools/quality-cli.ts": "b9e4e1f777cb79f241086cfaa875702a795f08cb36c97f97c4d5462606f4b1f9",
+    "tools/quality-metrics.ts": "a5be3bc96e8d25e6172f1724852cf27eaff04c9a3c0ec712b584794ffd07c9f8",
+    "tools/quality-proposed.ts": "3835f18fd13dd3555e3a662055da83f48b674e1c4fd9b80c5431bd79762f352b",
+    "tools/quality-runtime.ts": "038750603fe58b31096c7a40d76ec327d251189a7fe92805c0900d193599654c",
+    "tools/quality-state.ts": "a8d91e078723f3eb25a36c2e440f118a803cd61299c17e9584412d143eeb5c19"
+  }
+}

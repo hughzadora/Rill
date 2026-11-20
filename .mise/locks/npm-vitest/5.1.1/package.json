@@ -2,6 +2,6 @@
   "name": "mise-npm-install",
   "private": true,
   "dependencies": {
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }

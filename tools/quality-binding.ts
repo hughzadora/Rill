@@ -56,10 +56,7 @@ function sha256(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-export function verifyReleaseFiles(
-  root: string,
-  files: Record<string, string>,
-): boolean {
+export function verifyReleaseFiles(root: string, files: Record<string, string>): boolean {
   try {
     const sourceRoot = realpathSync(root);
     if (Object.keys(files).length === 0) return false;
@@ -74,8 +71,7 @@ export function verifyReleaseFiles(
       const path = realpathSync(resolve(sourceRoot, relativePath));
       if (!path.startsWith(sourceRoot + sep)) return false;
       if (!lstatSync(path).isFile()) return false;
-      if (sha256(readFileSync(path).toString("utf8")) !== expected)
-        return false;
+      if (sha256(readFileSync(path).toString("utf8")) !== expected) return false;
     }
     return true;
   } catch {
@@ -191,8 +187,7 @@ export function bindingPlan(
       planId,
       status: "conflict",
       changes: [],
-      reason:
-        "Existing or non-regular profile target requires separate reconciliation.",
+      reason: "Existing or non-regular profile target requires separate reconciliation.",
       releaseDigest: release.digest,
     };
   }
@@ -227,10 +222,6 @@ export function applyBinding(root: string, plan: BindingPlan, release: string) {
   const directory = resolve(root, ".quality-standard");
   if (!existsSync(directory)) mkdirSync(directory);
   if (!lstatSync(directory).isDirectory()) return false;
-  writeFileSync(
-    profilePath(root),
-    profileContent(release, plan.releaseDigest),
-    { flag: "wx" },
-  );
+  writeFileSync(profilePath(root), profileContent(release, plan.releaseDigest), { flag: "wx" });
   return true;
 }
