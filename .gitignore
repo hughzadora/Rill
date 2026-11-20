@@ -8,12 +8,14 @@ node_modules/
 __pycache__/
 *.py[cod]
 
-# Build artifacts and test coverage
+# Production builds, coverage and browser test artifacts
 dist/
 build/
 coverage/
 htmlcov/
 .coverage
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 # Local machine settings and secrets

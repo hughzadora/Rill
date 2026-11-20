@@ -6,19 +6,20 @@ export MISE_LOCKFILE_PLATFORMS := "linux-x64"
 export MISE_CONFIG_DIR := justfile_directory() + "/.mise"
 export MISE_SYSTEM_CONFIG_DIR := justfile_directory() + "/.mise"
 
-# Mise resolves actual upstream tool versions; pnpm and uv lock dependencies.
+# Mise resolves upstream CLI versions, pnpm and uv lock package dependencies.
 lock:
     mise lock
 
 lock-bump:
     mise lock --bump
 
-# Full local bootstrap, including native Git hooks.
+# Install tools, project dependencies, hooks and Chromium for browser E2E.
 setup:
     mise install --locked
     HUSKY=0 mise exec --locked -- pnpm install --frozen-lockfile
     mise exec --locked -- uv sync --all-extras --dev --locked --python "$(mise which python)"
     mise exec --locked -- pnpm exec husky
+    @if [[ "${CI:-}" == "true" ]]; then mise exec --locked -- pnpm exec playwright install --with-deps chromium; else mise exec --locked -- pnpm exec playwright install chromium; fi
 
 pre-commit:
     mise exec --locked -- gitleaks git --staged --redact --no-banner
@@ -27,25 +28,29 @@ pre-commit:
 commit-msg msg_file:
     mise exec --locked -- pnpm exec commitlint --edit {{quote(msg_file)}}
 
-# Repository, security, duplication, complexity and size gates always run.
+# Repository-level checks are mandatory on full and incremental runs.
 _ci-guardrails:
     mise exec --locked -- taplo check mise.toml pyproject.toml
     mise exec --locked -- taplo fmt --check mise.toml pyproject.toml
-    mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**"
-    mise exec --locked -- markdownlint-cli2 '**/*.md' '#node_modules' '#.venv'
+    mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**" --exclude "**/dist/**" --exclude "**/playwright-report/**" --exclude "**/test-results/**"
+    mise exec --locked -- markdownlint-cli2 '**/*.md' '#node_modules' '#.venv' '#dist' '#playwright-report' '#test-results'
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
     mise exec --locked -- pnpm exec jscpd src/
     @warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi
     mise exec --locked -- tokei src/
-    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --exit-code 1 --quiet .
+    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --exit-code 1 --quiet .
 
+# The browser tests run against the verified production build, not a dev server.
 _ci-ts:
     mise exec --locked -- biome check .
-    mise exec --locked -- oxlint .
+    mise exec --locked -- oxlint --react-plugin --jsx-a11y-plugin .
     mise exec --locked -- pnpm exec tsc --noEmit
     mise exec --locked -- pnpm exec knip
     mise exec --locked -- pnpm exec vitest run --coverage --passWithNoTests
+    mise exec --locked -- pnpm exec vite build
+    test -s dist/index.html
+    mise exec --locked -- pnpm exec playwright test
 
 _ci-py:
     mise exec --locked -- ruff check .
@@ -59,7 +64,7 @@ _ci-sh:
     mise exec --locked -- shfmt -d -i 2 -ci src/sh/*.sh
     mise exec --locked -- bats --jobs 4 tests/sh
 
-# A single Just shebang recipe owns diff detection and the actual worker pool.
+# Single Just shebang recipe: diff detection and four parallel worker processes.
 ci mode="incremental":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -95,9 +100,9 @@ ci mode="incremental":
 
     for path in "${changed[@]}"; do
       case "$path" in
-        justfile|mise.toml|mise.lock|package.json|pnpm-lock.yaml|uv.lock|pyproject.toml|AGENTS.md|.editorconfig|.jscpd.json|.semgrep.yml|biome.json|knip.json|tsconfig.json|vitest.config.ts|.github/workflows/*)
+        justfile|mise.toml|mise.lock|package.json|pnpm-lock.yaml|uv.lock|pyproject.toml|AGENTS.md|.editorconfig|.jscpd.json|.semgrep.yml|biome.json|knip.json|tsconfig.json|vitest.config.ts|vite.config.ts|playwright.config.ts|index.html|.github/workflows/*)
           run_all=true ;;
-        *.ts|*.tsx|*.js|*.jsx|*.json|*.jsonc)
+        src/ts/*|tests/ts/*|tests/e2e/*|*.ts|*.tsx|*.js|*.jsx|*.json|*.jsonc|*.css|*.html)
           run_ts=true ;;
         *.py)
           run_py=true ;;
