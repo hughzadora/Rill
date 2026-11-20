@@ -269,7 +269,7 @@ factory-ci:
 
 # Standalone directory-mode executable with embedded Copier template assets.
 build-cli:
-    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all jinja2_ansible_filters --copy-metadata rill-factory --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" --add-data "$(pwd)/src/py/rill_cli/assets/dashboard.html:rill_cli/assets" src/py/rill_cli/__main__.py
+    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all textual --collect-all platformdirs --collect-all pydantic --collect-all jinja2_ansible_filters --copy-metadata rill-factory --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" --add-data "$(pwd)/src/py/rill_cli/assets/dashboard.html:rill_cli/assets" --add-data "$(pwd)/src/py/rill_cli/assets/fleet_dashboard.html:rill_cli/assets" --add-data "$(pwd)/src/py/rill_cli/tui/app.tcss:rill_cli/tui" src/py/rill_cli/__main__.py
 
 _check-fast:
     mise exec --locked -- ruff check src/py/rill_cli tests/py

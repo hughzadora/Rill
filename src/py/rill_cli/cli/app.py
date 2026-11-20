@@ -18,13 +18,13 @@ from rill_cli.core import dashboard, doctor, hooks, installer
 from rill_cli.core.constants import COPIER_ANSWERS, HOOK_EVENTS
 from rill_cli.core.git_policy import branch, changed_paths, head_summary
 
-app = typer.Typer(no_args_is_help=True, help="Rill software-factory lifecycle CLI")
+app = typer.Typer(no_args_is_help=False, help="Rill software-factory lifecycle CLI")
 console = Console()
 app.add_typer(policy_app, name="policy")
 app.add_typer(fleet_app, name="fleet")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def options(
     ctx: typer.Context,
     yes: bool = typer.Option(False, "--yes"),
@@ -33,6 +33,10 @@ def options(
 ) -> None:
     """Global lifecycle flags; Hook protocol responses always remain explicit."""
     ctx.obj = {"yes": yes, "json": as_json, "quiet": quiet}
+    if ctx.invoked_subcommand is None:
+        from rill_cli.tui.app import FleetApp  # noqa: PLC0415 - lazy Textual import  # noqa: PLC0415 - lazy Textual import
+
+        FleetApp().run()
 
 
 def flags(ctx: typer.Context) -> dict[str, bool]:
@@ -48,6 +52,14 @@ def output(ctx: typer.Context, value: dict[str, object], human: str) -> None:
         typer.echo(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
     else:
         console.print(human)
+
+
+@app.command()
+def tui(demo: bool = typer.Option(False, "--demo")) -> None:
+    """Open the keyboard-driven Textual fleet control console."""
+    from rill_cli.tui.app import FleetApp  # noqa: PLC0415 - lazy Textual import
+
+    FleetApp(demo=demo).run()
 
 
 @app.command()
