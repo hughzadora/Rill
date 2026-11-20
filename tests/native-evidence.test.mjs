@@ -7,7 +7,7 @@ const skillRead = event("item.completed", {
   type: "mcp_tool_call",
   server: "codex_apps",
   tool: "linux_commander.read_file",
-  arguments: { path: "/sandbox/plugins/rill/skills/rill-discovery/SKILL.md" },
+  arguments: { path: "/sandbox/plugins/rill/skills/rill-recover/SKILL.md" },
   status: "completed",
 });
 const acceptedSpawn = event("item.completed", {

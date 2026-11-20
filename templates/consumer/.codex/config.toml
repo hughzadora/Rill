@@ -1,0 +1,19 @@
+# Product-scoped native Codex roles. These instructions do not elevate permissions.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+
+[agents.explorer]
+description = "Investigate bounded source and primary evidence."
+config_file = "./agents/explorer.toml"
+
+[agents.worker]
+description = "Implement an approved ticket with regression tests."
+config_file = "./agents/worker.toml"
+
+[agents.reviewer]
+description = "Independently review the exact diff and executed evidence."
+config_file = "./agents/reviewer.toml"
+
+[plugins."rill@rill-consumer"]
+enabled = true

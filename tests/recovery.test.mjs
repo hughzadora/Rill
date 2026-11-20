@@ -4,7 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const skill = readFileSync(
-  fileURLToPath(new URL("../bundle/plugin/skills/rill-recover/SKILL.md", import.meta.url)),
+  fileURLToPath(new URL("../plugin/skills/rill-recover/SKILL.md", import.meta.url)),
   "utf8",
 );
 

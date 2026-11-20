@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -214,7 +215,9 @@ test("standalone distribution can prepare a brownfield review without repository
   const distribution = join(parent, "standalone-rill");
   mkdirSync(distribution);
   cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
-  cpSync(join(factory, "bundle"), join(distribution, "bundle"), { recursive: true });
+  for (const asset of ["plugin", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
   cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
   cpSync(join(factory, "package.json"), join(distribution, "package.json"));
   const result = exec(
@@ -224,4 +227,31 @@ test("standalone distribution can prepare a brownfield review without repository
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "PREPARED_NOT_VERIFIED");
+});
+
+test("rejects an unsafe symlink in the copied plugin and preserves consumer history", (t) => {
+  const { repo, parent, head } = fixture(t, { existingPrd: true });
+  const distribution = join(parent, "unsafe-factory");
+  mkdirSync(distribution);
+  cpSync(join(factory, "dist"), join(distribution, "dist"), { recursive: true });
+  for (const asset of ["plugin", "templates"]) {
+    cpSync(join(factory, asset), join(distribution, asset), { recursive: true });
+  }
+  cpSync(join(factory, "VERSION"), join(distribution, "VERSION"));
+  const original = join(repo, "src/core.mjs");
+  symlinkSync(original, join(distribution, "plugin/user-owned-link"));
+  const result = exec(
+    process.execPath,
+    [join(distribution, "dist/cli.js"), "adopt", repo, "--yes", "--json"],
+    factory,
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.equal(JSON.parse(result.stderr).error.code, "ENVIRONMENT");
+  assert.equal(text(original), "export const total = (a,b) => a+b;\n");
+  assert.equal(git(repo, "rev-parse", "HEAD").stdout.trim(), head);
+  assert.equal(git(repo, "status", "--porcelain").stdout.trim(), "");
+  assert.equal(
+    git(repo, "worktree", "list", "--porcelain").stdout.match(/^worktree /gm)?.length,
+    1,
+  );
 });

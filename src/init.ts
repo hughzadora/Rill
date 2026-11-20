@@ -66,8 +66,8 @@ export function initializeProject(
   if (!existsSync(parent) || !lstatSync(parent).isDirectory()) {
     throw new RillCommandError("The destination parent directory must already exist.", 2);
   }
-  const template = join(root, "bundle/repo-common");
-  const plugin = join(root, "bundle/plugin");
+  const template = join(root, "templates/consumer");
+  const plugin = join(root, "plugin");
   if (![template, plugin].every(existsSync)) {
     throw new RillCommandError("The installed Rill distribution is missing versioned assets.", 2);
   }

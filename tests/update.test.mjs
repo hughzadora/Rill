@@ -157,7 +157,7 @@ test("rill update prepares a same-version migration when native project Hook is 
   const { repo } = fixture(t);
   writeFileSync(
     join(repo, ".rill/plugin/plugin.json"),
-    readFileSync(join(root, "bundle/plugin/plugin.json")),
+    readFileSync(join(root, "plugin/plugin.json")),
   );
   assert.equal(git(repo, "add", "-A").status, 0);
   assert.equal(
@@ -208,7 +208,7 @@ test("same-version Hook migration preserves an existing consumer Hook file", (t)
   assert.equal(committed.status, 0, committed.stderr);
   writeFileSync(
     join(repo, ".rill/plugin/plugin.json"),
-    readFileSync(join(root, "bundle/plugin/plugin.json")),
+    readFileSync(join(root, "plugin/plugin.json")),
   );
   assert.equal(git(repo, "add", ".rill/plugin/plugin.json").status, 0);
   const current = git(
@@ -260,7 +260,7 @@ test("a copied Rill distribution with locked production dependencies plans an up
   const { repo } = fixture(t);
   const distribution = join(repo, "../rill-distribution");
   mkdirSync(distribution);
-  for (const item of ["dist", "bundle", "VERSION", "package.json", "bun.lock"]) {
+  for (const item of ["dist", "plugin", "templates", "VERSION", "package.json", "bun.lock"]) {
     cpSync(join(root, item), join(distribution, item), { recursive: true });
   }
   const install = spawnSync("bun", ["install", "--production", "--offline", "--frozen-lockfile"], {

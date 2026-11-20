@@ -46,7 +46,7 @@ test("new product gets a specific PRD, versioned Plugin, native roles and a new 
   );
   assert.equal(existsSync(join(target, "CONSTITUTION.md")), false);
   assert.equal(existsSync(join(target, ".codex/agents/reviewer.toml")), true);
-  assert.equal(existsSync(join(target, ".rill/plugin/skills/brainstorming/SKILL.md")), true);
+  assert.equal(existsSync(join(target, ".rill/plugin/skills/rill-recover/SKILL.md")), true);
   assert.equal(
     JSON.parse(readFileSync(join(target, ".rill/plugin/plugin.json"), "utf8")).version,
     "0.0.1",
@@ -115,7 +115,9 @@ test("standalone copied distribution initializes a repo without the Rill Git che
   cpSync(join(repo, "dist"), join(distribution, "dist"), { recursive: true });
   cpSync(join(repo, "package.json"), join(distribution, "package.json"));
   cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
-  cpSync(join(repo, "bundle"), join(distribution, "bundle"), { recursive: true });
+  for (const asset of ["plugin", "templates"]) {
+    cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+  }
   const target = join(parent, "independent-product");
   const result = run(join(distribution, "dist/cli.js"), [
     "init",
@@ -150,8 +152,10 @@ test("mismatched plugin version fails without exposing a half-created project", 
   cpSync(join(repo, "dist"), join(distribution, "dist"), { recursive: true });
   cpSync(join(repo, "package.json"), join(distribution, "package.json"));
   cpSync(join(repo, "VERSION"), join(distribution, "VERSION"));
-  cpSync(join(repo, "bundle"), join(distribution, "bundle"), { recursive: true });
-  const manifest = join(distribution, "bundle/plugin/plugin.json");
+  for (const asset of ["plugin", "templates"]) {
+    cpSync(join(repo, asset), join(distribution, asset), { recursive: true });
+  }
+  const manifest = join(distribution, "plugin/plugin.json");
   const data = JSON.parse(readFileSync(manifest, "utf8"));
   data.version = "9.9.9";
   writeFileSync(manifest, JSON.stringify(data));

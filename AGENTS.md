@@ -3,7 +3,7 @@
 1. Read [CONSTITUTION.md](CONSTITUTION.md) for enduring product intent and [PRD.md](PRD.md) for **current** requirements; GitHub Issue #51 and its native sub-issues own the v10.0.1 rebuild.
 2. Rill v10.0.1 is a **clean rebuild**. Prior source, configuration and build artifacts are retired; history is available through Git only. Do not add legacy compatibility layers, aliases or migrations.
 3. During routine implementation, search relevant IDs with `rg -n 'FR-|NFR-' PRD.md` and read bounded ranges. Full PRD read is for initial product reconciliation or explicit architecture audit.
-4. For substantive product questions, trigger the installed Matt Pocock `grill with docs` and `research` Skills together. Do not package a Rill-owned brainstorming/discovery Skill. Skip both for already-approved scope and mechanical repairs.
+4. For substantive product questions, use installed upstream `research` and `grill-with-docs` when applicable, without assuming automatic invocation. Do not package duplicate Rill design Skills or repeat resolved owner decisions; skip design intake for mechanical repairs and already-approved scope.
 5. Before using a new upstream platform capability, verify its current specification and actual runtime behavior. No unverified plugin, hook, MCP or read-only role claims.
 6. Keep one current `PRD.md` in each repository. GitHub owns tasks and decisions; Git/PR owns changes; CI owns exact-revision checks. Do not add DESIGN.md, ROADMAP.md, MULTI_AGENT.md or shadow status databases.
 7. Requirement status becomes `[DONE]` only with linked implementation, exact revision and executed positive/negative tests plus relevant native/user evidence. Missing receipts remain NOT VERIFIED.

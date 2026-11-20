@@ -133,7 +133,7 @@ export function planUpdate(
   }
   const sourceHead = git(target, "rev-parse", "--verify", "HEAD");
   const consumerPlugin = join(target, ".rill/plugin");
-  const sourcePlugin = join(factoryRoot, "bundle/plugin");
+  const sourcePlugin = join(factoryRoot, "plugin");
   if (!isPresent(consumerPlugin) || !isPresent(sourcePlugin)) {
     throw new RillCommandError("Both the installed and source Rill Plugins must exist.", 1);
   }
@@ -145,7 +145,7 @@ export function planUpdate(
   if (toVersion !== version) {
     throw new RillCommandError("Source Plugin and canonical VERSION differ.", 2);
   }
-  const sourceHookConfig = join(factoryRoot, "bundle/repo-common/.codex/hooks.json");
+  const sourceHookConfig = join(factoryRoot, "templates/consumer/.codex/hooks.json");
   const projectCodexConfig = join(target, ".codex");
   const projectHookConfig = join(projectCodexConfig, "hooks.json");
   if (!isPresent(sourceHookConfig) || lstatSync(sourceHookConfig).isSymbolicLink()) {
@@ -179,7 +179,7 @@ export function planUpdate(
   ]
     .map((path) => `.rill/plugin/${path}`)
     .sort();
-  pendingReview.push(".codex/hooks.json");
+  if (needsHookIntegration) pendingReview.push(".codex/hooks.json");
   const receipt: UpdateReceipt = {
     status: "PLAN_ONLY",
     path: target,

@@ -4,50 +4,40 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const repo = fileURLToPath(new URL("../", import.meta.url));
-const skill = (name) => readFileSync(join(repo, "bundle/plugin/skills", name, "SKILL.md"), "utf8");
+const root = fileURLToPath(new URL("../", import.meta.url));
+const read = (path) => readFileSync(join(root, path), "utf8");
 
-test("research and grill each expose exactly one native discovery entry point", () => {
-  const research = skill("rill-research");
-  const grill = skill("rill-grill");
-  for (const [name, body] of [
-    ["rill-research", research],
-    ["rill-grill", grill],
-  ]) {
-    assert.match(body, new RegExp(`^---\\nname: ${name}\\n`));
-    assert.match(body, /Use the installed `rill-discovery` Skill as the single design-intake gate/);
-    assert.doesNotMatch(body, /Invoke `brainstorming` directly/);
-    assert.match(body, /already-approved/i);
+test("upstream-first design intake is routed without bundled duplicate Skills", () => {
+  const agent = read("AGENTS.md");
+  const consumer = read("templates/consumer/AGENTS.md");
+  for (const instructions of [agent, consumer]) {
+    assert.match(instructions, /research/);
+    assert.match(instructions, /grill-with-docs/);
+    assert.match(instructions, /already-approved|already approved/);
+    assert.match(instructions, /PRD.md/);
+    assert.match(instructions, /GitHub/);
+  }
+  for (const obsolete of ["brainstorming", "rill-discovery", "rill-research", "rill-grill"]) {
+    assert.equal(existsSync(join(root, "plugin/skills", obsolete)), false);
   }
 });
 
-test("discovery invokes brainstorming at most once, then primary research and grill", () => {
-  const body = skill("rill-discovery");
-  assert.match(body, /exactly once per substantive decision/);
-  assert.match(body, /primary sources/i);
-  assert.match(body, /grill/i);
-  assert.match(body, /PRD.md/);
-  assert.match(body, /GitHub Issues/i);
-  assert.match(body, /without re-asking|do not reopen|do not repeat/i);
+test("Rill-owned Skills are limited to distinct recovery and update capabilities", () => {
+  for (const name of ["rill-recover", "rill-update"]) {
+    const skill = read(`plugin/skills/${name}/SKILL.md`);
+    assert.match(skill, new RegExp(`^---\\nname: ${name}\\n`));
+    assert.match(skill, /GitHub/);
+    assert.match(skill, /native/i);
+  }
+  assert.equal(existsSync(join(root, "plugin/skills/rill-recover/SKILL.md")), true);
+  assert.equal(existsSync(join(root, "plugin/skills/rill-update/SKILL.md")), true);
 });
 
-test("Supplied upstream skill dependencies have an honest executable or disabled outcome", () => {
-  const b = skill("brainstorming");
-  const folder = join(repo, "bundle/plugin/skills/brainstorming");
-  assert.ok(existsSync(join(folder, "builder-check-prompt.md")));
-  assert.ok(existsSync(join(folder, "visual-companion.md")));
-  assert.match(b, /Source: obra\/superpowers/);
-  assert.match(b, /Visual companion server is not bundled/);
-  assert.match(
-    readFileSync(join(folder, "visual-companion.md"), "utf8"),
-    /not available in this Rill distribution/i,
-  );
-});
-
-test("single-PRD product design and actual independent review override upstream defaults", () => {
-  const b = skill("brainstorming");
-  assert.match(b, /PRD.md.*single living specification/);
-  assert.match(b, /GitHub Issues.*PRs/);
-  assert.match(b, /native reviewer.*unavailable.*NOT_VERIFIED/i);
-  assert.match(b, /writing-plans.*not installed/i);
+test("research evidence does not become a second living product authority", () => {
+  const constitution = read("CONSTITUTION.md");
+  const spec = read("PRD.md");
+  assert.match(constitution, /PRD.md/);
+  assert.match(spec, /single \*\*living\*\* specification/);
+  assert.match(spec, /GitHub Issues\/PRs/);
+  assert.match(read("AGENTS.md"), /Do not add DESIGN.md, ROADMAP.md, MULTI_AGENT.md/);
 });

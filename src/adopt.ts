@@ -63,12 +63,19 @@ function rejectSymlinkAncestors(target: string, paths: string[]): void {
 
 function checkSource(root: string, version: string): void {
   const required = [
-    "bundle/plugin/plugin.json",
-    "bundle/repo-common/PRD.md",
-    "bundle/repo-common/AGENTS.md",
-    "bundle/repo-common/.agents/plugins/marketplace.json",
-    "bundle/repo-common/.codex/config.toml",
-    "bundle/repo-common/.codex/hooks.json",
+    "plugin/plugin.json",
+    "plugin/hooks/hooks.json",
+    "plugin/hooks/session-start.mjs",
+    "plugin/skills/rill-recover/SKILL.md",
+    "plugin/skills/rill-update/SKILL.md",
+    "templates/consumer/PRD.md",
+    "templates/consumer/AGENTS.md",
+    "templates/consumer/.agents/plugins/marketplace.json",
+    "templates/consumer/.codex/config.toml",
+    "templates/consumer/.codex/hooks.json",
+    "templates/consumer/.codex/agents/reviewer.toml",
+    "templates/consumer/.codex/agents/worker.toml",
+    "templates/consumer/.codex/agents/explorer.toml",
   ];
   const [manifestPath] = required;
   if (manifestPath === undefined || required.some((path) => !existsSync(join(root, path)))) {
@@ -79,6 +86,8 @@ function checkSource(root: string, version: string): void {
     !manifest ||
     typeof manifest !== "object" ||
     !("version" in manifest) ||
+    !("name" in manifest) ||
+    manifest.name !== "rill" ||
     manifest.version !== version
   ) {
     throw new RillCommandError("The Rill bundle does not match the canonical VERSION.", 2);
@@ -96,6 +105,12 @@ function copyNew(source: string, destination: string): void {
       force: false,
       errorOnExist: true,
       dereference: false,
+      filter: (path) => {
+        if (lstatSync(path).isSymbolicLink()) {
+          throw new RillCommandError(`Refusing a symlink in Rill-managed assets: ${path}`, 2);
+        }
+        return true;
+      },
     });
   } else {
     copyFileSync(source, destination);
@@ -103,41 +118,39 @@ function copyNew(source: string, destination: string): void {
 }
 
 function populate(root: string, worktree: string, goal: string, preserved: string[]): void {
-  const bundle = join(root, "bundle");
-  copyNew(join(bundle, "plugin"), join(worktree, ".rill/plugin"));
+  const plugin = join(root, "plugin");
+  const template = join(root, "templates/consumer");
+  copyNew(plugin, join(worktree, ".rill/plugin"));
   if (!preserved.includes(".agents/plugins/marketplace.json")) {
     copyNew(
-      join(bundle, "repo-common/.agents/plugins/marketplace.json"),
+      join(template, ".agents/plugins/marketplace.json"),
       join(worktree, ".agents/plugins/marketplace.json"),
     );
   }
   if (!preserved.includes("AGENTS.md")) {
-    copyNew(join(bundle, "repo-common/AGENTS.md"), join(worktree, "AGENTS.md"));
+    copyNew(join(template, "AGENTS.md"), join(worktree, "AGENTS.md"));
   }
   if (!preserved.includes("PRD.md")) {
-    const template = readFileSync(join(bundle, "repo-common/PRD.md"), "utf8");
+    const prdTemplate = readFileSync(join(template, "PRD.md"), "utf8");
     const marker = "[Describe the user-facing product result.]";
-    if (!template.includes(marker)) {
+    if (!prdTemplate.includes(marker)) {
       throw new RillCommandError("The canonical product PRD has no goal marker.", 2);
     }
     writeFileSync(
       join(worktree, "PRD.md"),
-      template.replace(marker, goal.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")),
+      prdTemplate.replace(marker, goal.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")),
       { flag: "wx" },
     );
   }
   if (!preserved.includes(".codex/config.toml")) {
-    copyNew(join(bundle, "repo-common/.codex/config.toml"), join(worktree, ".codex/config.toml"));
+    copyNew(join(template, ".codex/config.toml"), join(worktree, ".codex/config.toml"));
     const roles = ["explorer.toml", "worker.toml", "reviewer.toml"];
     for (const role of roles) {
-      copyNew(
-        join(bundle, "repo-common/.codex/agents", role),
-        join(worktree, ".codex/agents", role),
-      );
+      copyNew(join(template, ".codex/agents", role), join(worktree, ".codex/agents", role));
     }
   }
   if (!preserved.includes(".codex/hooks.json")) {
-    copyNew(join(bundle, "repo-common/.codex/hooks.json"), join(worktree, ".codex/hooks.json"));
+    copyNew(join(template, ".codex/hooks.json"), join(worktree, ".codex/hooks.json"));
   }
 }
 
