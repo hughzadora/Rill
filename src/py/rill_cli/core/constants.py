@@ -112,9 +112,11 @@ FLEET_DEMO_VERSIONS = ("1.0.0", "1.1.0", "2.0.0")
 
 # Rill-specific governance semantics. Git, Commitlint and test tools stay native.
 GOVERNANCE_SCHEMA_VERSION = 1
-GOVERNANCE_STATE_PATH = RILL_DIR / "governance.json"
-GOVERNANCE_LOCK_PATH = RILL_DIR / "governance.lock"
+GOVERNANCE_DATA_DIR = Path("governance")
+GOVERNANCE_STATE_FILE = Path("ledger.json")
+GOVERNANCE_LOCK_FILE = Path("ledger.lock")
 GOVERNANCE_TECH_DEBT_PATH = Path("TECH_DEBT.md")
 GOVERNANCE_ATTEMPT_LIMITS = MappingProxyType({"P0": 3, "P1": 2, "P2": 1, "P3": 1})
 GOVERNANCE_MAX_EVIDENCE_CHARS = 600
 GOVERNANCE_MAX_CAUSE_CHARS = 400
+GOVERNANCE_MAX_DEBT_BYTES = 64 * 1024
