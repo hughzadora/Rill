@@ -17,14 +17,14 @@ This branch retires the previous Rill runtime and configurations. It is **not a 
 
 - `bundle/plugin/plugin.json` — portable Agent Plugins identity; its version must match root `VERSION`.
 - `.agents/plugins/marketplace.json` — source-local discovery, never a global installation directive.
-- `bundle/plugin/skills/` — supplied Superpowers brainstorming and one Rill discovery entrypoint.
+- `bundle/plugin/skills/` — owner-supplied Superpowers brainstorming, one Rill discovery gate and dedicated Research/Grill Skill entrypoints.
 - `bundle/plugin/hooks/` — source-only SessionStart hook, dependent on native trust before execution.
 - `bundle/repo-common/.codex/` — consumer-scoped agent role/config templates; reviewer prompts do not grant a read-only sandbox.
 - `bundle/repo-common/PRD.md` — domain-neutral consumer specification.
 
 Run `pnpm install --frozen-lockfile` and `pnpm run ci` to verify the current TypeScript CLI and source contracts. Local plugin installation is supported by `codex plugin marketplace add <absolute-Rill-checkout>` and `codex plugin add rill@rill-source`, after reviewing the selected Codex HOME and permissions. Neither command authorizes untrusted hooks or adds permission to external repositories.
 
-The supplied brainstorming Skill references companion files absent from the upload. Completing the dependency audit and demonstrating actual native invocation is explicitly tracked in [#57](https://github.com/hughzadora/Rill/issues/57). File presence alone is not functional integration.
+The owner-supplied Superpowers Brainstorming Skill now includes the upstream builder-check prompt, while the unavailable local visual-companion server is **explicitly disabled**, not silently simulated. `rill-research` and `rill-grill` are native Skill entrypoints that route substantive design choices through `rill-discovery` once; no additional PRD or interview is created for settled decisions. Native model-driven Skill selection and exact workflow invocation still require actual Agent evidence under [#57](https://github.com/hughzadora/Rill/issues/57); file presence is not proof of automatic triggering.
 
 ## Greenfield initialization (local, not yet factory-certified)
 
