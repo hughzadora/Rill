@@ -51,13 +51,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(env -u VIRTUAL_ENV dist/rill/rill version)" = "$(cat VERSION)"
+          env -u VIRTUAL_ENV dist/rill/rill --json version | python3 -c 'import json,sys,pathlib; assert json.load(sys.stdin)["version"] == pathlib.Path("VERSION").read_text().strip()'
           target="$(mktemp -d)"
+          trap 'rm -rf -- "$target"' EXIT
           env -u VIRTUAL_ENV dist/rill/rill init "$target" --yes
-          git -C "$target" -c core.hooksPath=/dev/null add -A
-          git -C "$target" -c core.hooksPath=/dev/null -c user.name=ReleaseTest -c user.email=release@example.invalid commit -qm initial
+          test "$(git -C "$target" log -1 --format=%s)" = "chore(rill): initialize harness"
+          test -z "$(git -C "$target" status --porcelain)"
+          env -u VIRTUAL_ENV dist/rill/rill ui "$target" --no-open
+          test -s "$target/.rill/dashboard.html"
+          mise exec --locked node pnpm python uv just -- env -u VIRTUAL_ENV dist/rill/rill doctor "$target"
+          (cd "$target" && env -u VIRTUAL_ENV "$GITHUB_WORKSPACE/dist/rill/rill" hook session-start </dev/null)
+          (cd "$target" && env -u VIRTUAL_ENV "$GITHUB_WORKSPACE/dist/rill/rill" hook pre-compact </dev/null)
+          (cd "$target" && env -u VIRTUAL_ENV "$GITHUB_WORKSPACE/dist/rill/rill" hook stop </dev/null)
           env -u VIRTUAL_ENV dist/rill/rill upgrade "$target" --yes
           env -u VIRTUAL_ENV dist/rill/rill status "$target"
+          test -z "$(git -C "$target" status --porcelain)"
       - run: tar -czf "rill-${{ matrix.platform }}.tar.gz" -C dist rill
       - uses: actions/upload-artifact@v4
         with:
