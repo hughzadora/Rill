@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rill-cli"
+name = "rill-factory"
 dynamic = ["version"]
 description = "Standalone Rill software factory CLI"
 requires-python = ">=3.14,<3.15"
@@ -55,6 +55,7 @@ select = [
   "S",
   "C90",
   "PL",
+  "PLR2004",
   "SIM",
   "ASYNC",
   "RUF",

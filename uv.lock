@@ -620,7 +620,7 @@ wheels = [
 ]
 
 [[package]]
-name = "rill-cli"
+name = "rill-factory"
 source = { editable = "." }
 dependencies = [
     { name = "copier" },

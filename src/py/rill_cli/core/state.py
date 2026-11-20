@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import cast
 
-from .constants import ERROR_LOG_PATH, SCHEMA_VERSION, STATE_PATH
+from .constants import DEFAULT_SCOPE, ERROR_LOG_PATH, SCHEMA_VERSION, STATE_PATH
 
 
 def load(root: Path) -> dict[str, object]:
@@ -23,7 +23,10 @@ def load(root: Path) -> dict[str, object]:
         return {
             "schema": SCHEMA_VERSION,
             "mode": "normal",
-            "task_scope": [],
+            "task_scope": list(DEFAULT_SCOPE),
+            "phase": "ready",
+            "task_goal": "",
+            "consecutive_failures": 0,
             "budget_exhausted": False,
         }
 
@@ -37,7 +40,7 @@ def save(root: Path, data: dict[str, object]) -> None:
             mode="w", encoding="utf-8", dir=path.parent, delete=False
         ) as stream:
             temporary = Path(stream.name)
-            json.dump(data, stream, indent=2, sort_keys=True)
+            json.dump(data, stream, sort_keys=True, separators=(",", ":"))
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
