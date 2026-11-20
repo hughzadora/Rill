@@ -1677,12 +1677,12 @@ test("independent Python/Shell project executes actual source gates and rejects 
   runShellGate();
   writeFileSync(script, originalShell);
 
-  pinned(["aqua:koalaman/shellcheck"], "shellcheck", [
+  pinned(["shellcheck"], "shellcheck", [
     "--severity=style",
     script,
   ]);
-  pinned(["aqua:mvdan/sh"], "shfmt", ["-d", "-i", "2", script]);
-  pinned(["aqua:bats-core/bats-core"], "bats", ["--tap", bats]);
+  pinned(["shfmt"], "shfmt", ["-d", "-i", "2", script]);
+  pinned(["bats"], "bats", ["--tap", bats]);
 
   assert.match(originalPython, /return cleaned\.casefold\(\)/);
   writeFileSync(
@@ -1716,14 +1716,14 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(originalShell, /healthy %s/);
   writeFileSync(script, originalShell.replace("healthy %s", "broken %s"));
   const brokenShell = pinned(
-    ["aqua:bats-core/bats-core"],
+    ["bats"],
     "bats",
     ["--tap", bats],
     { mustFail: true },
   );
   assert.match(brokenShell, /not ok/);
   writeFileSync(script, originalShell);
-  pinned(["aqua:bats-core/bats-core"], "bats", ["--tap", bats]);
+  pinned(["bats"], "bats", ["--tap", bats]);
 });
 
 test("generated React browser gates require page activity and scan the configured product URL", async (t) => {
@@ -2236,7 +2236,7 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     mustFail: true,
   });
   writeFileSync(join(project, "package.json"), originalManifest);
-  const trivy = (...args) => pinned(["aqua:aquasecurity/trivy"], "trivy", args);
+  const trivy = (...args) => pinned(["trivy"], "trivy", args);
   const classifications = join(project, "rill-license-classifications.json");
   const sbom = join(project, "rill-sbom.cdx.json");
   trivy(
