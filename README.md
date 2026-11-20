@@ -44,6 +44,12 @@ Local independent product tests demonstrated a real positive business result and
 
 `.github/workflows/quality.yml` declares an upstream-native, low-privilege PR job using locked pnpm and Node 26 with bounded duration and cancellation of superseded runs. Until a matching exact-SHA GitHub run actually succeeds, the workflow is **configured, not verified as hosted CI**. Secret scanning, supply-chain/OSV status and the applicability of browser/accessibility testing must be independently checked for a real consumer stack; Rill's current CLI source gate must never be represented as universal consumer CI.
 
+## Native Git Plugin update preflight (not a release)
+
+`rill update PRODUCT_ROOT --json` previews the next managed Plugin version using canonical `VERSION`, verified SemVer ordering, native Git tracking and clean-state checks. `--yes` authorizes creation of an **isolated Git review worktree** only, returning `PREPARED_NOT_VERIFIED`; it does **not** merge or alter the live consumer's source. Old managed paths absent from the new source are retained for review, rather than silently deleted. Overwritten and retained paths are reported in `pendingReview`. Dirty repositories, symlinks, untracked managed Plugins, missing manifests and non-increasing versions are rejected.
+
+`bundle/plugin/skills/rill-update/SKILL.md` describes the native reviewed Git merge/revert procedure; there is no bespoke plugin updater or rollback daemon. Deterministic tests show preservation of real business files during merge/revert and fail-closed behavior on committed and uncommitted conflicts. No real product has been upgraded. The current Codex CLI supports marketplace snapshot upgrades but provides no direct `codex plugin update` command; native installed version and Hook trust must be verified separately after authorized changes.
+
 ## Native execution evidence
 
 Native Codex JSONL events, not model prose, determine what ran. A Codex read of an installed Rill Skill was observed in an isolated read-only session. A second session **claimed** an Explorer result, but its trace contained only an empty `wait` call and stated that project configuration was untrusted/disabled. `src/native-evidence.ts` classifies such cases as **NOT_VERIFIED** and tests these false-positive paths. Installing a plugin does **not** automatically trust its Hooks or prove agent-model/sandbox configuration. No hook-trust bypass or user-global configuration edits are authorized.

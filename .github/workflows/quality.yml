@@ -2,15 +2,9 @@ name: Rill Quality
 
 on:
   pull_request:
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "bundle/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "biome.json"
-      - "tsconfig.json"
-      - ".github/workflows/quality.yml"
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
