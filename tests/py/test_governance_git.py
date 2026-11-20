@@ -22,6 +22,8 @@ def prepared(tmp_path: Path) -> tuple[Path, GovernanceEngine]:
     (root / "contracts/api.json").write_text('{"type":"object"}\n', encoding="utf-8")
     (root / "README.md").write_text("# Product\n", encoding="utf-8")
     (root / "justfile").write_text("ci-full:\n    @test -f fixed.txt\n", encoding="utf-8")
+    (root / "tests").mkdir()
+    (root / "tests/test_edge.py").write_text("def test_edge():\n    assert True\n")
     git(root, "add", ".")
     git(
         root,
@@ -164,6 +166,8 @@ def test_successful_committed_repair_merges_only_into_isolated_feature_branch(
 ) -> None:
     root, engine = prepared
     worker = RepairWorkspace(engine, "issue-44")
+    baseline = worker.witness_baseline(["just", "ci-full"])
+    assert baseline.exit_code != 0
     checkout = worker.open()
     (checkout / "README.md").write_text("# Fixed product\n", encoding="utf-8")
     (checkout / "fixed.txt").write_text("Verified repair artifact\n", encoding="utf-8")
@@ -181,7 +185,7 @@ def test_successful_committed_repair_merges_only_into_isolated_feature_branch(
         "fix: repair regression",
     )
     candidate = revision(checkout)
-    observed = worker.run_check([sys.executable, "-c", "print('critical test passed')"])
+    observed = worker.run_check(["just", "ci-full"])
     assert observed.exit_code == 0 and observed.revision == candidate
     assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
     final = worker.complete()
@@ -247,8 +251,11 @@ def test_trivial_green_cannot_verify_unrepaired_p0(
     scratch = worker.open()
     observed = worker.run_check([sys.executable, "-c", "print('success')"])
     assert observed.exit_code == 0
-    with pytest.raises(PermissionError, match="Full regression gate failed"):
+    with pytest.raises(PermissionError, match="new descendant commit"):
         worker.complete()
+    assert scratch.exists()
+    assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
+    worker.abort(failure(scratch))
     assert not scratch.exists()
     assert engine.load().defects["issue-44"].state == Disposition.RETRY_ELIGIBLE
     assert revision(root) == observed.revision
@@ -337,3 +344,166 @@ def test_failed_critical_suite_cannot_quarantine_noncritical_p1(
         )
     assert engine.load().defects["unsafe-edge"].state == Disposition.BLOCKED
     assert not (root / "TECH_DEBT.md").exists()
+
+
+def test_owned_repair_branch_runs_normal_git_precommit_hook(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    hooks = root / ".git/hooks"
+    hooks.mkdir(exist_ok=True)
+    (hooks / "pre-commit").write_text(
+        "#!/bin/sh\n" + f'exec "{sys.executable}" -m rill_cli policy pre-commit\n'
+    )
+    (hooks / "pre-commit").chmod(0o755)
+    worker = RepairWorkspace(engine, "issue-44")
+    scratch = worker.open()
+    assert git(scratch, "symbolic-ref", "--short", "HEAD").stdout.strip().startswith("fix/")
+    (scratch / "README.md").write_text("# Working repair\n", encoding="utf-8")
+    git(scratch, "add", "README.md")
+    committed = git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        f"core.hooksPath={hooks}",
+        "commit",
+        "-m",
+        "fix: standard protected repair commit",
+        check=False,
+    )
+    assert committed.returncode == 0, committed.stderr
+    assert revision(scratch) != revision(root)
+    worker.abort(failure(scratch))
+    assert not scratch.exists()
+
+
+def test_unrelated_generic_green_cannot_certify_a_changed_p0(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    scratch = worker.open()
+    (scratch / "unrelated.txt").write_text("Not a defect repair\n")
+    git(scratch, "add", "unrelated.txt")
+    git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: unrelated change",
+    )
+    assert worker.run_check([sys.executable, "-c", "print('PASS')"]).exit_code == 0
+    with pytest.raises(PermissionError, match="Missing observed defect-specific"):
+        worker.complete()
+    assert revision(root) == engine.load().defects["issue-44"].baseline_revision
+    worker.abort(failure(scratch))
+
+
+def test_committed_test_deletion_is_rejected_even_when_generic_suite_passes(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    _root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    worker.witness_baseline(["just", "ci-full"])
+    scratch = worker.open()
+    git(scratch, "rm", "tests/test_edge.py")
+    (scratch / "fixed.txt").write_text("Fixed\n")
+    git(scratch, "add", "fixed.txt")
+    git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: remove unrelated test",
+    )
+    assert worker.run_check(["just", "ci-full"]).exit_code == 0
+    with pytest.raises(PermissionError, match="Committed test deletion"):
+        worker.complete()
+    worker.abort(failure(scratch))
+
+
+def test_verified_p0_does_not_release_an_unrepaired_sibling_branch(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    original = revision(root)
+    worker = RepairWorkspace(engine, "issue-44")
+    worker.witness_baseline(["just", "ci-full"])
+    scratch = worker.open()
+    (scratch / "fixed.txt").write_text("Fixed\n")
+    git(scratch, "add", "fixed.txt")
+    git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: resolved P0",
+    )
+    assert worker.run_check(["just", "ci-full"]).exit_code == 0
+    assert worker.complete().state == Disposition.VERIFIED
+    assert not any("issue-44" in item for item in engine.release_blockers())
+    sibling = root.parent / "other-branch"
+    git(root, "worktree", "add", "-b", "feat/other", str(sibling), original)
+    try:
+        cross_branch = GovernanceEngine(sibling, data_root=root.parent / "data")
+        assert any("issue-44" in item for item in cross_branch.release_blockers())
+    finally:
+        git(root, "worktree", "remove", "--force", str(sibling))
+        git(root, "branch", "-D", "feat/other")
+
+
+def test_owner_branch_switch_during_regression_refuses_merge(
+    prepared: tuple[Path, GovernanceEngine],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    worker.witness_baseline(["just", "ci-full"])
+    scratch = worker.open()
+    (scratch / "fixed.txt").write_text("Fixed\n")
+    git(scratch, "add", "fixed.txt")
+    git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: complete candidate",
+    )
+    assert worker.run_check(["just", "ci-full"]).exit_code == 0
+    real = worker._require_full_regression  # pyright: ignore[reportPrivateUsage]
+
+    def change_branch(record: DefectRecord, checkout: Path, candidate: str) -> AttemptEvidence:
+        result = real(record, checkout, candidate)
+        git(root, "switch", "-c", "feat/owner-changed-during-check")
+        return result
+
+    monkeypatch.setattr(worker, "_require_full_regression", change_branch)
+    with pytest.raises(PermissionError, match="Owner branch or worktree changed"):
+        worker.complete()
+    assert revision(root) == engine.load().defects["issue-44"].baseline_revision
+    assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
+    git(root, "switch", "feat/attempt-test")
+    worker.abort(failure(scratch))

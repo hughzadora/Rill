@@ -108,6 +108,30 @@ def register(
         raise typer.Exit(1) from exc
 
 
+@app.command(
+    "baseline-check", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def baseline_check(
+    ctx: typer.Context,
+    identity: str,
+    path: Path = typer.Option(Path("."), "--repo"),  # noqa: B008 - Typer API
+) -> None:
+    """Witness a real failing regression in an isolated baseline checkout."""
+    from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
+
+    command = list(ctx.args)
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command:
+        raise typer.BadParameter("Provide the exact native regression command after --")
+    try:
+        receipt = RepairWorkspace(GovernanceEngine(path), identity).witness_baseline(command)
+        typer.echo(receipt.model_dump_json())
+    except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
 @app.command()
 def begin(
     identity: str,

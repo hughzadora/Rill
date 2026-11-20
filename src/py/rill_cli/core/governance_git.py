@@ -4,15 +4,17 @@ import hashlib
 import shlex
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from .constants import (
     GOVERNANCE_ATTEMPT_DIR,
     GOVERNANCE_MAX_EVIDENCE_CHARS,
+    GOVERNANCE_REPAIR_BRANCH,
     GOVERNANCE_TEST_TIMEOUT_SECONDS,
     MAX_ERROR_LINES,
 )
-from .git_policy import git, protect_branch, revision
+from .git_policy import branch, git, protect_branch, revision
 from .governance_contract import (
     AttemptEvidence,
     DefectRecord,
@@ -114,12 +116,70 @@ class RepairWorkspace:
         self.engine = engine
         self.identity = identity
 
+    def _branch_name(self, record: DefectRecord) -> str:
+        return f"{GOVERNANCE_REPAIR_BRANCH}{record.identity}-{record.attempt_count}"
+
+    def _remove_owned(self, record: DefectRecord, checkout: Path) -> None:
+        if checkout.is_symlink() or branch(checkout) != self._branch_name(record):
+            raise PermissionError("Cannot delete an unowned repair branch")
+        git(self.engine.root, "worktree", "remove", "--force", str(checkout))
+        git(self.engine.root, "branch", "-D", self._branch_name(record))
+
     def _path(self, record: DefectRecord) -> Path:
         return (
             self.engine.data_root
             / GOVERNANCE_ATTEMPT_DIR
             / f"{record.identity}-{record.attempt_count}"
         )
+
+    def witness_baseline(self, argv: list[str]) -> AttemptEvidence:
+        """Reproduce the defect against a pristine native Git baseline without consuming a retry."""
+        if not argv:
+            raise ValueError("Regression command is required")
+        record = self.engine.load().defects[self.identity]
+        if record.state != Disposition.OPEN or _dirty(self.engine.root):
+            raise PermissionError("Baseline witness requires a clean, unopened repair")
+        if revision(self.engine.root) != record.baseline_revision:
+            raise PermissionError("Baseline HEAD changed")
+        self.engine.data_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            prefix="rill-regression-", dir=self.engine.data_root
+        ) as temp:
+            checkout = Path(temp) / "source"
+            git(
+                self.engine.root,
+                "worktree",
+                "add",
+                "--detach",
+                str(checkout),
+                record.baseline_revision,
+            )
+            try:
+                result = subprocess.run(  # noqa: S603 - exact explicit native argv, no shell
+                    argv,
+                    cwd=checkout,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=GOVERNANCE_TEST_TIMEOUT_SECONDS,
+                )
+                if revision(checkout) != record.baseline_revision or _dirty(checkout):
+                    raise PermissionError("Baseline regression modified its Git checkout")
+                lines = (result.stderr + "\n" + result.stdout).splitlines()
+                receipt = AttemptEvidence(
+                    revision=record.baseline_revision,
+                    command=shlex.join(argv),
+                    exit_code=result.returncode,
+                    summary=("\n".join(lines[-MAX_ERROR_LINES:]).strip() or "No output")[
+                        :GOVERNANCE_MAX_EVIDENCE_CHARS
+                    ],
+                )
+            finally:
+                git(self.engine.root, "worktree", "remove", "--force", str(checkout))
+        if revision(self.engine.root) != record.baseline_revision or _dirty(self.engine.root):
+            raise PermissionError("Owner checkout changed during baseline observation")
+        self.engine.observe_baseline_failure(self.identity, receipt)
+        return receipt
 
     def open(self) -> Path:
         check_frozen(self.engine)
@@ -136,7 +196,8 @@ class RepairWorkspace:
                 self.engine.root,
                 "worktree",
                 "add",
-                "--detach",
+                "-b",
+                self._branch_name(current),
                 str(target),
                 current.baseline_revision,
             )
@@ -162,8 +223,10 @@ class RepairWorkspace:
         if not checkout.is_dir() or checkout.is_symlink():
             raise PermissionError("Active repair checkout is missing or unsafe")
         registrations = git(self.engine.root, "worktree", "list", "--porcelain").stdout
-        if f"worktree {checkout}\n" not in registrations:
-            raise PermissionError("Checkout is not registered in native Git")
+        if f"worktree {checkout}\n" not in registrations or (
+            branch(checkout) != self._branch_name(record)
+        ):
+            raise PermissionError("Checkout is not a registered task-owned branch")
         return checkout
 
     def abort(
@@ -183,7 +246,7 @@ class RepairWorkspace:
         ):
             raise PermissionError("Stale check cannot rollback another repair attempt")
         try:
-            git(self.engine.root, "worktree", "remove", "--force", str(checkout))
+            self._remove_owned(record, checkout)
             restored = (
                 not checkout.exists()
                 and revision(self.engine.root) == record.baseline_revision
@@ -321,11 +384,39 @@ class RepairWorkspace:
             rationale=rationale,
         )
 
+    @staticmethod
+    def _require_defect_proof(record: DefectRecord, candidate: str) -> None:
+        baseline_failures = [
+            item
+            for item in record.evidence
+            if item.exit_code != 0 and item.revision == record.baseline_revision
+        ]
+        if not baseline_failures:
+            raise PermissionError("Missing observed defect-specific failing baseline regression")
+        if not any(
+            item.exit_code == 0
+            and item.revision == candidate
+            and item.command == baseline_failures[0].command
+            for item in record.evidence
+        ):
+            raise PermissionError("Candidate has no passing observation of the original regression")
+
     def _require_full_regression(
         self, record: DefectRecord, checkout: Path, candidate: str
     ) -> AttemptEvidence:
-        if not any(item.exit_code == 0 and item.revision == candidate for item in record.evidence):
-            raise PermissionError("No witnessed passing native check for candidate HEAD")
+        if (
+            candidate == record.baseline_revision
+            or git(
+                checkout,
+                "merge-base",
+                "--is-ancestor",
+                record.baseline_revision,
+                candidate,
+                check=False,
+            ).returncode
+        ):
+            raise PermissionError("A repair must contain a new descendant commit")
+        self._require_defect_proof(record, candidate)
         regression = self.run_check(["just", "ci-full"])
         if regression.exit_code != 0:
             raise PermissionError("Full regression gate failed; repair remains unverified")
@@ -335,6 +426,8 @@ class RepairWorkspace:
 
     def complete(self) -> DefectRecord:
         """Native feature-branch fast forward after a witnessed passing check."""
+        from .governance_gate import committed_test_deletions  # noqa: PLC0415 - shared native Git check
+
         record = self.engine.load().defects[self.identity]
         checkout = self.path()
         if _dirty(checkout) or _dirty(self.engine.root):
@@ -343,8 +436,18 @@ class RepairWorkspace:
         check_frozen(self.engine)
         if revision(self.engine.root) != record.baseline_revision:
             raise PermissionError("Owner HEAD changed; concurrent Git work must be preserved")
+        owner_branch = branch(self.engine.root)
         candidate = revision(checkout)
+        if committed_test_deletions(checkout, record.baseline_revision):
+            raise PermissionError("Committed test deletion cannot certify a repaired defect")
         regression = self._require_full_regression(record, checkout, candidate)
+        if (
+            branch(self.engine.root) != owner_branch
+            or revision(self.engine.root) != record.baseline_revision
+            or _dirty(self.engine.root)
+        ):
+            raise PermissionError("Owner branch or worktree changed during regression")
+        check_frozen(self.engine)
         protect_branch(self.engine.root)
         git(self.engine.root, "merge", "--ff-only", "--no-overwrite-ignore", candidate)
         try:
@@ -353,5 +456,5 @@ class RepairWorkspace:
             if revision(self.engine.root) == candidate and not _dirty(self.engine.root):
                 git(self.engine.root, "reset", "--keep", record.baseline_revision)
             raise
-        git(self.engine.root, "worktree", "remove", "--force", str(checkout))
+        self._remove_owned(record, checkout)
         return final

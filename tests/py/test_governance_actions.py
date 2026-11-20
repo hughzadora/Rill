@@ -184,6 +184,11 @@ def test_native_cli_completes_only_a_committed_tested_feature_revision(
         ).exit_code
         == 0
     )
+    baseline = runner.invoke(
+        app, ["governance", "baseline-check", "repair", "--", "just", "ci-full"]
+    )
+    assert baseline.exit_code == 0, baseline.output
+    assert json.loads(baseline.stdout)["exit_code"] != 0
     started = runner.invoke(app, ["governance", "begin", "repair", "--yes"])
     assert started.exit_code == 0, started.output
     checkout = Path(json.loads(started.stdout)["checkout"])
@@ -212,9 +217,8 @@ def test_native_cli_completes_only_a_committed_tested_feature_revision(
             "check",
             "repair",
             "--",
-            sys.executable,
-            "-c",
-            "print('PASS')",
+            "just",
+            "ci-full",
         ],
     )
     assert checked.exit_code == 0, checked.output

@@ -111,6 +111,24 @@ class GovernanceEngine:
 
         return self._update(add).defects[record.identity]
 
+    def observe_baseline_failure(self, identity: str, receipt: AttemptEvidence) -> None:
+        """Persist a witnessed failing regression before any repair attempt."""
+        if receipt.exit_code == 0:
+            raise ValueError("Baseline regression must reproduce the failure")
+
+        def witness(ledger: GovernanceLedger) -> None:
+            defect = ledger.defects[identity]
+            if defect.state != Disposition.OPEN or defect.evidence:
+                raise PermissionError("Baseline can only be witnessed once before repair")
+            if (
+                receipt.revision != defect.baseline_revision
+                or revision(self.root) != receipt.revision
+            ):
+                raise PermissionError("Baseline observation must match the registered HEAD")
+            defect.evidence.append(receipt)
+
+        self._update(witness)
+
     def begin(self, identity: str) -> DefectRecord:
         def start(ledger: GovernanceLedger) -> None:
             defect = ledger.defects[identity]
@@ -281,17 +299,34 @@ class GovernanceEngine:
             "scope": "registered governance defects only; not a release approval",
         }
 
+    def _verified_branch_blockers(self, ledger: GovernanceLedger, head: str) -> list[str]:
+        blockers: list[str] = []
+        for defect in ledger.defects.values():
+            if defect.state != Disposition.VERIFIED:
+                continue
+            verified = defect.last_verified_revision
+            if (
+                not verified
+                or git(
+                    self.root, "merge-base", "--is-ancestor", verified, head, check=False
+                ).returncode
+            ):
+                blockers.append(f"{defect.identity}: verified commit absent from candidate HEAD")
+        return blockers
+
     def release_blockers(self) -> list[str]:
         ledger = self.load()
         if ledger.frozen is None:
             return ["L1 contract has not been frozen"]
         allowed = {Disposition.VERIFIED, Disposition.QUARANTINED, Disposition.DEFERRED}
+        head = revision(self.root)
         blockers = [
             f"{item.identity}: {item.state}"
             for item in ledger.defects.values()
             if item.state not in allowed
             or (item.severity == Severity.P0 and item.state != Disposition.VERIFIED)
         ]
+        blockers.extend(self._verified_branch_blockers(ledger, head))
         debt_path = self.root / GOVERNANCE_TECH_DEBT_PATH
         if any(item.state == Disposition.QUARANTINED for item in ledger.defects.values()) and (
             not debt_path.is_file() or debt_path.is_symlink()
