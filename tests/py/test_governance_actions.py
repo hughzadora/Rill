@@ -116,3 +116,113 @@ def test_owner_cli_native_failed_check_removes_only_task_worktree(repository: Pa
     assert report.state == Disposition.RETRY_ELIGIBLE
     assert report.attempt_count == 1
     assert git(repository, "status", "--porcelain").stdout == ""
+
+
+def test_native_cli_preserves_child_git_argument_separator(repository: Path) -> None:
+    runner = CliRunner()
+    assert (
+        runner.invoke(app, ["governance", "freeze", "--file", "api.json", "--yes"]).exit_code == 0
+    )
+    assert (
+        runner.invoke(
+            app,
+            [
+                "governance",
+                "register",
+                "separator",
+                "--severity",
+                "P2",
+                "--cause",
+                "argv contract",
+                "--yes",
+            ],
+        ).exit_code
+        == 0
+    )
+    assert runner.invoke(app, ["governance", "begin", "separator", "--yes"]).exit_code == 0
+    result = runner.invoke(
+        app,
+        [
+            "governance",
+            "check",
+            "separator",
+            "--",
+            "git",
+            "diff",
+            "--exit-code",
+            "--",
+            "api.json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    observed = GovernanceEngine(repository).load().defects["separator"].evidence[-1]
+    assert observed.command.endswith("git diff --exit-code -- api.json")
+    assert runner.invoke(app, ["governance", "abort", "separator", "--yes"]).exit_code == 0
+
+
+def test_native_cli_completes_only_a_committed_tested_feature_revision(
+    repository: Path,
+) -> None:
+    runner = CliRunner()
+    assert (
+        runner.invoke(app, ["governance", "freeze", "--file", "api.json", "--yes"]).exit_code == 0
+    )
+    assert (
+        runner.invoke(
+            app,
+            [
+                "governance",
+                "register",
+                "repair",
+                "--severity",
+                "P0",
+                "--cause",
+                "critical behavior",
+                "--yes",
+            ],
+        ).exit_code
+        == 0
+    )
+    started = runner.invoke(app, ["governance", "begin", "repair", "--yes"])
+    assert started.exit_code == 0, started.output
+    checkout = Path(json.loads(started.stdout)["checkout"])
+    original_head = revision(repository)
+    (checkout / "fixed.txt").write_text("Tested repair\n", encoding="utf-8")
+    git(checkout, "add", "fixed.txt")
+    git(
+        checkout,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: verified repair",
+    )
+    candidate = revision(checkout)
+    assert candidate != original_head
+    assert runner.invoke(app, ["governance", "complete", "repair", "--yes"]).exit_code != 0
+    checked = runner.invoke(
+        app,
+        [
+            "governance",
+            "check",
+            "repair",
+            "--",
+            sys.executable,
+            "-c",
+            "print('PASS')",
+        ],
+    )
+    assert checked.exit_code == 0, checked.output
+    result = runner.invoke(app, ["governance", "complete", "repair", "--yes"])
+    assert result.exit_code == 0, result.output
+    record = json.loads(result.stdout)
+    assert record["state"] == Disposition.VERIFIED
+    assert record["last_verified_revision"] == candidate
+    assert revision(repository) == candidate
+    assert not checkout.exists()
+    assert (repository / "fixed.txt").read_text(encoding="utf-8") == "Tested repair\n"
+    assert git(repository, "status", "--porcelain").stdout == ""

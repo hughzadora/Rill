@@ -1,6 +1,9 @@
 """L4 negative checks use real Git stages, schema and native CI receipts."""
 
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -11,6 +14,7 @@ from rill_cli.core.governance_contract import DefectRecord, Severity
 from rill_cli.core.governance_engine import GovernanceEngine
 from rill_cli.core.governance_gate import check_pre_commit, release_gate
 from rill_cli.core.governance_git import freeze_contracts
+from rill_cli.core.installer import install
 
 
 @pytest.fixture
@@ -87,7 +91,9 @@ def test_stale_revision_and_dirty_source_never_receive_release_status(
     root, engine = workspace
     data_root = engine.data_root.parent.parent
     _receipt(root)
-    assert release_gate(root, data_root=data_root) == []
+    assert any(
+        "independently observed" in entry for entry in release_gate(root, data_root=data_root)
+    )
     (root / "untracked.py").write_text("unexpected = 1\n")
     assert any("uncommitted" in item for item in release_gate(root, data_root=data_root))
     (root / "untracked.py").unlink()
@@ -147,3 +153,49 @@ def test_unfrozen_and_missing_ci_never_approve(tmp_path: Path) -> None:
     blockers = release_gate(repo, data_root=tmp_path / "data")
     assert "L1 contract has not been frozen" in blockers
     assert "Missing L3 CI receipt" in blockers
+
+
+def test_deleted_test_in_prior_commit_is_rejected_at_release(
+    workspace: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = workspace
+    git(root, "rm", "tests/test_api.py")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: delete test",
+    )
+    _receipt(root)
+    blockers = release_gate(root, data_root=engine.data_root.parent.parent)
+    assert any("Committed test deletions" in issue for issue in blockers)
+    assert not (root / "tests/test_api.py").exists()
+
+
+def test_generated_ci_fails_closed_when_release_cli_is_unavailable(tmp_path: Path) -> None:
+    """A fresh PR runner must not silently skip the mandatory governance gate."""
+    project = install(tmp_path / "generated")
+    just = shutil.which("just")
+    assert just is not None
+    # Keep standard host tools, deliberately not the Rill virtualenv or mise shim.
+    environment = {**os.environ, "PATH": "/usr/bin:/bin", "CI": "true"}
+    result = subprocess.run(  # noqa: S603 - native Just CLI in isolated repo
+        [just, "ci"],
+        cwd=project,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "Rill CLI missing" in result.stderr
+    assert "before CI" in result.stderr
+    generated = (project / "justfile").read_text(encoding="utf-8")
+    assert "if True" not in generated and "if False" not in generated
+    assert '[ "$(git rev-parse HEAD)" != "$START_HEAD" ]' in generated

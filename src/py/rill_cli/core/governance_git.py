@@ -11,7 +11,7 @@ from .constants import (
     GOVERNANCE_TEST_TIMEOUT_SECONDS,
     MAX_ERROR_LINES,
 )
-from .git_policy import git, revision
+from .git_policy import git, protect_branch, revision
 from .governance_contract import (
     AttemptEvidence,
     DefectRecord,
@@ -148,12 +148,22 @@ class RepairWorkspace:
             raise PermissionError("Checkout is not registered in native Git")
         return checkout
 
-    def abort(self, evidence: AttemptEvidence) -> DefectRecord:
+    def abort(
+        self,
+        evidence: AttemptEvidence,
+        *,
+        expected_checkout: Path | None = None,
+        expected_attempt: int | None = None,
+    ) -> DefectRecord:
         if evidence.exit_code == 0:
             raise ValueError("Only a failed check may discard a repair worktree")
         record = self.engine.load().defects[self.identity]
+        checkout = self.path()
+        if (expected_checkout is not None and checkout != expected_checkout) or (
+            expected_attempt is not None and record.attempt_count != expected_attempt
+        ):
+            raise PermissionError("Stale check cannot rollback another repair attempt")
         try:
-            checkout = self.path()
             git(self.engine.root, "worktree", "remove", "--force", str(checkout))
             restored = (
                 not checkout.exists()
@@ -164,7 +174,13 @@ class RepairWorkspace:
                 check_frozen(self.engine)
         except OSError, ValueError, PermissionError, subprocess.CalledProcessError:
             restored = False
-        result = self.engine.record_failure(self.identity, evidence, recovered=restored)
+        result = (
+            self.engine.record_failure_for_attempt(
+                self.identity, evidence, expected_attempt, recovered=restored
+            )
+            if expected_attempt is not None
+            else self.engine.record_failure(self.identity, evidence, recovered=restored)
+        )
         if not restored:
             raise PermissionError("Repair rollback unverified; further attempts blocked")
         return result
@@ -174,6 +190,10 @@ class RepairWorkspace:
         if not argv:
             raise ValueError("A verification command is required")
         checkout = self.path()
+        attempt = self.engine.load().defects[self.identity].attempt_count
+        original_revision = revision(checkout)
+        if _dirty(checkout):
+            raise PermissionError("Commit repair changes before checking a Git revision")
         try:
             result = subprocess.run(  # noqa: S603 - exact argv, never shell=True
                 argv,
@@ -190,16 +210,63 @@ class RepairWorkspace:
                 exit_code=1,
                 summary=f"Native command failed or timed out: {type(exc).__name__}",
             )
-            self.abort(evidence)
+            self.abort(evidence, expected_checkout=checkout, expected_attempt=attempt)
             raise
+        if revision(checkout) != original_revision or _dirty(checkout):
+            self.engine.record_failure_for_attempt(
+                self.identity,
+                AttemptEvidence(
+                    revision=original_revision,
+                    command=shlex.join(argv),
+                    exit_code=1,
+                    summary="Repair checkout HEAD or files changed while native check ran",
+                ),
+                attempt,
+                recovered=False,
+            )
+            raise PermissionError("Repair changed during verification; worktree preserved")
         lines = (result.stderr + "\n" + result.stdout).splitlines()
         summary = "\n".join(lines[-MAX_ERROR_LINES:]).strip() or "No command output"
         evidence = AttemptEvidence(
-            revision=revision(checkout),
+            revision=original_revision,
             command=shlex.join(argv),
             exit_code=result.returncode,
             summary=summary[:GOVERNANCE_MAX_EVIDENCE_CHARS],
         )
         if result.returncode:
-            self.abort(evidence)
+            self.abort(evidence, expected_checkout=checkout, expected_attempt=attempt)
+        else:
+            self.engine.record_checked_candidate(self.identity, evidence, expected_attempt=attempt)
         return evidence
+
+    def complete(self) -> DefectRecord:
+        """Native feature-branch fast forward after a witnessed passing check."""
+        record = self.engine.load().defects[self.identity]
+        checkout = self.path()
+        if _dirty(checkout) or _dirty(self.engine.root):
+            raise PermissionError("Only clean committed worktrees can complete a repair")
+        check_frozen(self.engine, target=checkout)
+        check_frozen(self.engine)
+        if revision(self.engine.root) != record.baseline_revision:
+            raise PermissionError("Owner HEAD changed; concurrent Git work must be preserved")
+        candidate = revision(checkout)
+        passed = next(
+            (
+                receipt
+                for receipt in record.evidence
+                if receipt.exit_code == 0 and receipt.revision == candidate
+            ),
+            None,
+        )
+        if passed is None:
+            raise PermissionError("No witnessed passing native check for candidate HEAD")
+        protect_branch(self.engine.root)
+        git(self.engine.root, "merge", "--ff-only", "--no-overwrite-ignore", candidate)
+        try:
+            final = self.engine.record_success(self.identity, passed)
+        except Exception:
+            if revision(self.engine.root) == candidate and not _dirty(self.engine.root):
+                git(self.engine.root, "reset", "--keep", record.baseline_revision)
+            raise
+        git(self.engine.root, "worktree", "remove", "--force", str(checkout))
+        return final

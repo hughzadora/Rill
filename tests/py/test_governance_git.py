@@ -113,9 +113,10 @@ def test_successful_check_does_not_falsely_certify_uncommitted_checkout(
     session = RepairWorkspace(engine, "issue-44")
     scratch = session.open()
     (scratch / "README.md").write_text("Untested pending change\n", encoding="utf-8")
-    evidence = session.run_check([sys.executable, "-c", "print('test ran')"])
-    assert evidence.exit_code == 0
+    with pytest.raises(PermissionError, match="Commit repair changes"):
+        session.run_check([sys.executable, "-c", "print('test ran')"])
     assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
+    assert not engine.load().defects["issue-44"].evidence
     session.abort(failure(scratch))
 
 
@@ -155,3 +156,82 @@ def test_failed_native_removal_blocks_instead_of_claiming_recovery(
     assert engine.load().defects["issue-44"].state == Disposition.BLOCKED
     assert scratch.exists()
     git(root, "worktree", "remove", "--force", str(scratch))
+
+
+def test_successful_committed_repair_merges_only_into_isolated_feature_branch(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    checkout = worker.open()
+    (checkout / "README.md").write_text("# Fixed product\n", encoding="utf-8")
+    git(checkout, "add", "README.md")
+    git(
+        checkout,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: repair regression",
+    )
+    candidate = revision(checkout)
+    observed = worker.run_check([sys.executable, "-c", "print('critical test passed')"])
+    assert observed.exit_code == 0 and observed.revision == candidate
+    assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
+    final = worker.complete()
+    assert final.state == Disposition.VERIFIED
+    assert final.last_verified_revision == candidate
+    assert revision(root) == candidate
+    assert not checkout.exists()
+    assert git(root, "status", "--porcelain").stdout == ""
+    assert (root / "README.md").read_text(encoding="utf-8") == "# Fixed product\n"
+
+
+def test_git_head_switch_while_check_runs_is_blocked_not_certified(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    checkout = worker.open()
+    command = [
+        sys.executable,
+        "-c",
+        "import subprocess; from pathlib import Path; "
+        "Path('README.md').write_text('changed\\n'); "
+        "subprocess.run(['git','add','README.md'],check=True); "
+        "subprocess.run(['git','-c','user.name=Test','-c','user.email=test@example.test',"
+        "'-c','core.hooksPath=/dev/null','commit','-m','test: moving head'],check=True)",
+    ]
+    with pytest.raises(PermissionError, match="changed during verification"):
+        worker.run_check(command)
+    assert engine.load().defects["issue-44"].state == Disposition.BLOCKED
+    assert checkout.exists()
+    assert git(root, "status", "--porcelain").stdout == ""
+    git(root, "worktree", "remove", "--force", str(checkout))
+
+
+def test_stale_observation_cannot_affect_later_active_attempt(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    old = worker.open()
+    old_attempt = engine.load().defects["issue-44"].attempt_count
+    worker.abort(failure(old))
+    new = worker.open()
+    with pytest.raises(PermissionError, match="Stale"):
+        worker.abort(failure(root), expected_checkout=old, expected_attempt=old_attempt)
+    with pytest.raises(PermissionError, match="Stale"):
+        engine.record_failure_for_attempt(
+            "issue-44",
+            failure(root),
+            old_attempt,
+            recovered=False,
+        )
+    assert new.is_dir()
+    assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
+    worker.abort(failure(new))

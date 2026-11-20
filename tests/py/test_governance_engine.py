@@ -160,5 +160,8 @@ def test_success_requires_clean_current_revision_and_real_zero_exit(repository: 
     with pytest.raises(PermissionError, match="Uncommitted"):
         control.record_success("issue-42", passing)
     (repository / "untracked.py").unlink()
+    with pytest.raises(PermissionError, match="No observed"):
+        control.record_success("issue-42", passing)
+    control.record_checked_candidate("issue-42", passing, expected_attempt=1)
     assert control.record_success("issue-42", passing).state == Disposition.VERIFIED
     assert control.load().defects["issue-42"].last_verified_revision == revision(repository)

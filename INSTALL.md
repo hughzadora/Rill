@@ -5,6 +5,12 @@ environment is required at runtime. Supported targets: Apple Silicon Macs
 (arm64, macOS 26 or newer), Linux x64 and Linux arm64. Intel Macs and Windows
 are intentionally unsupported.
 
+Consumer CI must have that pinned CLI available in PATH before `just ci`.
+The generated Quality Job now **fails closed** when Rill is missing rather
+than silently skipping the governance gate. Publishing and validating the
+matching GitHub Release is a prerequisite to enabling that workflow on new
+repositories; no unpublished release is substituted by source checkout.
+
 Use mise's native GitHub backend with the exact version and asset for your
 platform. For example, on Linux x64:
 

@@ -118,6 +118,21 @@ class GovernanceEngine:
 
         return self._update(start).defects[identity]
 
+    def _apply_failure(
+        self,
+        defect: DefectRecord,
+        evidence: AttemptEvidence,
+        recovered: bool,
+        isolation: IsolationEvidence | None,
+    ) -> None:
+        if defect.state != Disposition.ATTEMPTING:
+            raise PermissionError("Only an active attempt can fail")
+        defect.evidence.append(evidence)
+        defect.isolation = isolation
+        defect.state = self._failed_disposition(defect, recovered)
+        if defect.state == Disposition.QUARANTINED:
+            self._append_debt(defect)
+
     def record_failure(
         self,
         identity: str,
@@ -130,14 +145,26 @@ class GovernanceEngine:
             raise ValueError("Failure must contain the actual failing exit code")
 
         def fail(ledger: GovernanceLedger) -> None:
+            self._apply_failure(ledger.defects[identity], evidence, recovered, isolation)
+
+        return self._update(fail).defects[identity]
+
+    def record_failure_for_attempt(
+        self,
+        identity: str,
+        evidence: AttemptEvidence,
+        expected_attempt: int,
+        *,
+        recovered: bool,
+    ) -> DefectRecord:
+        if evidence.exit_code == 0:
+            raise ValueError("Failure must contain the actual failing exit code")
+
+        def fail(ledger: GovernanceLedger) -> None:
             defect = ledger.defects[identity]
-            if defect.state != Disposition.ATTEMPTING:
-                raise PermissionError("Only an active attempt can fail")
-            defect.evidence.append(evidence)
-            defect.isolation = isolation
-            defect.state = self._failed_disposition(defect, recovered)
-            if defect.state == Disposition.QUARANTINED:
-                self._append_debt(defect)
+            if defect.attempt_count != expected_attempt:
+                raise PermissionError("Stale check cannot alter a later repair attempt")
+            self._apply_failure(defect, evidence, recovered, None)
 
         return self._update(fail).defects[identity]
 
@@ -159,6 +186,21 @@ class GovernanceEngine:
             return Disposition.DEFERRED
         return Disposition.BLOCKED
 
+    def record_checked_candidate(
+        self, identity: str, evidence: AttemptEvidence, *, expected_attempt: int
+    ) -> None:
+        """Persist only a completed, pinned native subprocess check observation."""
+        if evidence.exit_code != 0:
+            raise ValueError("A successful candidate needs a zero-exit native check")
+
+        def observed(ledger: GovernanceLedger) -> None:
+            defect = ledger.defects[identity]
+            if defect.state != Disposition.ATTEMPTING or defect.attempt_count != expected_attempt:
+                raise PermissionError("Stale test result cannot certify a different attempt")
+            defect.evidence.append(evidence)
+
+        self._update(observed)
+
     def record_success(self, identity: str, evidence: AttemptEvidence) -> DefectRecord:
         if evidence.exit_code != 0 or revision(self.root) != evidence.revision:
             raise ValueError("Only a real passing command on the actual HEAD can verify")
@@ -169,7 +211,8 @@ class GovernanceEngine:
             defect = ledger.defects[identity]
             if defect.state != Disposition.ATTEMPTING:
                 raise PermissionError("Only an active repair can be marked verified")
-            defect.evidence.append(evidence)
+            if evidence not in defect.evidence:
+                raise PermissionError("No observed passing check for this exact Git revision")
             defect.last_verified_revision = evidence.revision
             defect.state = Disposition.VERIFIED
 

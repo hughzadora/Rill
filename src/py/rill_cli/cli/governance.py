@@ -135,7 +135,9 @@ def check(
     """Run an argv-only test in the owned checkout; failure rolls it back."""
     from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
 
-    command = [part for part in ctx.args if part != "--"]
+    command = list(ctx.args)
+    if command and command[0] == "--":
+        command = command[1:]
     if not command:
         raise typer.BadParameter("Provide a native command after --")
     try:
@@ -170,6 +172,24 @@ def abort(
             summary="Owner cancelled attempt; no test result claimed",
         )
         typer.echo(worker.abort(receipt).model_dump_json())
+    except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
+        errors.print(f"BLOCKED: {exc}", style="red")
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def complete(
+    identity: str,
+    path: Path = typer.Argument(Path(".")),  # noqa: B008 - Typer API
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Fast-forward a verified feature-branch repair; never merge into main."""
+    from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
+
+    _authorize(yes)
+    try:
+        worker = RepairWorkspace(GovernanceEngine(path), identity)
+        typer.echo(worker.complete().model_dump_json())
     except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
         errors.print(f"BLOCKED: {exc}", style="red")
         raise typer.Exit(1) from exc

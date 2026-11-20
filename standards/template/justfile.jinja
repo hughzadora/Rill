@@ -13,8 +13,12 @@ ci:
     START_HEAD="$(git rev-parse HEAD)" || exit 1
     set -euo pipefail
     receipt() { if command -v rill >/dev/null 2>&1; then rill policy ci-receipt ci "$1" "$START_HEAD"; fi; }
+    if [ "${CI:-}" = "true" ] && ! command -v rill >/dev/null 2>&1; then
+      printf '%s\n' 'Rill CLI missing: install the pinned GitHub Release via mise before CI.' >&2
+      exit 2
+    fi
     if command -v rill >/dev/null 2>&1; then rill policy governance-check; fi
-    if [[ "${RILL_FULL:-0}" != "1" ]]; then receipt running; fi
+    if [ "${RILL_FULL:-0}" != "1" ]; then receipt running; fi
     neutral="$(mktemp -d)"; trap 'rmdir "$neutral"' EXIT; (cd "$neutral"; unset GITLEAKS_CONFIG GITLEAKS_CONFIG_TOML; GIT_DIR="{{justfile_directory()}}/.git" GIT_WORK_TREE="{{justfile_directory()}}" mise exec aqua:gitleaks/gitleaks@8.30.1 -- gitleaks git --gitleaks-ignore-path=/dev/null --ignore-gitleaks-allow --redact --exit-code 1)
 {% if react %}    pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run lint
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run typecheck
@@ -35,11 +39,11 @@ ci:
     mise exec aqua:mvdan/sh@3.14.1 -- shfmt -d -i 2 [[ shell_sources | tojson ]]/*.sh
     mise exec aqua:bats-core/bats-core@1.14.0 -- bats [[ shell_tests | tojson ]]
 {% endif %}
-    if [[ "$(git rev-parse HEAD)" != "$START_HEAD" ]]; then
+    if [ "$(git rev-parse HEAD)" != "$START_HEAD" ]; then
       printf 'CI HEAD changed during verification: %s\n' "$START_HEAD" >&2
       exit 1
     fi
-    if [[ "${RILL_FULL:-0}" != "1" ]]; then receipt pass; fi
+    if [ "${RILL_FULL:-0}" != "1" ]; then receipt pass; fi
 
 # Resource-heavy browser and independent integration tests run locally, not on each PR VM.
 ci-full:
@@ -53,7 +57,7 @@ ci-full:
     pnpm --dir [[ (js_workspace ~ "/" ~ react_root) | tojson ]] run test:a11y
 {% endif %}{% if python %}    uv --directory [[ python_root | tojson ]] run --locked pytest -q [[ python_integration | tojson ]]
 {% endif %}
-    if [[ "$(git rev-parse HEAD)" != "$START_HEAD" ]]; then
+    if [ "$(git rev-parse HEAD)" != "$START_HEAD" ]; then
       printf 'Full CI HEAD changed during verification: %s\n' "$START_HEAD" >&2
       exit 1
     fi
