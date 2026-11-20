@@ -52,11 +52,12 @@ test("current requirement IDs are stable, unique and statuses are declared", () 
 
 test("agent entrypoint is concise and supports bounded requirement lookup", () => {
   assert.ok(read("AGENTS.md").trimEnd().split("\n").length <= 30);
-  const result = spawnSync("rg", ["-n", "^\\| FR-09 \\|", "PRD.md"], {
+  const result = spawnSync("git", ["grep", "-n", "-E", "^\\| FR-09 \\|", "--", "PRD.md"], {
     cwd: repo,
     encoding: "utf8",
   });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /^\d+:\| FR-09 \|/);
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr ?? "Git did not find the FR-09 requirement");
+  assert.match(result.stdout, /^PRD\.md:\d+:\| FR-09 \|/);
   assert.equal(result.stdout.trim().split("\n").length, 1);
 });
