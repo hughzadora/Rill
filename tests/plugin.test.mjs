@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
@@ -66,11 +66,15 @@ test("malformed hook input fails visibly without leaking context", () => {
 });
 
 test("hook outputs nothing when project PRD is missing", () => {
-  const result = spawnSync(process.execPath, [join(root, "bundle/plugin/hooks/session-start.mjs")], {
-    cwd: "/tmp",
-    encoding: "utf8",
-    input: JSON.stringify({ hook_event_name: "SessionStart", cwd: "/tmp", source: "startup" }),
-  });
+  const result = spawnSync(
+    process.execPath,
+    [join(root, "bundle/plugin/hooks/session-start.mjs")],
+    {
+      cwd: "/tmp",
+      encoding: "utf8",
+      input: JSON.stringify({ hook_event_name: "SessionStart", cwd: "/tmp", source: "startup" }),
+    },
+  );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "");
 });

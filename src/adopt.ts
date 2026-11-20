@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   copyFileSync,
   cpSync,
@@ -69,11 +69,17 @@ function checkSource(root: string, version: string): void {
     "bundle/repo-common/.agents/plugins/marketplace.json",
     "bundle/repo-common/.codex/config.toml",
   ];
-  if (required.some((path) => !existsSync(join(root, path)))) {
+  const [manifestPath] = required;
+  if (manifestPath === undefined || required.some((path) => !existsSync(join(root, path)))) {
     throw new RillCommandError("The Rill distribution is missing maintained consumer assets.", 2);
   }
-  const manifest: unknown = JSON.parse(readFileSync(join(root, required[0]!), "utf8"));
-  if (!manifest || typeof manifest !== "object" || !("version" in manifest) || manifest.version !== version) {
+  const manifest: unknown = JSON.parse(readFileSync(join(root, manifestPath), "utf8"));
+  if (
+    !manifest ||
+    typeof manifest !== "object" ||
+    !("version" in manifest) ||
+    manifest.version !== version
+  ) {
     throw new RillCommandError("The Rill bundle does not match the canonical VERSION.", 2);
   }
 }
@@ -84,7 +90,12 @@ function copyNew(source: string, destination: string): void {
   }
   mkdirSync(dirname(destination), { recursive: true });
   if (lstatSync(source).isDirectory()) {
-    cpSync(source, destination, { recursive: true, force: false, errorOnExist: true, dereference: false });
+    cpSync(source, destination, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+      dereference: false,
+    });
   } else {
     copyFileSync(source, destination);
   }
@@ -139,43 +150,74 @@ export function adoptProject(
     throw new RillCommandError("A real existing product Git directory is required.", 1);
   }
   if (git(target, "rev-parse", "--show-toplevel") !== realpathSync(target)) {
-    throw new RillCommandError("The adoption path must be the root of its existing Git worktree.", 1);
+    throw new RillCommandError(
+      "The adoption path must be the root of its existing Git worktree.",
+      1,
+    );
   }
   const changed = git(target, "status", "--porcelain=v1", "--untracked-files=all");
   if (changed) {
-    throw new RillCommandError("Product worktree is not clean; preserve unrelated work before adoption.", 1);
+    throw new RillCommandError(
+      "Product worktree is not clean; preserve unrelated work before adoption.",
+      1,
+    );
   }
   const sourceHead = git(target, "rev-parse", "--verify", "HEAD");
   checkSource(root, version);
 
   const guarded = [
-    ".rill", ".rill/plugin", ".agents", ".agents/plugins",
+    ".rill",
+    ".rill/plugin",
+    ".agents",
+    ".agents/plugins",
     ".agents/plugins/marketplace.json",
-    "AGENTS.md", "PRD.md", ".codex", ".codex/agents", ".codex/config.toml",
-    ".codex/agents/explorer.toml", ".codex/agents/worker.toml", ".codex/agents/reviewer.toml",
+    "AGENTS.md",
+    "PRD.md",
+    ".codex",
+    ".codex/agents",
+    ".codex/config.toml",
+    ".codex/agents/explorer.toml",
+    ".codex/agents/worker.toml",
+    ".codex/agents/reviewer.toml",
   ];
   rejectSymlinkAncestors(target, guarded);
   if (existing(join(target, ".rill/plugin"))) {
-    throw new RillCommandError("Existing .rill/plugin is consumer-owned or managed by another version. Refusing overwrite.", 1);
+    throw new RillCommandError(
+      "Existing .rill/plugin is consumer-owned or managed by another version. Refusing overwrite.",
+      1,
+    );
   }
 
   const preserved: string[] = [];
   const pendingIntegration: string[] = [];
-  for (const path of ["AGENTS.md", "PRD.md", ".codex/config.toml", ".agents/plugins/marketplace.json"]) {
+  for (const path of [
+    "AGENTS.md",
+    "PRD.md",
+    ".codex/config.toml",
+    ".agents/plugins/marketplace.json",
+  ]) {
     if (existing(join(target, path))) {
       preserved.push(path);
       // These native files cannot be silently combined with Rill's routing/trust configuration.
       pendingIntegration.push(path);
     }
   }
-  for (const path of [".codex/agents/explorer.toml", ".codex/agents/worker.toml", ".codex/agents/reviewer.toml"]) {
+  for (const path of [
+    ".codex/agents/explorer.toml",
+    ".codex/agents/worker.toml",
+    ".codex/agents/reviewer.toml",
+  ]) {
     if (existing(join(target, path)) && !pendingIntegration.includes(".codex/config.toml")) {
       preserved.push(".codex/config.toml");
       pendingIntegration.push(".codex/config.toml");
     }
   }
   if (!preserved.includes("PRD.md") && !goal?.trim()) {
-    throw new RillCommandError("An explicit product goal is required when the existing repository has no PRD.md.", 2, "USAGE");
+    throw new RillCommandError(
+      "An explicit product goal is required when the existing repository has no PRD.md.",
+      2,
+      "USAGE",
+    );
   }
 
   const receipt: AdoptionReceipt = {

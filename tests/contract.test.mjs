@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
 const read = (name) => readFileSync(join(repo, name), "utf8");
-const semver = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const semver =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 test("product version uses canonical SemVer 0.0.1, separate from blueprint 10.0.1", () => {
   assert.equal(read("VERSION"), "0.0.1\n");
@@ -25,16 +26,28 @@ test("single living Rill PRD and independent consumer template", () => {
     assert.equal(existsSync(join(repo, old)), false, `retired authority: ${old}`);
   }
   assert.match(read("bundle/repo-common/PRD.md"), /consuming product/);
-  assert.doesNotMatch(read("bundle/repo-common/PRD.md"), /Rill's factory product requirements.*\n\| FR-02/);
+  assert.doesNotMatch(
+    read("bundle/repo-common/PRD.md"),
+    /Rill's factory product requirements.*\n\| FR-02/,
+  );
 });
 
 test("current requirement IDs are stable, unique and statuses are declared", () => {
-  const rows = [...read("PRD.md").matchAll(/^\|\s*((?:FR|NFR)-\d{2})\s*\|.+\|\s*(\[(?:PLANNED|IN-PROGRESS|DONE)\])\s*\|$/gm)];
+  const rows = [
+    ...read("PRD.md").matchAll(
+      /^\|\s*((?:FR|NFR)-\d{2})\s*\|.+\|\s*(\[(?:PLANNED|IN-PROGRESS|DONE)\])\s*\|$/gm,
+    ),
+  ];
   assert.equal(rows.length, 18);
   assert.equal(new Set(rows.map((match) => match[1])).size, rows.length);
-  for (let n = 1; n <= 12; n++) assert.ok(rows.some((row) => row[1] === `FR-${String(n).padStart(2, "0")}`));
-  for (let n = 1; n <= 6; n++) assert.ok(rows.some((row) => row[1] === `NFR-${String(n).padStart(2, "0")}`));
-  assert.ok(rows.every((row) => row[2] !== "[DONE]"), "scaffold alone cannot claim verified delivery");
+  for (let n = 1; n <= 12; n++)
+    assert.ok(rows.some((row) => row[1] === `FR-${String(n).padStart(2, "0")}`));
+  for (let n = 1; n <= 6; n++)
+    assert.ok(rows.some((row) => row[1] === `NFR-${String(n).padStart(2, "0")}`));
+  assert.ok(
+    rows.every((row) => row[2] !== "[DONE]"),
+    "scaffold alone cannot claim verified delivery",
+  );
 });
 
 test("agent entrypoint is concise and supports bounded requirement lookup", () => {
