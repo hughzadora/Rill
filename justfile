@@ -11,11 +11,11 @@ release_platforms := "linux-x64,linux-arm64,macos-arm64"
 # Mise resolves upstream CLI versions, pnpm and uv lock package dependencies.
 lock:
     mise lock --platform linux-x64
-    mise lock --platform {{release_platforms}} just uv python
+    mise lock --platform {{release_platforms}} just uv python node pnpm
 
 lock-bump:
     mise lock --bump --platform linux-x64
-    mise lock --bump --platform {{release_platforms}} just uv python
+    mise lock --bump --platform {{release_platforms}} just uv python node pnpm
 
 # Install tools, project dependencies, hooks and Chromium for browser E2E.
 setup:
