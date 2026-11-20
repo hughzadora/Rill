@@ -652,6 +652,10 @@ test("independent Python/Shell project executes actual source gates and rejects 
   copyStandard(project, { project_name: "Python Shell", react: false, node: false, python: true, shell: true, python_root: "services/python" });
   verifySingleRunner(project);
   verifyJustfile(project, ["uv --directory", "ruff", "pytest", "bats"]);
+  // CI receipts require an actual initial revision, not an unborn Git HEAD.
+  execute("just", ["ci"], { cwd: project, mustFail: true });
+  git(project, ["add", "."]);
+  git(project, ["commit", "-qm", "Initialize independent Python/Shell product"]);
   execute("just", ["setup-ci"], { cwd: project });
   execute("just", ["ci"], { cwd: project });
   const source = join(project, "services/python/src/independent_service/core.py");

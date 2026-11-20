@@ -37,7 +37,6 @@ pre-commit:
     mise exec --locked -- pnpm exec lint-staged
 
 commit-msg msg_file:
-    mise exec --locked -- uv run rill policy commit-msg {{quote(msg_file)}}
     mise exec --locked -- pnpm exec commitlint --edit {{quote(msg_file)}}
 
 # All green checks stay concise; errors retain full evidence in the local anchor.
@@ -59,11 +58,11 @@ _silent-run label *argv:
 
 # Repository-level checks are mandatory on full and incremental runs.
 _ci-guardrails:
-    @modified="$(git status --porcelain -- justfile mise.toml biome.json pyproject.toml .semgrep.yml tsconfig.json vitest.config.ts stryker.config.json playwright.config.ts | cut -c4- | sort -u)"; if [[ -n "$modified" ]]; then printf "%s\n" "======================================================================" "[AUDIT WARNING] Core CI guardrail configuration changed; human review required:" "$modified" "======================================================================"; fi
+    @modified="$(git -c core.quotePath=false status --porcelain -- justfile mise.toml biome.json pyproject.toml .semgrep.yml tsconfig.json vitest.config.ts stryker.config.json playwright.config.ts | cut -c4- | sort -u)"; if [[ -n "$modified" ]]; then printf "%s\n" "======================================================================" "[AUDIT WARNING] Core CI guardrail configuration changed; human review required:" "$modified" "======================================================================"; fi
     mise exec --locked -- taplo check mise.toml pyproject.toml
     mise exec --locked -- taplo fmt --check mise.toml pyproject.toml
     mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**" --exclude "**/dist/**" --exclude "**/playwright-report/**" --exclude "**/test-results/**"
-    git ls-files -z -- '*.md' | xargs -0 -r mise exec --locked -- markdownlint-cli2
+    git -c core.quotePath=false ls-files -z -- '*.md' | xargs -0 -r mise exec --locked -- markdownlint-cli2
     mise exec --locked -- gitleaks git --redact --exit-code 1
     mise exec --locked -- semgrep scan --config .semgrep.yml --error --quiet src/
     mise exec --locked -- pnpm exec jscpd src/
@@ -100,6 +99,7 @@ _ci-sh:
 # Single Just shebang recipe: diff detection and four parallel worker processes.
 ci mode="incremental":
     #!/usr/bin/env bash
+    START_HEAD="$(git rev-parse HEAD)" || exit 1
     set -euo pipefail
 
     mode={{quote(mode)}}
@@ -119,8 +119,8 @@ ci mode="incremental":
       fi
       mapfile -d '' -t changed < <(
         {
-          git diff --name-only -z "$base" --
-          git ls-files --others --exclude-standard -z
+          git -c core.quotePath=false diff --name-only -z "$base" --
+          git -c core.quotePath=false ls-files --others --exclude-standard -z
         } | sort -zu
       )
     fi
@@ -157,7 +157,8 @@ ci mode="incremental":
 
     tier=ci
     [[ "$mode" == "full" ]] && tier=core-full
-    mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" running >/dev/null 2>&1
+    receipt() { mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" "$1" "$START_HEAD"; }
+    receipt running >/dev/null
     workdir="$(mktemp -d)"
     trap 'rm -rf -- "$workdir"' EXIT
     pids=()
@@ -180,25 +181,34 @@ ci mode="incremental":
       fi
     done
     if [[ "$result" -eq 0 ]]; then
-      mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" pass >/dev/null 2>&1
+      if [[ "$(git rev-parse HEAD)" != "$START_HEAD" ]]; then
+        printf 'CI HEAD changed during verification: %s\n' "$START_HEAD" >&2
+        exit 1
+      fi
+      receipt pass >/dev/null
     else
-      mise exec --locked -- uv run --locked rill policy ci-receipt "$tier" fail >/dev/null 2>&1 || true
+      receipt fail >/dev/null || true
     fi
     exit "$result"
 
 ci-full:
     #!/usr/bin/env bash
+    START_HEAD="$(git rev-parse HEAD)" || exit 1
     set -euo pipefail
-    record() { mise exec --locked -- uv run --locked rill policy ci-receipt full "$1" >/dev/null 2>&1; }
-    record running
+    record() { mise exec --locked -- uv run --locked rill policy ci-receipt full "$1" "$START_HEAD"; }
+    record running >/dev/null
     if just ci full; then
-      record running
+      record running >/dev/null
       if just _silent-run factory just factory-ci; then
-        record pass
+        if [[ "$(git rev-parse HEAD)" != "$START_HEAD" ]]; then
+          printf 'Full CI HEAD changed during verification: %s\n' "$START_HEAD" >&2
+          exit 1
+        fi
+        record pass >/dev/null
         exit 0
       fi
     fi
-    record fail || true
+    record fail >/dev/null || true
     exit 1
 
 # ==============================================================================
@@ -259,7 +269,7 @@ factory-ci:
 
 # Standalone directory-mode executable with embedded Copier template assets.
 build-cli:
-    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all jinja2_ansible_filters --copy-metadata rill-factory --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" --add-data "$(pwd)/src/py/rill_cli/assets/dashboard.html:rill_cli/assets" src/py/rill_cli/__main__.py
+    mise exec --locked uv python -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all textual --collect-all platformdirs --collect-all pydantic --collect-all jinja2_ansible_filters --copy-metadata rill-factory --add-data "$(pwd)/standards/template:rill_cli/template" --add-data "$(pwd)/VERSION:rill_cli" --add-data "$(pwd)/src/py/rill_cli/assets/dashboard.html:rill_cli/assets" --add-data "$(pwd)/src/py/rill_cli/assets/fleet_dashboard.html:rill_cli/assets" --add-data "$(pwd)/src/py/rill_cli/tui/app.tcss:rill_cli/tui" src/py/rill_cli/__main__.py
 
 _check-fast:
     mise exec --locked -- ruff check src/py/rill_cli tests/py

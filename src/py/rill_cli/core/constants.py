@@ -60,6 +60,8 @@ FRAMEWORK_PATHS = (
     ".github/workflows/",
 )
 DEFAULT_SCOPE = ("src/", "tests/", "package.json", "pyproject.toml")
+FRONTEND_PATH_PREFIXES = ("src/ts/", "apps/web/")
+BACKEND_PATH_PREFIXES = ("src/py/", "apps/api/")
 MANAGED_DIRECTORIES = (".codex", ".agents/skills", ".github/workflows", ".rill")
 TOOL_NAMES = ("git", "mise", "uv", "pnpm", "just")
 HOOK_EVENTS = frozenset({"session-start", "pre-compact", "pre-tool-use", "post-tool-use", "stop"})
@@ -77,3 +79,31 @@ DISABLED_GIT_HOOKS = "/dev/null"  # Automatic template commits use Rill validati
 FALLBACK_GIT_AUTHOR = "Rill CLI"
 FALLBACK_GIT_EMAIL = "rill@localhost"
 GIT_ENV_IDENT = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL")
+
+# Fleet paths use platformdirs for the actual home directory; never infer XDG paths.
+FLEET_APP_ID = "rill"
+FLEET_SCHEMA_VERSION = 1
+FLEET_REGISTRY_FILE = Path("registry.json")
+FLEET_AUDIT_FILE = Path("audit.jsonl")
+FLEET_BACKUPS_DIR = Path("backups")
+FLEET_BUNDLES_DIR = Path("bundles")
+FLEET_CODEX_HOMES_DIR = Path("codex-homes")
+FLEET_BACKUP_MANIFEST = Path("snapshot.json")
+FLEET_ASSET_MANIFEST = Path("rill-asset.json")
+FLEET_HTML_FILE = Path("fleet-dashboard.html")
+FLEET_HTML_ASSET = Path("assets/fleet_dashboard.html")
+FLEET_TUI_STYLESHEET = Path("tui/app.tcss")
+GLOBAL_CODEX_DIR = Path(".codex")
+FLEET_ASSET_PREFIXES = frozenset({"skills", "agents", "prompts", "config.toml"})
+FLEET_BACKUP_TIME_FORMAT = "%Y%m%dT%H%M%S.%fZ"
+FLEET_RECENT_AUDIT_LIMIT = 100
+FLEET_MAX_OUTPUT_ROWS = 250
+FLEET_LOCK_FILE = Path("registry.lock")
+FLEET_MAX_ASSET_FILE_BYTES = 8 * 1024 * 1024
+FLEET_MAX_BUNDLE_BYTES = 64 * 1024 * 1024
+FLEET_COMMAND_TIMEOUT_SECONDS = 30
+FLEET_RESOURCE_NAMESPACE = "codex"
+FLEET_REGISTRY_NAMESPACE = "data"
+
+# Fixture-only display versions; authoritative Rill version remains package metadata.
+FLEET_DEMO_VERSIONS = ("1.0.0", "1.1.0", "2.0.0")

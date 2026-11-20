@@ -205,6 +205,7 @@ def test_hook_denies_quota(
 
 
 def test_compact_writes_symbols(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
     (tmp_path / "main.py").write_text("def service(): pass\n", encoding="utf-8")
     monkeypatch.setattr(hooks, "_payload", lambda: {"hook_event_name": "PreCompact"})
     assert hooks.run("pre-compact", tmp_path) == 0
@@ -236,6 +237,7 @@ def test_cli_commands_and_invalid_arguments(tmp_path: Path) -> None:
 def test_cli_hooks_parse_input_and_emit_native_denial(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     started = runner.invoke(app, ["hook", "session-start"])
@@ -255,6 +257,8 @@ def test_cli_hooks_parse_input_and_emit_native_denial(
 def test_post_tool_hook_reports_boundary_violation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
+
     def violation(_root: Path) -> list[str]:
         return ["Tier 0 blocked"]
 
@@ -268,6 +272,7 @@ def test_post_tool_hook_reports_boundary_violation(
 def test_hook_stop_records_exhausted_quota(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
     save(tmp_path, {"schema": SCHEMA_VERSION, "budget_exhausted": True})
     monkeypatch.setattr(hooks, "_payload", lambda: {"hook_event_name": "Stop"})
     assert hooks.run("stop", tmp_path) == 1
@@ -278,6 +283,7 @@ def test_hook_stop_records_exhausted_quota(
 def test_hook_formats_python_after_tool_use(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
     source = tmp_path / "src/source.py"
     source.parent.mkdir()
     source.write_text("value=1\n", encoding="utf-8")

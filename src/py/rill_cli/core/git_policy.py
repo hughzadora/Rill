@@ -1,16 +1,17 @@
 """Branch, staging and atomically scoped commit invariants for product work."""
 
 import os
-import re
 import shutil
 import subprocess
 from pathlib import Path
 
 from .constants import (
+    BACKEND_PATH_PREFIXES,
     BRANCH_PREFIXES,
     DISABLED_GIT_HOOKS,
     FALLBACK_GIT_AUTHOR,
     FALLBACK_GIT_EMAIL,
+    FRONTEND_PATH_PREFIXES,
     GIT_HISTORY_COLUMNS,
     INIT_BRANCH,
     MAX_COMMIT_CHURN,
@@ -22,7 +23,7 @@ from .constants import (
 
 def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603 - trusted native Git, fixed argument vector
-        [shutil.which("git") or "git", "-C", str(root), *args],
+        [shutil.which("git") or "git", "-c", "core.quotePath=false", "-C", str(root), *args],
         check=check,
         capture_output=True,
         text=True,
@@ -32,6 +33,11 @@ def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
 def branch(root: Path) -> str:
     result = git(root, "symbolic-ref", "--quiet", "--short", "HEAD", check=False)
     return result.stdout.strip() if result.returncode == 0 else "(detached)"
+
+
+def revision(root: Path) -> str:
+    """Full commit SHA, not a display abbreviation, for verification records."""
+    return git(root, "rev-parse", "--verify", "HEAD").stdout.strip()
 
 
 def head_summary(root: Path) -> str:
@@ -58,27 +64,22 @@ def changed_paths(root: Path, *, staged: bool = False) -> list[str]:
         else (
             "status",
             "--porcelain",
+            "--no-renames",
             "-z",
             "--untracked-files=all",
         )
     )
-    result = git(root, *args, check=False)
-    if result.returncode:
-        return []
+    result = git(root, *args)
     chunks = result.stdout.split("\0")
     if staged:
         return [name for name in chunks if name]
-    names: list[str] = []
-    index = 0
-    while index < len(chunks) and chunks[index]:
-        entry = chunks[index]
-        names.append(entry[3:])
-        index += 2 if entry[:2] in {"R ", " R", "C ", " C"} else 1
-    return names
+    return [entry[3:] for entry in chunks if entry]
 
 
 def is_business(path: str) -> bool:
-    return path.startswith("src/") and not path.startswith(("src/ts/__tests__/", "src/py/tests/"))
+    return path.startswith(
+        ("src/", *FRONTEND_PATH_PREFIXES, *BACKEND_PATH_PREFIXES)
+    ) and not path.startswith(("src/ts/__tests__/", "src/py/tests/"))
 
 
 def business_changes(root: Path) -> list[str]:
@@ -106,17 +107,8 @@ def ensure_branch(root: Path, *, upgrade: bool = False, version: str = "") -> No
     git(root, "switch", "-c", name)
 
 
-def validate_message(message: str) -> None:
-    subject = message.splitlines()[0] if message.splitlines() else ""
-    if not re.fullmatch(
-        r"(?:feat|fix|refactor|chore|docs|test|ci|perf|build|revert)(?:\([a-z0-9-]+\))?: .+",
-        subject,
-    ):
-        raise ValueError("Commit message must follow Conventional Commits")
-
-
 def _staged_churn(root: Path, business: list[str]) -> int:
-    result = git(root, "diff", "--cached", "--no-renames", "--numstat", "-z", check=False)
+    result = git(root, "diff", "--cached", "--no-renames", "--numstat", "-z")
     churn = 0
     for row in result.stdout.split("\0"):
         if not row:
@@ -127,13 +119,14 @@ def _staged_churn(root: Path, business: list[str]) -> int:
     return churn
 
 
-def check_staged(root: Path) -> None:
-    protect_branch(root)
+def check_staged(root: Path, *, trusted_detached: bool = False) -> None:
+    if not (trusted_detached and branch(root) == "(detached)"):
+        protect_branch(root)
     business = [name for name in changed_paths(root, staged=True) if is_business(name)]
     if len(business) > MAX_COMMIT_FILES:
         raise PermissionError(f"Atomic commit exceeds {MAX_COMMIT_FILES} business files")
-    back = any(name.startswith("src/py/") for name in business)
-    front = any(name.startswith("src/ts/") for name in business)
+    back = any(name.startswith(BACKEND_PATH_PREFIXES) for name in business)
+    front = any(name.startswith(FRONTEND_PATH_PREFIXES) for name in business)
     if back and front:
         raise PermissionError("Backend and frontend must use separate commits")
     if _staged_churn(root, business) > MAX_COMMIT_CHURN:
@@ -147,14 +140,13 @@ def check_dirty(root: Path) -> None:
         )
 
 
-def commit(root: Path, message: str, paths: list[str]) -> bool:
-    validate_message(message)
+def commit(root: Path, message: str, paths: list[str], *, trusted_detached: bool = False) -> bool:
     if not paths:
         return False
     git(root, "add", "--", *sorted(set(paths)))
     if git(root, "diff", "--cached", "--quiet", check=False).returncode == 0:
         return False
-    check_staged(root)
+    check_staged(root, trusted_detached=trusted_detached)
     configured = all(
         git(root, "config", f"user.{field}", check=False).stdout.strip()
         for field in ("name", "email")

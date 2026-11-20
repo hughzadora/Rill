@@ -10,11 +10,13 @@ from typing import cast
 from urllib.parse import urlsplit
 
 from rill_cli.assets import dashboard as dashboard_asset
+from rill_cli.assets import fleet_dashboard as fleet_dashboard_asset
 
 from .constants import (
     ALLOWED_DECISIONS,
     CI_SUMMARY_PATH,
     DASHBOARD_PATH,
+    FLEET_HTML_FILE,
     MAX_POST_BYTES,
     MAX_SYMBOL_LINES,
     SYMBOLS_PATH,
@@ -22,7 +24,9 @@ from .constants import (
     UI_PORT,
     UI_TOKEN_BYTES,
 )
-from .git_policy import branch, business_changes, head_summary, history
+from .fixtures import demo_fleet
+from .fleet import FleetEngine
+from .git_policy import branch, business_changes, git, head_summary, history, revision
 from .state import load, save, write_json
 
 
@@ -40,8 +44,12 @@ def facts(root: Path) -> dict[str, object]:
     except OSError, ValueError:
         loaded = None
     ci = cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
-    if ci.get("head") != head_summary(root):
+    current_head = git(root, "rev-parse", "--verify", "HEAD", check=False).stdout.strip()
+    dirty = bool(git(root, "status", "--porcelain", "-z").stdout)
+    if not current_head or ci.get("head") != current_head:
         ci = {"result": "unverified", "reason": "No CI receipt for this Git HEAD"}
+    elif dirty and ci.get("result") == "pass":
+        ci = {"result": "unverified", "reason": "Working tree differs from verified HEAD"}
     return {
         "mode": state.get("mode", "normal"),
         "phase": state.get("phase", "ready"),
@@ -69,16 +77,25 @@ def render(root: Path, *, serving: bool = False, token: str = "") -> Path:
     return output
 
 
-def record_ci(root: Path, tier: str, status: str) -> None:
+def record_ci(root: Path, tier: str, status: str, start_head: str) -> None:
     """Record an observed CI execution against the current Git revision."""
     if tier not in {"ci", "core-full", "full"} or status not in {"running", "pass", "fail"}:
         raise ValueError("Unsupported CI receipt")
+    current = revision(root)
+    if start_head != current:
+        raise ValueError(f"HEAD changed during CI: expected {start_head}, got {current}")
     summary: dict[str, object] = {
-        "head": head_summary(root),
+        "head": start_head,
         "tier": tier,
         "result": status,
         "recorded_at": datetime.now(tz=UTC).isoformat(),
     }
+    if status == "pass":
+        if git(root, "status", "--porcelain", "-z").stdout:
+            summary["result"] = "unverified"
+            summary["reason"] = "Checks passed on uncommitted files; HEAD is not verified"
+        else:
+            summary["last_verified_sha"] = start_head
     write_json(root, CI_SUMMARY_PATH, summary)
 
 
@@ -158,3 +175,42 @@ def serve(root: Path, *, open_browser: bool = True) -> None:
         while not server.accepted:
             server.handle_request()
     render(root)
+
+
+def fleet_facts(engine: FleetEngine, *, demo: bool = False) -> dict[str, object]:
+    """One read-only presentation contract shared with the terminal console."""
+    snapshot = engine.load()
+    if demo or not (snapshot.projects or snapshot.assets):
+        snapshot = demo_fleet()
+    health: dict[str, object] = (
+        engine.inspect()
+        if not snapshot.demo
+        else {
+            "projects": [],
+            "assets": [],
+            "tools": {},
+            "mcp": {"connectivity": "unverified"},
+        }
+    )
+    return {
+        "snapshot": snapshot.model_dump(mode="json"),
+        "health": health,
+        "audit": [item.model_dump(mode="json") for item in engine.audit_records()],
+    }
+
+
+def render_fleet(
+    engine: FleetEngine, *, demo: bool = False, output_path: Path | None = None
+) -> Path:
+    """Render a self-contained HTML view without writes to global Codex config."""
+    payload = fleet_facts(engine, demo=demo)
+    serial = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+    serial = serial.replace("<", "\\u003c").replace(">", "\\u003e")
+    serial = serial.replace("&", "\\u0026")
+    source = fleet_dashboard_asset().read_text(encoding="utf-8")
+    output = output_path if output_path is not None else engine.data_root / FLEET_HTML_FILE
+    if output.is_symlink():
+        raise PermissionError("Refusing to overwrite a symlinked dashboard path")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(source.replace("__RILL_FLEET_DATA__", serial), encoding="utf-8")
+    return output

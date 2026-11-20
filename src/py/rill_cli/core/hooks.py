@@ -166,8 +166,8 @@ def _check_tool(event: str, root: Path, payload: dict[str, object]) -> int:
     _path, targets = _targets(payload)
     try:
         _enforce(event, root, targets)
-    except PermissionError as exc:
-        return _deny(root, event, exc)
+    except (PermissionError, subprocess.CalledProcessError) as exc:
+        return _deny(root, event, PermissionError(f"Git safety gate unavailable: {exc}"))
     if event == "post-tool-use":
         for relative, _changed in targets:
             _format(root / relative)
