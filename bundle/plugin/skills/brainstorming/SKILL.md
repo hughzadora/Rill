@@ -5,6 +5,18 @@ description: "You MUST use this before any creative work - creating features, bu
 
 # Brainstorming
 
+## Rill integration overrides (source-preserving adaptation)
+
+**Source: obra/superpowers** `skills/brainstorming/SKILL.md`, initially provided by the owner. The following Rill-specific provisions take precedence over conflicting upstream file paths, server/tool assumptions and planning handoff directives. Core Superpowers questioning and design-critique principles remain applicable.
+
+- Enter through `rill-discovery` for substantive design, research or grill; the workflow owns **one brainstorming phase per unresolved decision**, not one interview per skill call. Existing approved choices are not reopened.
+- Use `PRD.md` as the **single living specification**. Update accepted current requirements in place; retain reasoning and prior state in native **GitHub Issues and PRs**. The upstream default of creating `docs/superpowers/specs/...` is not applicable to Rill or its consumer products.
+- A builder check is genuine only when a fresh, independently executed **native reviewer** is actually available and has the real source. If a native reviewer is unavailable, record **NOT_VERIFIED**; do not self-review while claiming independent results.
+- If `superpowers:writing-plans` is **not installed**, use the existing reviewed native GitHub issue/ticket plan; do not invent a replacement agent runtime or force the owner to re-approve an already settled design.
+- The optional Superpowers **Visual companion server is not bundled**. See `visual-companion.md` for the explicit disabled capability. Use only supported native browser previews when available and appropriately approved; otherwise remain in text, with no simulated clicks or approvals.
+- Only the real platform can bind consequential product decisions and protected authorizations. Rill's brainstorm directions never grant additional permissions.
+
+
 You are very good at building. You build what you believe your human
 partner wants, and that belief is usually thinner than it feels. This
 skill is for finding out what they actually want, and why, before
