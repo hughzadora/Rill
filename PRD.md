@@ -62,6 +62,34 @@ replacing functioning tools in an existing product.
 Small tasks may combine stages but cannot skip risk-relevant quality checks.
 Owner checkpoints are prototype, major design choice and final real behavior.
 
+## Standalone local CLI acceptance
+
+The owner uses an installed `rill` binary without cloning the factory or
+maintaining its Python virtual environment. The complete lifecycle is
+`version`, `init PATH --yes`, `upgrade PATH --yes`, `status`, `doctor`,
+`ui PATH [--no-open] [--serve]`, and `hook EVENT`. Machine-readable calls use
+`--json`; failures distinguish policy denial (1) and environment error (2).
+
+An initialized project must receive a clean Git repository, a protected
+feature branch, versioned Copier assets, an atomic harness initialization
+commit, and a compact private state anchor. Upgrade must require a clean
+worktree, verify managed-file hashes and retain the prior Git HEAD as a
+restore point; product-owned files remain outside Rill's upgrade scope.
+The dashboard is an offline HTML view of real state, bounded symbols, Git
+history and CI receipts; a one-shot localhost decision records owner input
+but does not authorize releases or destructive operations.
+
+The native agent roster contains Explorer, module-owner Worker (including
+its tests) and read-only Reviewer, with a three-child limit and maximum
+one nesting level. Full local CI must pass before candidate-bound review;
+if a second review still fails, stop rather than loop or weaken tests.
+A live Codex dispatch must confirm whether model and permission settings
+actually took effect; TOML parsing is insufficient evidence.
+
+Supported release archives target Linux x64/ARM64 and Apple Silicon macOS 26+
+only. GitHub PR CI uses one Ubuntu runner and the light L2 gate; costly
+macOS release runners are Tag-only. No Windows or Intel Mac release target.
+
 ## Industrial acceptance
 
 The [quality matrix](README.md) covers lint, types, contracts,

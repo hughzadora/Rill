@@ -54,7 +54,7 @@ version control, product requirements and deployments.
 
 ## Modules and boundaries
 
-- Native role declaration: .codex/config.toml and .codex/agents.
+- Native role declaration: `.codex/config.toml` and three `.codex/agents/` roles.
 - Stack quality toolchain: #39 native root Just/Mise tool locks.
 - Delivery console: React/Tailwind apps/console and read-only tools/preview.mjs;
   this repository's UI is not factory-wide acceptance.
@@ -68,6 +68,35 @@ version control, product requirements and deployments.
 The browser must never receive GitHub tokens. Treat issue bodies, URLs and
 metadata as untrusted input. Use text nodes, restrict API methods and paths,
 report stale or partial source data and do not infer absent fields as passed.
+
+## Installed Rill CLI ownership and runtime
+
+`src/py/rill_cli/cli/` routes Typer/Rich commands and Git policy entrypoints;
+`core/installer.py` provides clean-repo Copier init/upgrade and atomic Git
+commits. `state.py` writes `.rill/state.json` atomically; `git_policy.py`
+checks branch, commit size and independent frontend/backend changes;
+`guardrails.py` and `hooks.py` implement scoped write warnings and bounded
+symbol extraction. `dashboard.py` renders local facts and an ephemeral
+loopback receipt endpoint, with a single-file embedded HTML asset.
+
+`VERSION` is the source for installed `rill-factory` metadata. Paths,
+limits, roles and state keys belong to the CLI constants registry.
+`standards/template/` is the canonical Copier tree; the source
+`src/py/rill_cli/template/` is a symlink, not a maintained copy.
+Frozen PyInstaller onedir builds explicitly add that tree and the HTML asset.
+
+Normal edits cannot change Tier 0 framework files through a compliant
+pre-tool native Hook, and ordinary writes are restricted to task scope.
+Post-tool audit reports violations, but must not silently restore or delete
+unknown human work. The native sandbox and approval boundary remains in
+charge; Hook JSON alone does not prove native interception occurred.
+
+Local `just check-fast`, `just ci` and `just ci-full` are progressive gates.
+PR CI is a single cached Ubuntu L2 job. `v*` Tag builds alone may invoke
+release runners for Linux x64/ARM64 and Apple Silicon macOS 26+.
+An installed `rill ui` single-file project dashboard is separate from the
+repository's React/Tailwind engineering console; neither represents
+unverified approval as a completed action.
 
 ## New and existing project adoption
 
