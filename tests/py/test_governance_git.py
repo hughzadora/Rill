@@ -507,3 +507,42 @@ def test_owner_branch_switch_during_regression_refuses_merge(
     assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
     git(root, "switch", "feat/attempt-test")
     worker.abort(failure(scratch))
+
+
+def test_baseline_can_be_witnessed_after_begin_without_resetting_budget(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    scratch = worker.open()
+    observed = worker.witness_baseline(["just", "ci-full"])
+    assert observed.exit_code == 1
+    assert engine.load().defects["issue-44"].attempt_count == 1
+    (scratch / "fixed.txt").write_text("fixed\n")
+    git(scratch, "add", "fixed.txt")
+    git(
+        scratch,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fix: after begin",
+    )
+    assert worker.run_check(["just", "ci-full"]).exit_code == 0
+    assert worker.complete().state == Disposition.VERIFIED
+    assert (root / "fixed.txt").is_file()
+
+
+def test_setup_exit_code_is_not_registered_as_a_reproduced_defect(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    _root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    with pytest.raises(ValueError, match="setup/usage error"):
+        worker.witness_baseline([sys.executable, "-c", "raise SystemExit(4)"])
+    assert engine.load().defects["issue-44"].evidence == []
+    assert engine.load().defects["issue-44"].attempt_count == 0

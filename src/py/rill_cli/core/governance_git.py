@@ -137,8 +137,12 @@ class RepairWorkspace:
         if not argv:
             raise ValueError("Regression command is required")
         record = self.engine.load().defects[self.identity]
-        if record.state != Disposition.OPEN or _dirty(self.engine.root):
-            raise PermissionError("Baseline witness requires a clean, unopened repair")
+        if record.state not in {
+            Disposition.OPEN,
+            Disposition.ATTEMPTING,
+            Disposition.RETRY_ELIGIBLE,
+        } or _dirty(self.engine.root):
+            raise PermissionError("Baseline witness requires a clean, eligible repair")
         if revision(self.engine.root) != record.baseline_revision:
             raise PermissionError("Baseline HEAD changed")
         self.engine.data_root.mkdir(parents=True, exist_ok=True)

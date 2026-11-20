@@ -113,13 +113,22 @@ class GovernanceEngine:
 
     def observe_baseline_failure(self, identity: str, receipt: AttemptEvidence) -> None:
         """Persist a witnessed failing regression before any repair attempt."""
-        if receipt.exit_code == 0:
-            raise ValueError("Baseline regression must reproduce the failure")
+        if receipt.exit_code != 1:
+            raise ValueError(
+                "Baseline must have native test-failure exit code (1), not a setup/usage error"
+            )
 
         def witness(ledger: GovernanceLedger) -> None:
             defect = ledger.defects[identity]
-            if defect.state != Disposition.OPEN or defect.evidence:
-                raise PermissionError("Baseline can only be witnessed once before repair")
+            if defect.state not in {
+                Disposition.OPEN,
+                Disposition.ATTEMPTING,
+                Disposition.RETRY_ELIGIBLE,
+            } or any(
+                entry.exit_code != 0 and entry.revision == defect.baseline_revision
+                for entry in defect.evidence
+            ):
+                raise PermissionError("Baseline can only be witnessed once in an active repair")
             if (
                 receipt.revision != defect.baseline_revision
                 or revision(self.root) != receipt.revision
