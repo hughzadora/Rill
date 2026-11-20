@@ -119,13 +119,22 @@ jobs:
           inventory=$(mktemp)
           report=$(mktemp --suffix=.json)
           native_tests=$(mktemp --suffix=.json)
-          trap 'rm -f "$inventory" "$report" "$native_tests"' EXIT
+          browser_tests=$(mktemp --suffix=.json)
+          trap 'rm -f "$inventory" "$report" "$native_tests" "$browser_tests"' EXIT
           pnpm exec vitest list --filesOnly --json > "$native_tests"
+          pnpm exec playwright test --list --project=chrome --reporter=json | jq '[.config.rootDir as $root | .suites[] | recurse(.suites[]?) | .specs[]? | ($root + "/" + .file)] | unique' > "$browser_tests"
           jq -e 'type == "array"' "$native_tests" >/dev/null
+          jq -e 'type == "array"' "$browser_tests" >/dev/null
           git ls-files -z -- [[ react_sources | tojson ]] tests > "$inventory"
           unit=()
           while IFS= read -r -d '' file; do
-            jq -e --arg file "$(realpath -- "$file")" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || continue
+            case "$file" in
+              *.test.*|*.spec.*) ;;
+              *) continue ;;
+            esac
+            absolute=$(realpath -- "$file")
+            if jq -e --arg file "$absolute" 'any(.[]; . == $file)' "$browser_tests" >/dev/null; then continue; fi
+            jq -e --arg file "$absolute" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || { echo "Tracked React test missing from native Vitest and Playwright discovery: $file" >&2; exit 1; }
             case "$file" in
               *integration*.test.*|*integration*.spec.*) continue ;;
               *.test.*|*.spec.*)
@@ -156,13 +165,22 @@ jobs:
           inventory=$(mktemp)
           report=$(mktemp --suffix=.json)
           native_tests=$(mktemp --suffix=.json)
-          trap 'rm -f "$inventory" "$report" "$native_tests"' EXIT
+          browser_tests=$(mktemp --suffix=.json)
+          trap 'rm -f "$inventory" "$report" "$native_tests" "$browser_tests"' EXIT
           pnpm exec vitest list --filesOnly --json > "$native_tests"
+          pnpm exec playwright test --list --project=chrome --reporter=json | jq '[.config.rootDir as $root | .suites[] | recurse(.suites[]?) | .specs[]? | ($root + "/" + .file)] | unique' > "$browser_tests"
           jq -e 'type == "array"' "$native_tests" >/dev/null
+          jq -e 'type == "array"' "$browser_tests" >/dev/null
           git ls-files -z -- [[ react_sources | tojson ]] tests > "$inventory"
           integration=()
           while IFS= read -r -d '' file; do
-            jq -e --arg file "$(realpath -- "$file")" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || continue
+            case "$file" in
+              *.test.*|*.spec.*) ;;
+              *) continue ;;
+            esac
+            absolute=$(realpath -- "$file")
+            if jq -e --arg file "$absolute" 'any(.[]; . == $file)' "$browser_tests" >/dev/null; then continue; fi
+            jq -e --arg file "$absolute" 'any(.[]; .file == $file)' "$native_tests" >/dev/null || { echo "Tracked React test missing from native Vitest and Playwright discovery: $file" >&2; exit 1; }
             case "$file" in
               *integration*.test.*|*integration*.spec.*)
                 case "$file" in
@@ -231,6 +249,9 @@ jobs:
               .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
               .analyze();
             expect(report.violations).toEqual([]);
+            expect(page.url(), "Product redirect must match the explicit approved URL").toBe(
+              new URL(process.env.RILL_ALLOWED_PRODUCT_URL ?? baseURL).href,
+            );
             if (process.env.GITHUB_OUTPUT) {
               appendFileSync(process.env.GITHUB_OUTPUT, `product_url=${page.url()}\n`);
             }
@@ -387,7 +408,7 @@ jobs:
             esac
           done < "$inventory"
           test -n "${native_tests[0]:-}"
-          pnpm exec c8 --config "$policy" --all --src [[ node_sources | tojson ]] --include [[ (node_sources ~ "/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}") | tojson ]] --extension .ts --extension .tsx --extension .js --extension .jsx --extension .mjs --extension .cjs --extension .mts --extension .cts --check-coverage --per-file --lines=[[ node_coverage ]] node --experimental-strip-types --test "${native_tests[@]}"
+          pnpm exec c8 --config "$policy" --all --src [[ node_sources | tojson ]] --include [[ (node_sources ~ "/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}") | tojson ]] --extension .ts --extension .tsx --extension .js --extension .jsx --extension .mjs --extension .cjs --extension .mts --extension .cts --check-coverage --per-file --lines=[[ node_coverage ]] bash -e -c 'node --experimental-strip-types --test && node --experimental-strip-types --test "$@"' rill-native-coverage "${native_tests[@]}"
       - name: Execute actual Node unit tests
         working-directory: [[ (js_workspace ~ "/" ~ node_root) | tojson ]]
         shell: bash

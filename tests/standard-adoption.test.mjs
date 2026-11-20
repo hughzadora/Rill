@@ -592,6 +592,21 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
     project,
   );
 
+  const nativeDefaultTest = join(project, "test/regression.mjs");
+  mkdirSync(dirname(nativeDefaultTest), { recursive: true });
+  writeFileSync(
+    nativeDefaultTest,
+    'import { test } from "node:test";\ntest("native default discovery regression", () => { throw new Error("Default-discovered regression must block coverage"); });\n',
+  );
+  git(project, ["add", "test/regression.mjs"]);
+  executeGeneratedStep(
+    workflow,
+    "Execute native Node test runner with full-source coverage",
+    project,
+    { mustFail: true },
+  );
+  rmSync(nativeDefaultTest);
+  git(project, ["reset", "--", "test/regression.mjs"]);
   const specOnlyModule = join(project, "src/spec-only.ts");
   const specOnlyTest = join(project, "tests/spec.integration.spec.ts");
   writeFileSync(
@@ -1390,7 +1405,15 @@ test("@e2e @a11y opens the product", async ({ page }) => {
   await t.test("axe exports the final URL after a product redirect", () => {
     const redirected = "/app/inventory/";
     run(proof, {
+      mustFail: true,
       env: { PRODUCT_REDIRECT_TARGET: redirected, PRODUCT_ROUTE: redirected },
+    });
+    run(proof, {
+      env: {
+        PRODUCT_REDIRECT_TARGET: redirected,
+        PRODUCT_ROUTE: redirected,
+        RILL_ALLOWED_PRODUCT_URL: "http://127.0.0.1:4178" + redirected,
+      },
     });
     assert.match(
       readFileSync(receipt, "utf8"),
@@ -1469,11 +1492,11 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
           ].includes(segment),
         ),
   });
-  const foreignBrowser = join(project, "tests/browser/separate.spec.ts");
+  const foreignBrowser = join(project, "e2e/separate.spec.ts");
   mkdirSync(dirname(foreignBrowser), { recursive: true });
   writeFileSync(
     foreignBrowser,
-    'import { test } from "@playwright/test";\ntest("@e2e independent browser spec", async ({ page }) => { await page.goto("/"); });\n',
+    'import { test } from "@playwright/test";\n\ntest("independent browser spec", async ({ page }) => {\n  await page.goto("/");\n});\n',
   );
   const component = join(project, "src/Counter.tsx");
   const original = readFileSync(component, "utf8");

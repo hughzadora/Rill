@@ -76,10 +76,11 @@ a successful copy as verified project adoption.
 GitHub Actions run at `pull_request` and `merge_group` to support
 required merge-queue checks, and at `workflow_dispatch` when invoked.
 JavaScript gates require a frozen pnpm lock and committed application,
-unit and integration test sources. They execute **native** Biome, pinned Oxlint correctness rules,
-Lizard complexity checks, TypeScript and the selected Node/Vitest
-runner with source coverage thresholds directly, rather than trusting package scripts that may
-be no-ops. React additionally executes real Chrome-tagged `@e2e` and
+unit and integration test sources. They execute **native** Biome,
+pinned Oxlint correctness rules, Lizard complexity checks, TypeScript
+and the selected Node/Vitest runner with source coverage thresholds
+directly, rather than trusting package scripts that may be no-ops.
+React additionally executes real Chrome-tagged `@e2e` and
 `@a11y` Playwright tests directly, requires native browser Trace
 artifacts, and proves the installed system Chrome/axe-core tools
 can launch and scan; the target project's native
@@ -88,7 +89,12 @@ from the checked-out Git tree cause CI to fail. The selected
 `node:test` runner requires locked `c8@12.0.0` and uses
 `--all --per-file` coverage to count even unloaded source modules.
 React requires a Playwright project named `chrome` configured
-with the system `channel: "chrome"`. Each native build must
+with the system `channel: "chrome"`. The Chrome/axe proof uses the configured
+Playwright `baseURL` as the approved product destination. If the product
+intentionally redirects to a different canonical page, set the GitHub Actions
+job environment `RILL_ALLOWED_PRODUCT_URL` to that reviewed exact final URL;
+otherwise the proof fails rather than treating a login page or unrelated
+redirect as the tested product. Each native build must
 freshly produce the configured output file. Trivy security checks
 disable checkout-controlled configs and ignore files; exceptions
 require an explicit reviewed source policy. The reporter still

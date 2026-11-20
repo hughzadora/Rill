@@ -12,6 +12,12 @@ for Status, Priority, Iteration and Owner where configured. Projects' built-in
 automation can update status when issues close or PRs merge, but neither
 event proves user acceptance.
 
+The local read-only console can join configured GitHub Projects v2 Status and
+Priority through `RILL_GITHUB_PROJECT_ID` (the native ProjectV2 node ID in
+the preview process environment). If it is missing, inaccessible or a field
+is unset, the board displays **未知** rather than inferring an Issue stage
+from its open/closed state. The adapter never writes Projects fields.
+
 ## What the console must show
 
 - **Portfolio:** current selected product/repository, Rill standard adoption,
