@@ -1,4 +1,0 @@
-# Rill runtime state is local, never committed.
-.rill/state.json
-.rill/symbols.txt
-.rill/last-error.log

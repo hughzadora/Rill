@@ -62,22 +62,34 @@ requires at least one tested mutant and rejects all outcomes other than
 `killed`, so an empty, untested or surviving result cannot pass.
 Mutation tests execute the two language runners concurrently.
 
-## Reusable software factory (PR #33)
+## Reusable Rill software factory
 
-The #39 local four-language quality foundation above is the **only**
-repository-level CI baseline. The reusable factory layers on the upstream
-native Codex `.codex` roles, Copier distribution in `standards/template`,
-four maintained `.agents/skills/`, reviewed lifecycle Hook handlers,
-a read-only optional documentation MCP declaration, a Git-native installer,
-and an independent delivery console in `apps/console`.
+The independent `rill` executable installs native roles, skills, Hook events,
+and four-stack quality workflows into clean Git roots without requiring the
+source repository or a Python virtual environment on the consumer machine.
 
-Preview an adoption without changing the target:
-`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag>`.
-Install only after native trust and target authorization:
-`python3 tools/adopt_rill.py <target> --source <reviewed-source> --ref <tag> --apply`.
-Existing product-owned agent files remain protected.
+The root `VERSION` file is the only application-version source. Hatchling
+reads it for wheel metadata, the CLI reads the packaged copy, and the release
+workflow verifies that a tag agrees with it.
 
-`just factory-ci` validates the reusable release in isolation;
-`just ci-full` runs the full #39 foundation and then its factory checks.
-Passing these is not proof of real consumer Codex Hook/MCP calls,
-continuous agent recovery or owner-approved product release.
+The canonical generated assets are under `standards/template/` and are
+packaged verbatim. Product-local operational paths, schema versions, Hook
+names and ownership boundaries are centralized in `src/py/rill_cli/core/constants.py`.
+
+Initialize with `rill init PATH --yes`; pass explicit template answers with
+`--data key=value`. Existing product-owned files remain untouched; Rill's
+runtime anchors are ignored locally through `.rill/.gitignore` without
+replacing an existing root `.gitignore`.
+
+Upgrades run only on clean Git roots and verify hashes of previously managed
+files before replacing them. Revisions remain auditable through Git; user
+approval and Codex sandbox controls are separate from Hook checks.
+
+`just factory-ci` tests installation, upgrade, rejection cases, generated
+quality gates and browser behavior in isolated consumer repositories.
+`just ci-full` executes the repository's core quality gates and factory tests.
+An installed Hook definition alone does not prove that every write path has
+been physically intercepted by Codex; verify enforcement in a real session.
+
+Python third-party licenses are inventoried in `build/reports/python-licenses.json`
+for owner review, not used as a personal-use CI acceptance threshold.

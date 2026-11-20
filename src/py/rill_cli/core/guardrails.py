@@ -7,12 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
+from .constants import FRAMEWORK_PATHS, MAX_REWRITE_LINES, RUNTIME_ANCHORS
 from .state import load
-
-MAX_REWRITE_LINES = 60
-
-FRAMEWORK = ("justfile", "mise.toml", "mise.lock", ".codex/", ".github/workflows/")
-RUNTIME = (".rill/state.json", ".rill/symbols.txt", ".rill/last-error.log")
 
 
 def within(path: Path, root: Path) -> str:
@@ -24,20 +20,21 @@ def within(path: Path, root: Path) -> str:
 
 def is_framework(relative: str) -> bool:
     return any(
-        relative == item or (item.endswith("/") and relative.startswith(item)) for item in FRAMEWORK
+        relative == item or (item.endswith("/") and relative.startswith(item))
+        for item in FRAMEWORK_PATHS
     )
 
 
 def validate(root: Path, path: Path, *, changed_lines: int | None = None) -> None:
     relative = within(path, root)
+    if Path(relative) in RUNTIME_ANCHORS:
+        raise PermissionError(f"Tier 2 runtime anchor is CLI-owned: {relative}")
+    if is_framework(relative):
+        raise PermissionError(f"Tier 0 requires authorized rill upgrade: {relative}")
     state = load(root)
-    if relative in RUNTIME:
-        return
-    if is_framework(relative) and state["mode"] != "upgrade":
-        raise PermissionError(f"Tier 0 requires upgrade mode: {relative}")
     check_scope(relative, state.get("task_scope", []))
     if changed_lines is not None and changed_lines > MAX_REWRITE_LINES:
-        raise PermissionError(f"Full-file rewrite exceeds 60 lines: {relative}")
+        raise PermissionError(f"Full-file rewrite exceeds {MAX_REWRITE_LINES} lines: {relative}")
 
 
 def check_scope(relative: str, scope: object) -> None:
@@ -98,18 +95,20 @@ def symbols(root: Path) -> str:
 
 
 def patch_targets(command: str) -> list[tuple[str, int]]:
-    """Enumerate affected apply_patch files and added/replaced line counts."""
+    """Count changed lines and reject unsafe patch deletions and destinations."""
     targets: list[tuple[str, int]] = []
     current: str | None = None
     changed = 0
     for line in command.splitlines():
-        match = re.fullmatch(r"\*\*\* (?:Update|Add|Delete) File: (.+)", line)
+        match = re.fullmatch(r"\*\*\* (Update|Add|Delete) File: (.+)", line)
         if match:
             if current is not None:
                 targets.append((current, changed))
-            current = match.group(1)
-            changed = 0
-        elif current and line.startswith("+") and not line.startswith("+++"):
+            current = match.group(2)
+            changed = MAX_REWRITE_LINES + 1 if match.group(1) == "Delete" else 0
+        elif current is not None and line.startswith("*** Move to: "):
+            targets.append((line.removeprefix("*** Move to: "), MAX_REWRITE_LINES + 1))
+        elif current and line.startswith(("+", "-")) and not line.startswith(("+++", "---")):
             changed += 1
     if current is not None:
         targets.append((current, changed))

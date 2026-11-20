@@ -1,15 +1,20 @@
 """Deterministic guardrail, recovery and CLI lifecycle regression tests."""
 
+import importlib
 import json
+import runpy
 import shutil
 import subprocess
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from rill_cli import __version__
 from rill_cli.cli.app import app
 from rill_cli.core import hooks
+from rill_cli.core.constants import MAX_REWRITE_LINES, RUNTIME_ANCHORS, SCHEMA_VERSION, SYMBOLS_PATH
 from rill_cli.core.guardrails import patch_targets, symbols, validate
 from rill_cli.core.installer import install, upgrade_values
 from rill_cli.core.state import load, save
@@ -18,7 +23,9 @@ from rill_cli.core.state import load, save
 def test_version() -> None:
     result = CliRunner().invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "0.2.0" in result.stdout
+    assert __version__ in result.stdout
+    assert package_version("rill-cli") == __version__
+    assert Path("VERSION").read_text(encoding="utf-8").strip() == __version__
 
 
 def test_install_creates_native_assets(tmp_path: Path) -> None:
@@ -27,6 +34,8 @@ def test_install_creates_native_assets(tmp_path: Path) -> None:
     assert (root / ".codex/hooks.json").is_file()
     assert (root / ".agents/skills/rill-review/SKILL.md").is_file()
     assert (root / ".rill/state.json").is_file()
+    assert (root / ".rill/.gitignore").is_file()
+    assert not (root / ".gitignore").exists()
     assert (root / ".rill/copier-answers.yml").is_file()
     assert load(root)["mode"] == "normal"
 
@@ -47,25 +56,33 @@ def test_atomic_state_self_heals(tmp_path: Path) -> None:
     location = tmp_path / ".rill/state.json"
     location.parent.mkdir()
     location.write_text("invalid", encoding="utf-8")
-    assert load(tmp_path)["schema"] == 1
+    assert load(tmp_path)["schema"] == SCHEMA_VERSION
     save(tmp_path, {"schema": 1, "task_scope": ["src"], "mode": "normal"})
     assert json.loads(location.read_text(encoding="utf-8"))["task_scope"] == ["src"]
 
 
 def test_framework_requires_upgrade(tmp_path: Path) -> None:
-    with pytest.raises(PermissionError, match="upgrade mode"):
+    with pytest.raises(PermissionError, match="authorized rill upgrade"):
         validate(tmp_path, tmp_path / "justfile")
-    save(tmp_path, {"schema": 1, "mode": "upgrade", "task_scope": []})
-    validate(tmp_path, tmp_path / "justfile")
+    # A forgeable runtime state field must never grant framework authority.
+    save(tmp_path, {"schema": SCHEMA_VERSION, "mode": "upgrade", "task_scope": []})
+    with pytest.raises(PermissionError, match="authorized rill upgrade"):
+        validate(tmp_path, tmp_path / "justfile")
+
+
+def test_runtime_anchors_are_cli_owned(tmp_path: Path) -> None:
+    for anchor in RUNTIME_ANCHORS:
+        with pytest.raises(PermissionError, match="CLI-owned"):
+            validate(tmp_path, tmp_path / anchor)
 
 
 def test_scope_and_rewrite_limit(tmp_path: Path) -> None:
     save(tmp_path, {"schema": 1, "mode": "normal", "task_scope": ["src/app"]})
-    validate(tmp_path, tmp_path / "src/app/main.py", changed_lines=60)
+    validate(tmp_path, tmp_path / "src/app/main.py", changed_lines=MAX_REWRITE_LINES)
     with pytest.raises(PermissionError, match="Outside task_scope"):
         validate(tmp_path, tmp_path / "src/other.py")
     with pytest.raises(PermissionError, match="60 lines"):
-        validate(tmp_path, tmp_path / "src/app/main.py", changed_lines=61)
+        validate(tmp_path, tmp_path / "src/app/main.py", changed_lines=MAX_REWRITE_LINES + 1)
     with pytest.raises(PermissionError, match="Outside repository"):
         validate(tmp_path, tmp_path.parent / "escape.py")
 
@@ -96,6 +113,10 @@ def test_upgrade_blocks_modified_managed_file(tmp_path: Path) -> None:
 def test_patch_inventory() -> None:
     patch = "*** Begin Patch\n*** Update File: .codex/config.toml\n+model = 'test'\n*** End Patch"
     assert patch_targets(patch) == [(".codex/config.toml", 1)]
+    assert patch_targets("*** Delete File: src/old.py")[0][1] > MAX_REWRITE_LINES
+    moved = "*** Update File: src/old.py\n*** Move to: .codex/hooks.json\n"
+    assert any(name == ".codex/hooks.json" for name, _count in patch_targets(moved))
+    assert patch_targets("*** Update File: src/main.py\n-x\n+y") == [("src/main.py", 2)]
 
 
 def test_hook_denies_tier_zero(
@@ -125,4 +146,90 @@ def test_compact_writes_symbols(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     (tmp_path / "main.py").write_text("def service(): pass\n", encoding="utf-8")
     monkeypatch.setattr(hooks, "_payload", lambda: {"hook_event_name": "PreCompact"})
     assert hooks.run("pre-compact", tmp_path) == 0
-    assert "service" in (tmp_path / ".rill/symbols.txt").read_text(encoding="utf-8")
+    assert "service" in (tmp_path / SYMBOLS_PATH).read_text(encoding="utf-8")
+
+
+def test_entrypoint_executes_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: list[bool] = []
+    cli_module = importlib.import_module("rill_cli.cli.app")
+    monkeypatch.setattr(cli_module, "app", lambda: called.append(True))
+    runpy.run_module("rill_cli.__main__", run_name="__main__")
+    assert called == [True]
+
+
+def test_cli_commands_and_invalid_arguments(tmp_path: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["doctor", str(tmp_path)]).exit_code == 1
+    assert runner.invoke(app, ["upgrade", str(tmp_path)]).exit_code != 0
+    missing = tmp_path / "missing-project"
+    assert runner.invoke(app, ["upgrade", str(missing), "--yes"]).exit_code == 2
+    assert not missing.exists()
+    assert runner.invoke(app, ["hook", "unknown"]).exit_code != 0
+    product = tmp_path / "candidate"
+    assert runner.invoke(app, ["init", str(product), "--yes"]).exit_code == 0
+    assert '"installed": true' in runner.invoke(app, ["status", str(product)]).stdout
+    assert runner.invoke(app, ["init", str(product), "--yes"]).exit_code == 2
+
+
+def test_cli_hooks_parse_input_and_emit_native_denial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    started = runner.invoke(app, ["hook", "session-start"])
+    assert started.exit_code == 0
+    assert json.loads(started.stdout)["state"]["mode"] == "normal"
+    denied = runner.invoke(
+        app,
+        ["hook", "pre-tool-use"],
+        input=json.dumps({"tool_input": {"file_path": ".rill/state.json"}}),
+    )
+    assert denied.exit_code == 0
+    assert json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert runner.invoke(app, ["hook", "pre-compact"]).exit_code == 0
+    assert runner.invoke(app, ["hook", "stop"]).stdout.strip() == "{}"
+
+
+def test_post_tool_hook_reports_boundary_violation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def violation(_root: Path) -> list[str]:
+        return ["Tier 0 blocked"]
+
+    monkeypatch.setattr(hooks, "audit", violation)
+    monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "src/app.py"}})
+    assert hooks.run("post-tool-use", tmp_path) == 2
+    assert "Tier 0 blocked" in capsys.readouterr().err
+    assert "Tier 0 blocked" in (tmp_path / ".rill/last-error.log").read_text(encoding="utf-8")
+
+
+def test_hook_stop_records_exhausted_quota(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    save(tmp_path, {"schema": SCHEMA_VERSION, "budget_exhausted": True})
+    monkeypatch.setattr(hooks, "_payload", lambda: {"hook_event_name": "Stop"})
+    assert hooks.run("stop", tmp_path) == 0
+    assert capsys.readouterr().out.strip() == "{}"
+    assert "Quota exhausted" in (tmp_path / ".rill/last-error.log").read_text(encoding="utf-8")
+
+
+def test_hook_formats_python_after_tool_use(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.py"
+    source.write_text("value=1\n", encoding="utf-8")
+    monkeypatch.setattr(hooks, "_payload", lambda: {"tool_input": {"file_path": "source.py"}})
+
+    def no_violations(_root: Path) -> list[str]:
+        return []
+
+    monkeypatch.setattr(hooks, "audit", no_violations)
+    assert hooks.run("post-tool-use", tmp_path) == 0
+    assert source.read_text(encoding="utf-8") == "value = 1\n"
+
+
+def test_invalid_symbol_file_is_skipped(tmp_path: Path) -> None:
+    (tmp_path / "valid.py").write_text("def valid(): pass\n", encoding="utf-8")
+    (tmp_path / "broken.py").write_text("def broken(\n", encoding="utf-8")
+    assert "FunctionDef valid" in symbols(tmp_path)
+    assert "broken" not in symbols(tmp_path)

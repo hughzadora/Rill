@@ -1,3 +1,4 @@
+# Rill distributed native Codex configuration. Trust review required.
 # Project-scoped native Codex defaults; the host retains approval authority.
 model = "gpt-6.2-sol"
 model_reasoning_effort = "low"
@@ -28,6 +29,16 @@ config_file = "./agents/worker.toml"
 description = "Independent evidence-based review of a completed candidate."
 config_file = "./agents/reviewer.toml"
 
-# Disable the superseded user-installed 0.1.2 runtime only in Rill.
+# Read-only upstream research, no credentials or paid fallback.
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+enabled = true
+required = false
+default_tools_approval_mode = "approve"
+
+
+# Project-only: prevent the retired user-installed Rill 0.1.2 hooks/MCP
+# from running alongside this supported, versioned factory distribution.
+# This does NOT uninstall or alter any user-wide plugin or another project.
 [plugins."rill@rill-local"]
 enabled = false

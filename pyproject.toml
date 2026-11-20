@@ -4,10 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rill-cli"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Standalone Rill software factory CLI"
 requires-python = ">=3.14,<3.15"
 dependencies = ["typer>=0.19", "rich>=14", "copier>=9.19.1"]
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = "(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-z]+\\d+)?)"
 
 [project.scripts]
 rill = "rill_cli.cli.app:app"
@@ -31,11 +35,14 @@ include = ["src/py/rill_cli/**"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "standards/template" = "rill_cli/template"
+"VERSION" = "rill_cli/VERSION"
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
 src = ["src/py", "src/rill_quality", "tests/py"]
+# The fixture is validated in its isolated checkout using its own Ruff rules.
+extend-exclude = ["tests/fixtures/independent-python-shell"]
 
 [tool.ruff.lint]
 select = [

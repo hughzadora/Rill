@@ -621,7 +621,6 @@ wheels = [
 
 [[package]]
 name = "rill-cli"
-version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "copier" },

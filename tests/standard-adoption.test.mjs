@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
-  chmodSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -17,6 +16,8 @@ import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
 
 const repository = resolve(import.meta.dirname, "..");
+const fixtureVersion = "v0.1.0";
+const appVersion = readFileSync(join(repository, "VERSION"), "utf8").trim();
 let sandbox;
 let template;
 
@@ -90,9 +91,7 @@ function copyStandard(destination, answers) {
     preserve_codex_roles:
       existsSync(join(destination, ".codex/config.toml")) ||
       existsSync(join(destination, ".codex/agents/reviewer.toml")),
-    preserve_hook_config:
-      existsSync(join(destination, ".codex/hooks.json")) ||
-      existsSync(join(destination, ".codex/hooks/rill.py")),
+    preserve_hook_config: existsSync(join(destination, ".codex/hooks.json")),
     preserve_rill_skills: existsSync(
       join(destination, ".agents/skills/rill-adopt/SKILL.md"),
     ),
@@ -101,7 +100,7 @@ function copyStandard(destination, answers) {
     "copy",
     "--defaults",
     "--vcs-ref",
-    "v0.1.0",
+    fixtureVersion,
     ...Object.entries({ ...detectedOwnership, ...answers }).flatMap(
       ([key, value]) => ["--data", key + "=" + value],
     ),
@@ -111,17 +110,19 @@ function copyStandard(destination, answers) {
   return pinned(["pypi:copier"], "copier", args);
 }
 
-function invokeDistributedHook(project, mode, event = {}, env = {}) {
-  const executable = join(project, ".codex/hooks/rill.py");
-  const result = spawnSync("python3", [executable, mode], {
+function callRill(args, options = {}) {
+  return execute(join(repository, ".venv/bin/rill"), args, options);
+}
+
+function invokeRillHook(project, event, toolInput = {}) {
+  const result = spawnSync(join(repository, ".venv/bin/rill"), ["hook", event], {
     cwd: project,
-    input: JSON.stringify({ cwd: project, ...event }),
-    env: { ...process.env, ...env },
+    input: JSON.stringify({ tool_input: toolInput }),
     encoding: "utf8",
     timeout: 10_000,
   });
   assert.equal(result.status, 0, result.stderr);
-  return JSON.parse(result.stdout);
+  return result.stdout.trim() ? JSON.parse(result.stdout) : {};
 }
 
 function verifyWorkflow(destination) {
@@ -296,13 +297,7 @@ function newProduct(directory) {
 before(() => {
   sandbox = mkdtempSync(join(tmpdir(), "rill-adoption-regression-"));
   template = join(sandbox, "template");
-  mkdirSync(join(template, "standards"), { recursive: true });
-  cpSync(join(repository, "copier.yml"), join(template, "copier.yml"));
-  cpSync(
-    join(repository, "standards/template"),
-    join(template, "standards/template"),
-    { recursive: true },
-  );
+  cpSync(join(repository, "standards/template"), template, { recursive: true });
   git(template, ["init", "-q", "-b", "main"]);
   git(template, ["add", "."]);
   git(template, ["commit", "-qm", "Versioned Rill profile template"]);
@@ -313,87 +308,37 @@ after(() => {
   if (sandbox) rmSync(sandbox, { recursive: true, force: true });
 });
 
-test("one-command Rill adoption inspects native ownership and applies reviewed source", () => {
-  const project = join(sandbox, "one-command-consumer");
-  mkdirSync(project);
-  const args = [
-    join(repository, "tools/adopt_rill.py"),
-    project,
-    "--source",
-    template,
-    "--ref",
-    "v0.1.0",
-    "--data",
-    "project_name=One Command Consumer",
-  ];
-  const plan = JSON.parse(execute("python3", args));
-  assert.equal(plan.status, "READY_TO_APPLY");
-  assert.equal(plan.existing_native_ownership.preserve_agent_entry, false);
-  assert.equal(plan.existing_native_ownership.preserve_codex_roles, false);
-  const denied = execute(
-    "python3",
-    [...args, "--data", "preserve_codex_roles=false"],
-    {
-      mustFail: true,
-    },
-  );
-  assert.match(denied, /Invalid or reserved Copier/);
-  const installed = execute("python3", [...args, "--apply"]);
-  assert.match(installed, /COPIED_NOT_VERIFIED/);
-  assert.ok(existsSync(join(project, ".codex/agents/worker.toml")));
-  assert.ok(existsSync(join(project, ".agents/skills/rill-review/SKILL.md")));
-  const sibling = join(sandbox, "relative-source-consumer");
-  mkdirSync(sibling);
-  const relativeArgs = [
-    join(repository, "tools/adopt_rill.py"),
-    sibling,
-    "--source",
-    "template",
-    "--ref",
-    "v0.1.0",
-  ];
-  const relativePlan = JSON.parse(
-    execute("python3", relativeArgs, { cwd: sandbox }),
-  );
-  assert.equal(relativePlan.source, template);
-  execute("python3", [...relativeArgs, "--apply"], { cwd: sandbox });
-  assert.ok(existsSync(join(sibling, ".codex/hooks.json")));
-  git(project, ["init", "-q", "-b", "main"]);
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Versioned Rill adoption"]);
-  const status = invokeDistributedHook(project, "status");
-  assert.equal(status.status, "BLOCKED");
-  assert.match(status.reason, /no configured engineering parent Issue/);
+test("Rill CLI adoption, upgrade, and template distribution", () => {
+  const product = join(sandbox, "one-command-consumer");
+  assert.equal(callRill(["version"]).trim(), appVersion);
+  callRill(["init", product, "--yes", "--data", "project_name=One Command Consumer"]);
+  for (const entry of [".codex/agents/worker.toml", ".agents/skills/rill-review/SKILL.md", ".codex/hooks.json"]) {
+    assert.ok(existsSync(join(product, entry)), entry);
+  }
+  assert.equal(JSON.parse(callRill(["status", product])).installed, true);
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Rill CLI installation"]);
+  callRill(["upgrade", product, "--yes"]);
+  assert.equal(JSON.parse(callRill(["status", product])).state.version, appVersion);
+  assert.equal(git(product, ["status", "--porcelain"]), "");
 });
 
-test("installer rejects untracked files even with Git untracked reporting disabled", () => {
-  const project = join(sandbox, "untracked-consumer");
-  newProduct(project);
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Product baseline"]);
-  file(project, "private-untracked-note.txt", "Do not modify this work.\n");
-  const refused = execute(
-    "python3",
-    [
-      join(repository, "tools/adopt_rill.py"),
-      project,
-      "--source",
-      template,
-      "--ref",
-      "v0.1.0",
-      "--apply",
-    ],
-    {
-      mustFail: true,
-      env: {
-        GIT_CONFIG_COUNT: "1",
-        GIT_CONFIG_KEY_0: "status.showUntrackedFiles",
-        GIT_CONFIG_VALUE_0: "no",
-      },
+test("CLI installer refuses untracked data even when Git hides untracked files", () => {
+  const product = join(sandbox, "untracked-consumer");
+  newProduct(product);
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Product baseline"]);
+  file(product, "private-untracked-note.txt", "Do not modify this work.\n");
+  const refused = callRill(["init", product, "--yes"], {
+    mustFail: true,
+    env: {
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "status.showUntrackedFiles",
+      GIT_CONFIG_VALUE_0: "no",
     },
-  );
-  assert.match(refused, /not clean/);
-  assert.equal(existsSync(join(project, ".rill/STANDARD.md")), false);
+  });
+  assert.match(refused, /Dirty target/);
+  assert.equal(existsSync(join(product, ".rill/STANDARD.md")), false);
 });
 
 test("greenfield four-stack profile has pinned native provenance and valid Actions", () => {
@@ -414,7 +359,6 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
     "AGENTS.md",
     ".codex/config.toml",
     ".codex/hooks.json",
-    ".codex/hooks/rill.py",
     ".codex/agents/worker.toml",
     ".codex/agents/reviewer.toml",
     ".agents/skills/rill-adopt/SKILL.md",
@@ -442,7 +386,8 @@ test("greenfield four-stack profile has pinned native provenance and valid Actio
   for (const event of [
     "SessionStart",
     "PostToolUse",
-    "SubagentStart",
+    "PreCompact",
+    "PreToolUse",
     "Stop",
   ]) {
     assert.ok(hooks.hooks[event], "Missing native event " + event);
@@ -651,296 +596,57 @@ test("invalid profiles and paths cannot silently create a passing workflow", () 
   assert.match(rejectedOption, /Use a path inside the product repository/);
 });
 
-test("installed native Hook uses Git facts and bounds continuation", () => {
-  const project = join(sandbox, "hook-consumer");
-  mkdirSync(project);
-  newProduct(project);
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Baseline"]);
-  copyStandard(project, {
-    project_name: "Hook Consumer",
-    react: false,
-    node: true,
-    python: false,
-    shell: false,
-    node_root: ".",
-  });
-  // Existing product AGENTS.md is not overwritten and does not
-  // magically become a verified Rill runtime.
-  const state = invokeDistributedHook(project, "status");
-  assert.equal(state.status, "BLOCKED");
-  assert.match(state.reason, /AGENTS.md requires reviewed Rill integration/);
-  const ownAgentEntry = readFileSync(join(project, "AGENTS.md"), "utf8");
-  writeFileSync(
-    join(project, "AGENTS.md"),
-    "# Hook Consumer — Rill Agent Entry\n",
-  );
-  const rolePath = join(project, ".codex/agents/reviewer.toml");
-  const originalRole = readFileSync(rolePath, "utf8");
-  writeFileSync(
-    rolePath,
-    originalRole.replace('model = "gpt-6.2-sol"', 'model = ""'),
-  );
-  const invalidRole = invokeDistributedHook(project, "status");
-  assert.equal(invalidRole.status, "BLOCKED");
-  assert.match(invalidRole.reason, /lacks model/);
-  writeFileSync(rolePath, originalRole);
-  const hooksPath = join(project, ".codex/hooks.json");
-  const originalHooks = readFileSync(hooksPath, "utf8");
-  const hooksWithoutTool = JSON.parse(originalHooks);
-  delete hooksWithoutTool.hooks.PostToolUse;
-  writeFileSync(hooksPath, JSON.stringify(hooksWithoutTool));
-  const invalidHooks = invokeDistributedHook(project, "status");
-  assert.equal(invalidHooks.status, "BLOCKED");
-  assert.match(invalidHooks.reason, /PostToolUse/);
-  writeFileSync(hooksPath, "[]");
-  const malformedHooks = invokeDistributedHook(project, "status");
-  assert.equal(malformedHooks.status, "BLOCKED");
-  assert.match(malformedHooks.reason, /Invalid native Codex config or Hook/);
-  writeFileSync(
-    hooksPath,
-    JSON.stringify({ hooks: { SessionStart: [{ hooks: null }] } }),
-  );
-  const invalidHandler = invokeDistributedHook(project, "status");
-  assert.equal(invalidHandler.status, "BLOCKED");
-  assert.match(invalidHandler.reason, /Missing Rill command handler/);
-  writeFileSync(hooksPath, originalHooks);
-  const mismatched = JSON.parse(originalHooks);
-  mismatched.hooks.Stop[0].hooks[0].command =
-    mismatched.hooks.Stop[0].hooks[0].command.replace(" stop", " check");
-  writeFileSync(hooksPath, JSON.stringify(mismatched));
-  const wrongStop = invokeDistributedHook(project, "status");
-  assert.equal(wrongStop.status, "BLOCKED");
-  assert.match(wrongStop.reason, /Missing Rill command handler: Stop/);
-  mismatched.hooks.Stop[0].hooks[0].command = null;
-  writeFileSync(hooksPath, JSON.stringify(mismatched));
-  const nullHandler = invokeDistributedHook(project, "status");
-  assert.equal(nullHandler.status, "BLOCKED");
-  assert.match(nullHandler.reason, /Missing Rill command handler: Stop/);
-  writeFileSync(hooksPath, originalHooks);
-  const unbound = invokeDistributedHook(project, "status");
-  assert.equal(unbound.status, "BLOCKED");
-  assert.match(unbound.reason, /no configured engineering parent Issue/);
-  writeFileSync(join(project, "AGENTS.md"), ownAgentEntry);
-  const started = invokeDistributedHook(project, "start", {
-    source: "startup",
-  });
-  assert.match(started.hookSpecificOutput.additionalContext, /BLOCKED/);
-  assert.deepEqual(invokeDistributedHook(project, "stop"), {});
-  const source = join(project, "src/server.ts");
-  const original = readFileSync(source, "utf8");
-  writeFileSync(source, original + "  \n");
-  const feedback = invokeDistributedHook(project, "check", {
-    tool_name: "apply_patch",
-  });
-  assert.match(
-    feedback.hookSpecificOutput.additionalContext,
-    /git diff --check failed/,
-  );
-  const continued = invokeDistributedHook(project, "stop");
-  assert.equal(continued.decision, "block");
-  git(project, ["add", "src/server.ts"]);
-  const stagedFailure = invokeDistributedHook(project, "stop");
-  assert.equal(stagedFailure.decision, "block");
-  const stagedToolFeedback = invokeDistributedHook(project, "check");
-  assert.match(
-    stagedToolFeedback.hookSpecificOutput.additionalContext,
-    /git diff --check failed/,
-  );
-  git(project, ["restore", "--staged", "src/server.ts"]);
-  assert.deepEqual(
-    invokeDistributedHook(project, "stop", { stop_hook_active: true }),
-    {},
-  );
-  writeFileSync(source, original);
-  assert.deepEqual(invokeDistributedHook(project, "stop"), {});
-  const brokenIndex = join(sandbox, "invalid-git-index");
-  writeFileSync(brokenIndex, "Invalid git index\n");
-  const unavailable = invokeDistributedHook(
-    project,
-    "stop",
-    {},
-    {
-      GIT_INDEX_FILE: brokenIndex,
-    },
-  );
-  assert.match(unavailable.systemMessage, /unavailable/);
-  const delegated = invokeDistributedHook(project, "subagent", {
-    agent_type: "reviewer",
-  });
-  assert.match(delegated.hookSpecificOutput.additionalContext, /reviewer/);
+test("CLI hooks deny framework writes and retain compact symbols", () => {
+  const product = join(sandbox, "hook-consumer");
+  callRill(["init", product, "--yes"]);
+  file(product, "src/service.py", "def service(): return 1\n");
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Install Rill and source"]);
+  assert.equal(invokeRillHook(product, "session-start").state.mode, "normal");
+  const denied = invokeRillHook(product, "pre-tool-use", { file_path: ".codex/hooks.json" });
+  assert.equal(denied.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(denied.hookSpecificOutput.permissionDecisionReason, /Tier 0/);
+  assert.deepEqual(invokeRillHook(product, "pre-compact"), {});
+  assert.match(readFileSync(join(product, ".rill/symbols.txt"), "utf8"), /service/);
+  assert.deepEqual(invokeRillHook(product, "stop"), {});
+  const stateFile = join(product, ".rill/state.json");
+  const state = JSON.parse(readFileSync(stateFile, "utf8"));
+  state.budget_exhausted = true;
+  writeFileSync(stateFile, JSON.stringify(state));
+  const quota = invokeRillHook(product, "pre-tool-use", { file_path: "src/next.py" });
+  assert.equal(quota.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(quota.hookSpecificOutput.permissionDecisionReason, /budget/i);
 });
 
-test("native recovery binds issues to the checkout origin, not GH_REPO override", () => {
-  const project = join(sandbox, "origin-bound-consumer");
-  mkdirSync(project);
-  copyStandard(project, {
-    project_name: "Origin Bound",
-    github_parent_issue: 22,
-    react: false,
-    node: true,
-    python: false,
-    shell: false,
-    node_root: ".",
-  });
-  git(project, ["init", "-q", "-b", "main"]);
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Install Rill"]);
-  const withoutRemote = invokeDistributedHook(project, "status");
-  assert.equal(withoutRemote.status, "BLOCKED");
-  assert.match(withoutRemote.reason, /Git origin/);
-  git(project, [
-    "remote",
-    "add",
-    "origin",
-    "https://github.com/acme/target.git",
-  ]);
-  const bin = join(sandbox, "mock-gh");
-  mkdirSync(bin);
-  const ghScript = join(bin, "gh");
-  writeFileSync(
-    ghScript,
-    `#!/bin/sh
-if [ "$1" = repo ] && [ "$2" = view ] && [ "$3" = "https://github.com/acme/target.git" ]; then
-  echo "acme/target"
-elif [ "$1" = issue ] && [ "$2" = view ] && [ "$3" = 22 ] && [ "$4" = "-R" ] && [ "$5" = "acme/target" ]; then
-  echo '{"number":22,"state":"OPEN","title":"Active delivery","url":"https://github.com/acme/target/issues/22"}'
-else
-  exit 1
-fi
-`,
-  );
-  chmodSync(ghScript, 0o700);
-  const bound = invokeDistributedHook(
-    project,
-    "status",
-    {},
-    {
-      GH_REPO: "acme/wrong",
-      PATH: bin + ":" + process.env.PATH,
-    },
-  );
-  assert.equal(bound.status, "BOUND");
-  assert.equal(bound.repository, "acme/target");
-  assert.equal(bound.issue.number, 22);
+test("CLI status does not trust GH_REPO environment overrides", () => {
+  const product = join(sandbox, "origin-bound-consumer");
+  callRill(["init", product, "--yes", "--data", "github_parent_issue=22"]);
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Install Rill"]);
+  git(product, ["remote", "add", "origin", "https://github.com/acme/target.git"]);
+  const status = JSON.parse(callRill(["status", product], { env: { GH_REPO: "acme/wrong" } }));
+  assert.equal(status.repository, product);
+  assert.equal(status.installed, true);
+  assert.deepEqual(status.violations, []);
 });
 
-test("legacy Copier upgrade preserves consumer-owned native settings on new defaults", () => {
-  const source = join(sandbox, "legacy-template-source");
-  mkdirSync(source);
-  cpSync(
-    join(repository, "standards/template"),
-    join(source, "standards/template"),
-    {
-      recursive: true,
-    },
-  );
-  const currentYaml = readFileSync(join(repository, "copier.yml"), "utf8");
-  const start = currentYaml.indexOf("_skip_if_exists:");
-  const end = currentYaml.indexOf("_envops:");
-  const questions = currentYaml.indexOf("# Deterministic preflight values");
-  const projectQuestion = currentYaml.indexOf("project_name:");
-  assert.ok(start > 0 && end > start && projectQuestion > questions);
-  const legacyYaml =
-    currentYaml.slice(0, start) +
-    currentYaml.slice(end, questions) +
-    currentYaml.slice(projectQuestion);
-  file(source, "copier.yml", legacyYaml);
-  rmSync(join(source, "standards/template/.codex"), {
-    recursive: true,
-    force: true,
-  });
-  rmSync(join(source, "standards/template/.agents"), {
-    recursive: true,
-    force: true,
-  });
-  rmSync(join(source, "standards/template/AGENTS.md.jinja"));
-  git(source, ["init", "-q", "-b", "main"]);
-  git(source, ["add", "."]);
-  git(source, [
-    "commit",
-    "-qm",
-    "Prior Rill standard without native distribution",
-  ]);
-  git(source, ["tag", "v0.1.0"]);
-
-  const project = join(sandbox, "legacy-consumer");
-  newProduct(project);
-  const ownAgent = readFileSync(join(project, "AGENTS.md"), "utf8");
-  file(
-    project,
-    ".codex/config.toml",
-    '# Existing product native config\nmodel = "other"\n',
-  );
-  file(project, ".codex/hooks.json", '{"hooks":{"SessionStart":[]}}\n');
-  file(
-    project,
-    ".codex/agents/reviewer.toml",
-    '# Existing native reviewer\nname = "reviewer"\n',
-  );
-  const ownedFiles = [
-    "AGENTS.md",
-    ".codex/config.toml",
-    ".codex/hooks.json",
-    ".codex/agents/reviewer.toml",
-  ];
-  const originals = Object.fromEntries(
-    ownedFiles.map((name) => [name, readFileSync(join(project, name), "utf8")]),
-  );
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Existing app configuration"]);
-  pinned(["pypi:copier"], "copier", [
-    "copy",
-    "--defaults",
-    "--vcs-ref",
-    "v0.1.0",
-    "-d",
-    "react=false",
-    "-d",
-    "node=true",
-    "-d",
-    "python=false",
-    "-d",
-    "shell=false",
-    "-d",
-    "node_root=.",
-    source,
-    project,
-  ]);
-  git(project, ["add", "."]);
-  git(project, ["commit", "-qm", "Install previous Rill standard"]);
-  file(source, "copier.yml", currentYaml);
-  cpSync(
-    join(repository, "standards/template"),
-    join(source, "standards/template"),
-    {
-      recursive: true,
-    },
-  );
-  git(source, ["add", "."]);
-  git(source, ["commit", "-qm", "Introduce factory runtime distribution"]);
-  git(source, ["tag", "v0.2.0"]);
-
-  pinned(["pypi:copier"], "copier", [
-    "update",
-    "--defaults",
-    "--answers-file",
-    ".rill/copier-answers.yml",
-    "--vcs-ref",
-    "v0.2.0",
-    project,
-  ]);
-  for (const [name, content] of Object.entries(originals)) {
-    assert.equal(readFileSync(join(project, name), "utf8"), content, name);
-  }
-  assert.equal(readFileSync(join(project, "AGENTS.md"), "utf8"), ownAgent);
-  assert.ok(existsSync(join(project, ".agents/skills/rill-review/SKILL.md")));
-  assert.ok(existsSync(join(project, ".codex/agents/worker.toml")));
-  const receipt = readFileSync(
-    join(project, ".rill/copier-answers.yml"),
-    "utf8",
-  );
-  assert.match(receipt, /_commit: v0.2.0/);
+test("CLI upgrade preserves product-owned settings, rejects modified managed files", () => {
+  const product = join(sandbox, "managed-upgrade-consumer");
+  newProduct(product);
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Product baseline"]);
+  const ownAgent = readFileSync(join(product, "AGENTS.md"), "utf8");
+  callRill(["init", product, "--yes", "--data", "react=false", "--data", "node=true"]);
+  assert.equal(readFileSync(join(product, "AGENTS.md"), "utf8"), ownAgent);
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Install native roles"]);
+  const hooksPath = join(product, ".codex/hooks.json");
+  writeFileSync(hooksPath, readFileSync(hooksPath, "utf8").replace("SessionStart", "FakeStart"));
+  git(product, ["add", "."]);
+  git(product, ["commit", "-qm", "Product edit to managed Hook"]);
+  const refused = callRill(["upgrade", product, "--yes"], { mustFail: true });
+  assert.match(refused, /Managed file changed/);
+  assert.match(readFileSync(hooksPath, "utf8"), /FakeStart/);
 });
 
 test("brownfield source, tests and unrelated workflows survive adoption and native rollback", () => {
@@ -1259,7 +965,7 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   ]);
   const adoptedSha = git(project, ["rev-parse", "HEAD"]);
 
-  const doc = join(template, "standards/template/.rill/STANDARD.md.jinja");
+  const doc = join(template, ".rill/STANDARD.md.jinja");
   writeFileSync(
     doc,
     readFileSync(doc, "utf8") +
@@ -1267,7 +973,7 @@ test("brownfield source, tests and unrelated workflows survive adoption and nati
   );
   const templateWorkflow = join(
     template,
-    "standards/template/.github/workflows/rill-quality.yml.jinja",
+    ".github/workflows/rill-quality.yml.jinja",
   );
   const workflowOriginal = readFileSync(templateWorkflow, "utf8");
   assert.match(workflowOriginal, /^name: Rill Quality$/m);

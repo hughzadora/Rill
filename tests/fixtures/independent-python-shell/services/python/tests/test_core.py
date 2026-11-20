@@ -1,4 +1,5 @@
 import pytest
+
 from independent_service import normalize, validate_port
 
 

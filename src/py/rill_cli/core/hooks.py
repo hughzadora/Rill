@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import cast
 
+from .constants import SYMBOLS_PATH
 from .guardrails import audit, patch_targets, symbols, validate
 from .state import load, record_error
 
@@ -27,13 +28,14 @@ def run(event: str, root: Path) -> int:
         print(json.dumps({"state": summary, "repository": str(root)}))
         return 0
     if event == "pre-compact":
-        output = root / ".rill/symbols.txt"
+        output = root / SYMBOLS_PATH
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(symbols(root), encoding="utf-8")
         return 0
     if event == "stop":
         if load(root).get("budget_exhausted"):
             record_error(root, "Quota exhausted: continuation stopped")
+        print("{}")
         return 0
     if event in {"pre-tool-use", "post-tool-use"}:
         return _check_tool(event, root, payload)

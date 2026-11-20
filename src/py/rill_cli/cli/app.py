@@ -9,6 +9,7 @@ from rich.console import Console
 
 from rill_cli import __version__
 from rill_cli.core import doctor, hooks, installer
+from rill_cli.core.constants import HOOK_EVENTS
 
 app = typer.Typer(no_args_is_help=True, help="Rill software-factory lifecycle CLI")
 console = Console()
@@ -24,12 +25,13 @@ def version() -> None:
 def init(
     path: Path = typer.Argument(Path(".")),  # noqa: B008 - Typer declarative API
     yes: bool = typer.Option(False, "--yes"),
+    data: list[str] | None = typer.Option(None, "--data", "-d"),  # noqa: B008 - Typer API
 ) -> None:
     """Initialize an independent Git repository with Rill's factory assets."""
     if not yes:
         raise typer.BadParameter("Explicit --yes is required")
     try:
-        console.print(f"Installed Rill at {installer.install(path)}")
+        console.print(f"Installed Rill at {installer.install(path, data=data)}")
     except (ValueError, OSError) as exc:
         console.print(f"BLOCKED: {exc}", style="red")
         raise typer.Exit(2) from exc
@@ -80,7 +82,6 @@ def hook(
     ),
 ) -> None:
     """Run one native lifecycle event."""
-    allowed = {"session-start", "pre-compact", "pre-tool-use", "post-tool-use", "stop"}
-    if event not in allowed:
+    if event not in HOOK_EVENTS:
         raise typer.BadParameter(f"Unknown hook event: {event}")
     raise typer.Exit(hooks.run(event, Path.cwd()))

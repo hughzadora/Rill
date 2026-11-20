@@ -11,6 +11,12 @@ import yaml
 
 from rill_cli import __version__
 
+from .constants import (
+    COPIER_ANSWERS,
+    MANAGED_DIRECTORIES,
+    RUNTIME_ANCHORS,
+    SCHEMA_VERSION,
+)
 from .state import load, save
 
 
@@ -18,7 +24,11 @@ def source() -> Path:
     embedded = Path(__file__).resolve().parents[1] / "template"
     if (embedded / "copier.yml").is_file():
         return embedded
-    return Path(__file__).resolve().parents[4] / "standards/template"
+    for parent in embedded.parents:
+        candidate = parent / "standards/template"
+        if (candidate / "copier.yml").is_file():
+            return candidate
+    raise FileNotFoundError("The bundled Copier template is missing")
 
 
 def preflight(path: Path) -> Path:
@@ -75,7 +85,7 @@ def ownership(root: Path) -> dict[str, bool]:
 def fingerprint(root: Path) -> dict[str, str]:
     """Snapshot only Rill-managed files, excluding mutable runtime anchors."""
     files: dict[str, str] = {}
-    for directory in (".codex", ".agents/skills", ".github/workflows", ".rill"):
+    for directory in MANAGED_DIRECTORIES:
         parent = root / directory
         if not parent.exists():
             continue
@@ -83,10 +93,10 @@ def fingerprint(root: Path) -> dict[str, str]:
             if not path.is_file() or path.is_symlink():
                 continue
             relative = path.relative_to(root).as_posix()
-            if relative in {".rill/state.json", ".rill/last-error.log", ".rill/symbols.txt"}:
+            if Path(relative) in RUNTIME_ANCHORS:
                 continue
             files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    for name in ("AGENTS.md", ".gitignore"):
+    for name in ("AGENTS.md",):
         path = root / name
         if path.is_file():
             files[name] = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -104,7 +114,7 @@ def _answers(path: Path) -> dict[str, object]:
 def upgrade_values(
     root: Path, state: dict[str, object], before: dict[str, str]
 ) -> tuple[dict[str, object], dict[str, object]]:
-    answers = root / ".rill/copier-answers.yml"
+    answers = root / COPIER_ANSWERS
     previous = state.get("managed")
     if not isinstance(previous, dict) or not previous:
         raise ValueError("Missing prior managed-file hashes; upgrade requires recovery")
@@ -116,11 +126,33 @@ def upgrade_values(
     return tracked, values
 
 
-def install(path: Path, *, upgrade: bool = False) -> Path:
-    root = preflight(path)
-    answers = root / ".rill/copier-answers.yml"
-    if upgrade and not answers.exists():
+def select_data(pairs: list[str]) -> dict[str, str]:
+    """Validate names against the one canonical Copier question schema."""
+    config: object = yaml.safe_load((source() / "copier.yml").read_text(encoding="utf-8"))
+    if not isinstance(config, dict):
+        raise ValueError("Invalid template schema")
+    questions = cast("dict[str, object]", config)
+    allowed = {name for name in questions if not name.startswith("_")}
+    chosen: dict[str, str] = {}
+    for pair in pairs:
+        name, separator, value = pair.partition("=")
+        if not separator or name not in allowed or name.startswith("preserve_"):
+            raise ValueError(f"Unknown or reserved Copier option: {name}")
+        if name in chosen:
+            raise ValueError(f"Duplicate Copier option: {name}")
+        chosen[name] = value
+    return chosen
+
+
+def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
+    supplied = select_data(data or [])
+    if upgrade and supplied:
+        raise ValueError("Upgrade uses recorded profile; no implicit scope changes")
+    target = path.expanduser().resolve()
+    if upgrade and not (target / COPIER_ANSWERS).is_file():
         raise ValueError("Cannot upgrade a project not installed by Rill")
+    root = preflight(path)
+    answers = root / COPIER_ANSWERS
     if not upgrade and answers.exists():
         raise ValueError("Already installed: use rill upgrade")
     before = fingerprint(root)
@@ -129,6 +161,8 @@ def install(path: Path, *, upgrade: bool = False) -> Path:
     tracked: dict[str, object] = {}
     if upgrade:
         tracked, values = upgrade_values(root, state, before)
+    else:
+        values.update(supplied)
     copier.run_copy(
         src_path=str(source()),
         dst_path=root,
@@ -138,15 +172,15 @@ def install(path: Path, *, upgrade: bool = False) -> Path:
         unsafe=False,
     )
     after = fingerprint(root)
-    owned = set(tracked) if upgrade else set(after) - set(before)
+    owned = (set(tracked) | (set(after) - set(before))) if upgrade else set(after) - set(before)
     state.update(
         {
-            "schema": 1,
+            "schema": SCHEMA_VERSION,
             "version": __version__,
             "mode": "normal",
-            "task_scope": [],
             "managed": {name: digest for name, digest in after.items() if name in owned},
         }
     )
+    state.setdefault("task_scope", [])
     save(root, state)
     return root
