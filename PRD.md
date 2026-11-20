@@ -23,7 +23,7 @@ Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified cur
 | FR-05 | Applicable source-complete lint, type, integration, accessibility, secret, supply-chain, coverage and negative tests gate delivery and reject false PASS. | `bundle/stacks/`, `.github/workflows/` | [PLANNED] |
 | FR-06 | Actual independent reviewer assesses exact tested candidate; two-round bound and platform-native protected authorization. | `bundle/repo-common/.codex/agents/`, `bundle/plugin/skills/` | [PLANNED] |
 | FR-07 | Fresh agent recovers project, exact SHA, Issues/PR dependencies, tests and next action after interruption or context compaction. | `bundle/plugin/skills/`, GitHub | [PLANNED] |
-| FR-08 | Versioned updates/rollback and conflict checks preserve consumer-owned files; no legacy Rill compatibility adapters. | `src/`, `bundle/` | [PLANNED] |
+| FR-08 | Versioned updates/rollback and conflict checks preserve consumer-owned files; no legacy Rill compatibility adapters. | `src/update.ts`, `bundle/plugin/skills/rill-update/` | [IN-PROGRESS] |
 | FR-09 | Every enrolled product has **one** live root `PRD.md`; scoped reads, stable requirement IDs, status plus evidence-linked source traceability. | `bundle/repo-common/PRD.md` | [PLANNED] |
 | FR-10 | Bundle an upstream-derived brainstorming Skill; Rill-controlled research/grill entrypoints invoke it before **substantive new design**, without duplicate interviews. | `bundle/plugin/skills/brainstorming/` | [IN-PROGRESS] |
 | FR-11 | Optional accessible local status view displays version-bound actual gate state, blockers, unknowns and safe next action; never pretends to approve. | `src/`, `bundle/` | [PLANNED] |

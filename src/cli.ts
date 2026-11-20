@@ -18,6 +18,7 @@ const help = [
   "  rill version    Print the product SemVer from VERSION",
   "  rill init PATH --goal TEXT [--yes] [--json]   Create a new product (unverified)",
   "  rill adopt PATH [--goal TEXT] [--yes] [--json]   Prepare existing product review (unverified)",
+  "  rill update PATH [--yes] [--json]    Prepare a native Git update review (unverified)",
   "  rill --help     Show implemented commands",
 ].join("\n");
 
@@ -88,6 +89,39 @@ if (commands.length === 1 && (commands[0] === "--help" || commands[0] === "-h"))
     const category = error instanceof RillCommandError ? error.category : error instanceof TypeError ? "USAGE" : "ENVIRONMENT";
     const message = error instanceof Error ? error.message : "Unknown adoption error";
     process.stderr.write(json ? `${JSON.stringify({ error: { code: category, message } })}\n` : `Rill adopt failed: ${message}\n`);
+    process.exitCode = code;
+  }
+} else if (tokens[0] === "update") {
+  try {
+    const parsed = parseArgs({
+      args: tokens.slice(1),
+      options: {
+        yes: { type: "boolean" },
+        json: { type: "boolean" },
+      },
+      allowPositionals: true,
+      strict: true,
+    });
+    const [projectPath] = parsed.positionals;
+    if (parsed.positionals.length !== 1 || projectPath === undefined) {
+      throw new RillCommandError("Usage: rill update PATH [--yes] [--json]", 2, "USAGE");
+    }
+    // Load update-only runtime dependencies only for the update command; the
+    // standalone version/init/adopt paths remain dependency-free.
+    const { planUpdate } = await import("./update.js");
+    const receipt = planUpdate(repoRoot, projectPath, version, parsed.values.yes === true);
+    process.stdout.write(
+      json ? `${JSON.stringify(receipt)}\n` : `${receipt.status}: ${receipt.path}\n`,
+    );
+  } catch (error) {
+    const code = error instanceof RillCommandError ? error.exitCode : 2;
+    const category = error instanceof RillCommandError ? error.category : "ENVIRONMENT";
+    const message = error instanceof Error ? error.message : "Unknown update error";
+    process.stderr.write(
+      json
+        ? `${JSON.stringify({ error: { code: category, message } })}\n`
+        : `Rill update failed: ${message}\n`,
+    );
     process.exitCode = code;
   }
 } else {
