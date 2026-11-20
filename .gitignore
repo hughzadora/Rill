@@ -1,43 +1,34 @@
-# Dependencies, managed environments and tool caches
+# Build and package output
 node_modules/
-.venv/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.cache/
-__pycache__/
-*.py[cod]
-
-# Production builds, coverage and browser test artifacts
 dist/
 build/
 coverage/
-htmlcov/
-.coverage
-playwright-report/
-.playwright-cli/
-test-results/
 *.tsbuildinfo
+*.log
+*.map
 
-# Local machine settings and secrets
+# Runtime and local caches
+.cache/
+.tmp/
+.temp/
+.rill/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.coverage
+__pycache__/
+*.pyc
+
+# Editor, OS and local credentials
+.DS_Store
+.idea/
+.vscode/
 .env
 .env.*
 !.env.example
-mise.local.toml
-.mise.local.toml
-.DS_Store
 
-# Logs and transient output
-*.log
-*.tmp
-
-# Mutation testing output (generated, never committed)
-.stryker-tmp/
+# Generated reports
+test-results/
+playwright-report/
 mutants/
-
-# Local Rill execution anchors
-.rill/state.json
-.rill/symbols.txt
-.rill/last-error.log
-.rill/ci-summary.json
-.rill/dashboard.html
+.impeccable/

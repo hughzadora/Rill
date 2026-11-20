@@ -1,0 +1,20 @@
+# Rill consumer project defaults. These do not grant extra permissions.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+
+[agents.explorer]
+description = "Inspect bounded source locations and return evidence without mutation."
+config_file = "./agents/explorer.toml"
+
+[agents.worker]
+description = "Implement one scoped ticket with real regression tests."
+config_file = "./agents/worker.toml"
+
+[agents.reviewer]
+description = "Independently audit exact current diff, spec, security and tests."
+config_file = "./agents/reviewer.toml"
+
+# The matching repository Marketplace still requires native installation/trust.
+[plugins."rill@rill-consumer"]
+enabled = true
