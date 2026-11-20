@@ -59,8 +59,12 @@ transcript replica or redundant JSON task database.
 - [#22](https://github.com/hughzadora/Rill/issues/22): active engineering
   parent for Rill factory modernization.
 - [#23](https://github.com/hughzadora/Rill/issues/23): permanent bug parent.
-- [#24–#29](https://github.com/hughzadora/Rill/issues/22): product workstream
-  sub-issues, all subject to independent acceptance.
+- [#24](https://github.com/hughzadora/Rill/issues/24): native
+  lifecycle continuity, Hooks and MCP execution evidence.
+- [#32](https://github.com/hughzadora/Rill/issues/32): complete
+  versioned factory distribution and external product acceptance.
+- #25–#29: consolidated historical workstreams; outstanding
+  acceptance remains tracked by #22, #24 and #32.
 - [#31](https://github.com/hughzadora/Rill/issues/31): older user-installed
   plugin still requires native-session verification.
 

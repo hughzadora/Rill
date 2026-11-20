@@ -27,13 +27,22 @@ The agent entry is [AGENTS.md](AGENTS.md); native role config is in [.codex/](.c
 
 The first **candidate** project distribution lives in
 [standards/README.md](standards/README.md) with the actual native
-[Copier template](copier.yml). It generates project-specific
-GitHub Actions quality gates without cloning Codex, storing transcript
-state or replacing unrelated product files. The committed
+[Copier template](copier.yml). It distributes the maintained native
+role/model configuration,
+reusable adopt/deliver/review/recover Skills, trust-required lifecycle
+Hooks, an optional read-only upstream documentation MCP connection,
+and project-specific GitHub Actions quality gates without cloning
+Codex, storing transcript state or replacing unrelated product files.
+The committed
 [temporary-pilot tests](tests/standard-adoption.test.mjs) exercise
 fresh generation, isolated independent React/Node/Python/Shell
 applications, intentional source-test failures, Copier update,
 and native Git rollback.
+
+The target project's pre-existing agent entry and project-level Codex
+settings are preserved; a conflict blocks verified enrollment until
+the native settings are reviewed and integrated. Hook definition and
+MCP configuration are not runtime invocation proof.
 
 A successful local pilot is not an approved SemVer release or proof of
 full hosted React/Python/Shell adoption. That work is tracked in

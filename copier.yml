@@ -1,10 +1,38 @@
 _min_copier_version: "9.19.1"
 _subdirectory: standards/template
 _answers_file: .rill/copier-answers.yml
+_skip_if_exists:
+  - "{% if preserve_agent_entry %}AGENTS.md{% endif %}"
+  - "{% if preserve_codex_roles %}.codex/config.toml{% endif %}"
+  - "{% if preserve_codex_roles %}.codex/agents/*{% endif %}"
+  - "{% if preserve_hook_config %}.codex/hooks.json{% endif %}"
+  - "{% if preserve_hook_config %}.codex/hooks/rill.py{% endif %}"
+  - "{% if preserve_rill_skills %}.agents/skills/rill-*/*{% endif %}"
 _envops:
   variable_start_string: "[["
   variable_end_string: "]]"
   keep_trailing_newline: true
+
+# Deterministic preflight values: set from the target's existing files.
+# Copier persists these choices so upgrades never silently change ownership.
+# For legacy installs lacking these answers, conservative true is mandatory.
+# The deterministic Rill installer explicitly sets false for new owned files.
+preserve_agent_entry:
+  type: bool
+  default: true
+  help: "True when target AGENTS.md already exists and is consumer-owned."
+preserve_codex_roles:
+  type: bool
+  default: true
+  help: "True when target native Codex config/roles already exist."
+preserve_hook_config:
+  type: bool
+  default: true
+  help: "True when target native Hook config/handler already exists."
+preserve_rill_skills:
+  type: bool
+  default: true
+  help: "True when target already owns a skill in the Rill namespace."
 
 project_name:
   type: str

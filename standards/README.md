@@ -28,14 +28,48 @@ Do not edit an owner's real external repository merely because its path
 or URL was mentioned. For approved development, use a dedicated clean
 Git branch or isolated worktree; do not overwrite uncommitted work.
 
+The executable source preflight `tools/adopt_rill.py` derives native
+ownership flags from the actual target before invoking pinned Copier.
+The default invocation prints a JSON plan without modifying the target.
+With `--apply`, it copies the tested Rill distribution only after the
+target is an empty new directory or a clean existing Git root. It rejects
+a dirty worktree and never silently changes preserved product-owned
+Codex files. Example for an authorized reviewed release:
+
+```sh
+python3 tools/adopt_rill.py <target> --source <rill-source> \
+  --ref <reviewed-tag> --data project_name=<product> --apply
+```
+
+A source copy ends with `COPIED_NOT_VERIFIED`; agents must separately
+prove effective native registration, authorization, product behavior,
+CI, review and GitHub issue binding.
+
+Rill's Hook adapter uses the Python 3.11+ standard library; the
+authorized host must provide that runtime. During upgrades from a
+pre-distribution Rill release, previously absent ownership answers
+default to **preserve**. This deliberately blocks implicit overwrite
+of consumer-native roles and instructions. Only an inspected,
+explicitly verified native upgrade may change ownership for
+Rill-managed files. Never hand-edit Copier's answers file.
+
 For a new repository, after verifying a specific reviewed Rill tag,
 Copier accepts its source checkout or authenticated Git URL:
 
 ```sh
 mise exec --locked pypi:copier -- copier copy --defaults \
   --vcs-ref <reviewed-tag> \
+  --data preserve_agent_entry=false \
+  --data preserve_codex_roles=false \
+  --data preserve_hook_config=false \
+  --data preserve_rill_skills=false \
   --data project_name=<product> <rill-source> <new-target>
 ```
+
+Do not omit these explicit ownership flags in a raw new-repository
+copy: its conservative defaults intentionally preserve files when
+an older installed project upgrades. Prefer the ownership-aware
+installer above so the flags are determined and recorded automatically.
 
 The template's initial defaults enable all four stacks as a strict
 _questionnaire_, not evidence that all four stacks exist. Set the real
@@ -53,13 +87,41 @@ Copier does **not** rewrite the target's app scripts or install new
 product packages; the agent must integrate the maintained native
 quality tools with the real application.
 
-The generated files have distinct authority:
+The generated files have distinct authority. The Rill agent runtime is
+distributed as files, not recreated by each new model:
 
 | File                                 | Purpose              |
 | ------------------------------------ | -------------------- |
 | `.rill/copier-answers.yml`           | Source/ref/answers   |
 | `.rill/STANDARD.md`                  | Stack requirements   |
 | `.github/workflows/rill-quality.yml` | PR checks and audits |
+
+The runtime additionally installs `AGENTS.md` for new projects,
+`.codex/config.toml`, five role definitions under `.codex/agents/`,
+trusted-on-review hook registrations at `.codex/hooks.json`,
+executable hook handlers at `.codex/hooks/rill.py`, and four reusable
+Skills under `.agents/skills/`. These are versioned, executable
+project capabilities rather than instructions to rewrite Rill.
+
+Existing `AGENTS.md`, `.codex/config.toml` and
+`.codex/hooks.json` are **not overwritten**. If an existing file lacks
+Rill capabilities, `python3 .codex/hooks/rill.py status` reports a
+reviewed-integration blocker; the responsible agent must merge the
+non-conflicting native settings, preserve product-specific policy and
+verify effective loading. Never silently call such a project enrolled.
+
+Codex project hooks require native trust review and may be skipped in
+untrusted repositories. Their installed command handler does not bypass
+upstream approval policy. `SessionStart` re-reads the product checkout
+and actual native GitHub parent; `SubagentStart` provides scoped
+evidence expectations; `PostToolUse` checks actual Git whitespace;
+`Stop` permits at most one correction turn for deterministic
+`git diff --check` failures. Hooks do not schedule new sessions and
+cannot replace CI. The optional upstream documentation MCP
+(`openaiDeveloperDocs`) is read-only; this does not prove it is
+connected or used. Background execution requires a separately
+approved GitHub event runner or supported native automation with
+its own scoped permission/cost controls.
 
 `github_parent_issue` is an optional numeric pointer to the actual
 native engineering parent of the target repository. The generated

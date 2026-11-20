@@ -13,6 +13,12 @@ Official references:
 [Codex config](https://learn.chatgpt.com/docs/config-file/config-reference),
 [Claude Code subagents](https://claude.com/resources/articles/subagents-in-claude-code).
 
+The Copier consumer distribution now includes project-scoped
+`.codex/config.toml`, all five `.codex/agents/*.toml`, a Rill
+`AGENTS.md` entry for new repositories and reusable Skills. Existing
+consumer configs are preserved until reviewed; installed files never
+certify that a delegated task actually ran under the declared model.
+
 ## Roles
 
 | Role          | Work                                                                      | Required handoff                                          |
