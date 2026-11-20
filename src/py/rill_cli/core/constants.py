@@ -103,3 +103,6 @@ FLEET_MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 FLEET_COMMAND_TIMEOUT_SECONDS = 30
 FLEET_RESOURCE_NAMESPACE = "codex"
 FLEET_REGISTRY_NAMESPACE = "data"
+
+# Fixture-only display versions; authoritative Rill version remains package metadata.
+FLEET_DEMO_VERSIONS = ("1.0.0", "1.1.0", "2.0.0")
