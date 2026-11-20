@@ -2,6 +2,7 @@
 
 import hashlib
 import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -17,9 +18,11 @@ from .governance_contract import (
     DefectRecord,
     Disposition,
     FrozenContract,
+    IsolationEvidence,
+    Severity,
     schema_digest,
 )
-from .governance_engine import GovernanceEngine
+from .governance_engine import GovernanceEngine, RecoveryOutcome
 
 
 def _safe_source(root: Path, relative: str) -> Path:
@@ -44,16 +47,31 @@ def _contract_oid(root: Path, relative: str, *, index: bool = False) -> str:
         payload = "\0".join(f"{name}\0{oid}" for name, oid in entries)
         return hashlib.sha256(payload.encode()).hexdigest()
     if index:
-        indexed = git(root, "rev-parse", f":{relative}", check=False)
-        if indexed.returncode:
-            raise PermissionError(f"Untracked or removed L1 contract: {relative}")
-        return indexed.stdout.strip()
+        return _staged_file_identity(root, relative)
+    return _working_file_identity(root, target, relative)
+
+
+def _file_identity(mode: str, oid: str) -> str:
+    return hashlib.sha256(f"{mode}:{oid}".encode()).hexdigest()
+
+
+def _staged_file_identity(root: Path, relative: str) -> str:
+    staged = git(root, "ls-files", "--stage", "--", relative).stdout.splitlines()
+    if len(staged) != 1 or "\t" not in staged[0]:
+        raise PermissionError(f"Untracked or unmerged L1 contract: {relative}")
+    head, staged_path = staged[0].split("\t", maxsplit=1)
+    mode, oid, stage = head.split()
+    if staged_path != relative or stage != "0":
+        raise PermissionError(f"Ambiguous staged L1 contract: {relative}")
+    return _file_identity(mode, oid)
+
+
+def _working_file_identity(root: Path, target: Path, relative: str) -> str:
     if not target.is_file():
         raise PermissionError(f"Missing L1 contract file: {relative}")
     oid = git(root, "hash-object", "--", relative).stdout.strip()
-    if not oid:
-        raise ValueError(f"Could not hash L1 contract: {relative}")
-    return oid
+    mode = "100755" if target.stat().st_mode & 0o111 else "100644"
+    return _file_identity(mode, oid)
 
 
 def freeze_contracts(engine: GovernanceEngine, paths: list[str]) -> FrozenContract:
@@ -154,6 +172,7 @@ class RepairWorkspace:
         *,
         expected_checkout: Path | None = None,
         expected_attempt: int | None = None,
+        isolation: IsolationEvidence | None = None,
     ) -> DefectRecord:
         if evidence.exit_code == 0:
             raise ValueError("Only a failed check may discard a repair worktree")
@@ -176,7 +195,10 @@ class RepairWorkspace:
             restored = False
         result = (
             self.engine.record_failure_for_attempt(
-                self.identity, evidence, expected_attempt, recovered=restored
+                self.identity,
+                evidence,
+                expected_attempt,
+                RecoveryOutcome(recovered=restored, isolation=isolation),
             )
             if expected_attempt is not None
             else self.engine.record_failure(self.identity, evidence, recovered=restored)
@@ -185,17 +207,77 @@ class RepairWorkspace:
             raise PermissionError("Repair rollback unverified; further attempts blocked")
         return result
 
-    def run_check(self, argv: list[str]) -> AttemptEvidence:
+    def run_check(
+        self,
+        argv: list[str],
+        *,
+        isolate_test: str | None = None,
+        isolation_rationale: str | None = None,
+    ) -> AttemptEvidence:
         """Run native check without a shell; failure automatically rolls back."""
-        if not argv:
-            raise ValueError("A verification command is required")
+        self._validate_check_intent(argv, isolate_test, isolation_rationale)
         checkout = self.path()
         attempt = self.engine.load().defects[self.identity].attempt_count
         original_revision = revision(checkout)
         if _dirty(checkout):
             raise PermissionError("Commit repair changes before checking a Git revision")
+        result = self._execute_check(argv, checkout, attempt)
+        if revision(checkout) != original_revision or _dirty(checkout):
+            self.engine.record_failure_for_attempt(
+                self.identity,
+                AttemptEvidence(
+                    revision=original_revision,
+                    command=shlex.join(argv),
+                    exit_code=1,
+                    summary="Repair checkout HEAD or files changed while native check ran",
+                ),
+                attempt,
+                RecoveryOutcome(recovered=False),
+            )
+            raise PermissionError("Repair changed during verification; worktree preserved")
+        lines = (result.stderr + "\n" + result.stdout).splitlines()
+        summary = "\n".join(lines[-MAX_ERROR_LINES:]).strip() or "No command output"
+        evidence = AttemptEvidence(
+            revision=original_revision,
+            command=shlex.join(argv),
+            exit_code=result.returncode,
+            summary=summary[:GOVERNANCE_MAX_EVIDENCE_CHARS],
+        )
+        if result.returncode:
+            isolation = (
+                self._isolation_proof(
+                    checkout, original_revision, isolate_test, isolation_rationale
+                )
+                if isolate_test is not None and isolation_rationale is not None
+                else None
+            )
+            self.abort(
+                evidence,
+                expected_checkout=checkout,
+                expected_attempt=attempt,
+                isolation=isolation,
+            )
+        else:
+            self.engine.record_checked_candidate(self.identity, evidence, expected_attempt=attempt)
+        return evidence
+
+    def _validate_check_intent(
+        self, argv: list[str], isolate_test: str | None, rationale: str | None
+    ) -> None:
+        if not argv:
+            raise ValueError("A verification command is required")
+        if (isolate_test is None) != (rationale is None):
+            raise ValueError("P1 isolation needs both a failing-test identity and rationale")
+        if isolate_test is not None:
+            record = self.engine.load().defects[self.identity]
+            if record.severity != Severity.P1 or record.hard_gate:
+                raise PermissionError("Only noncritical P1 failures may request isolation")
+
+    def _execute_check(
+        self, argv: list[str], checkout: Path, attempt: int
+    ) -> subprocess.CompletedProcess[str]:
         try:
-            result = subprocess.run(  # noqa: S603 - exact argv, never shell=True
+            return subprocess.run(  # noqa: S603 - explicit native argv; no shell
                 argv,
                 cwd=checkout,
                 capture_output=True,
@@ -212,32 +294,44 @@ class RepairWorkspace:
             )
             self.abort(evidence, expected_checkout=checkout, expected_attempt=attempt)
             raise
-        if revision(checkout) != original_revision or _dirty(checkout):
-            self.engine.record_failure_for_attempt(
-                self.identity,
-                AttemptEvidence(
-                    revision=original_revision,
-                    command=shlex.join(argv),
-                    exit_code=1,
-                    summary="Repair checkout HEAD or files changed while native check ran",
-                ),
-                attempt,
-                recovered=False,
+
+    def _isolation_proof(
+        self, checkout: Path, start_head: str, failing_test: str, rationale: str
+    ) -> IsolationEvidence | None:
+        """An actual native full check, not a self-reported zero-exit assertion."""
+        command = [shutil.which("just") or "just", "ci-full"]
+        try:
+            result = subprocess.run(  # noqa: S603 - pinned native Just command
+                command,
+                cwd=checkout,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=GOVERNANCE_TEST_TIMEOUT_SECONDS,
             )
-            raise PermissionError("Repair changed during verification; worktree preserved")
-        lines = (result.stderr + "\n" + result.stdout).splitlines()
-        summary = "\n".join(lines[-MAX_ERROR_LINES:]).strip() or "No command output"
-        evidence = AttemptEvidence(
-            revision=original_revision,
-            command=shlex.join(argv),
-            exit_code=result.returncode,
-            summary=summary[:GOVERNANCE_MAX_EVIDENCE_CHARS],
+        except OSError, subprocess.TimeoutExpired:
+            return None
+        if result.returncode or revision(checkout) != start_head or _dirty(checkout):
+            return None
+        return IsolationEvidence(
+            failing_test=failing_test,
+            unaffected_command="just ci-full",
+            unaffected_revision=start_head,
+            unaffected_exit_code=result.returncode,
+            rationale=rationale,
         )
-        if result.returncode:
-            self.abort(evidence, expected_checkout=checkout, expected_attempt=attempt)
-        else:
-            self.engine.record_checked_candidate(self.identity, evidence, expected_attempt=attempt)
-        return evidence
+
+    def _require_full_regression(
+        self, record: DefectRecord, checkout: Path, candidate: str
+    ) -> AttemptEvidence:
+        if not any(item.exit_code == 0 and item.revision == candidate for item in record.evidence):
+            raise PermissionError("No witnessed passing native check for candidate HEAD")
+        regression = self.run_check(["just", "ci-full"])
+        if regression.exit_code != 0:
+            raise PermissionError("Full regression gate failed; repair remains unverified")
+        if revision(checkout) != candidate or regression.revision != candidate:
+            raise PermissionError("Regression gate ran on a different Git revision")
+        return regression
 
     def complete(self) -> DefectRecord:
         """Native feature-branch fast forward after a witnessed passing check."""
@@ -250,20 +344,11 @@ class RepairWorkspace:
         if revision(self.engine.root) != record.baseline_revision:
             raise PermissionError("Owner HEAD changed; concurrent Git work must be preserved")
         candidate = revision(checkout)
-        passed = next(
-            (
-                receipt
-                for receipt in record.evidence
-                if receipt.exit_code == 0 and receipt.revision == candidate
-            ),
-            None,
-        )
-        if passed is None:
-            raise PermissionError("No witnessed passing native check for candidate HEAD")
+        regression = self._require_full_regression(record, checkout, candidate)
         protect_branch(self.engine.root)
         git(self.engine.root, "merge", "--ff-only", "--no-overwrite-ignore", candidate)
         try:
-            final = self.engine.record_success(self.identity, passed)
+            final = self.engine.record_success(self.identity, regression)
         except Exception:
             if revision(self.engine.root) == candidate and not _dirty(self.engine.root):
                 git(self.engine.root, "reset", "--keep", record.baseline_revision)

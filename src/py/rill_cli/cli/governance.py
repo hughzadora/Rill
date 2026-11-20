@@ -131,6 +131,8 @@ def check(
     ctx: typer.Context,
     identity: str,
     path: Path = typer.Option(Path("."), "--repo"),  # noqa: B008 - Typer API
+    isolate_test: str | None = typer.Option(None, "--isolate-test"),
+    isolation_rationale: str | None = typer.Option(None, "--isolation-rationale"),
 ) -> None:
     """Run an argv-only test in the owned checkout; failure rolls it back."""
     from rill_cli.core.governance_git import RepairWorkspace  # noqa: PLC0415
@@ -141,7 +143,11 @@ def check(
     if not command:
         raise typer.BadParameter("Provide a native command after --")
     try:
-        receipt = RepairWorkspace(GovernanceEngine(path), identity).run_check(command)
+        receipt = RepairWorkspace(GovernanceEngine(path), identity).run_check(
+            command,
+            isolate_test=isolate_test,
+            isolation_rationale=isolation_rationale,
+        )
         typer.echo(receipt.model_dump_json())
         if receipt.exit_code:
             raise typer.Exit(1)
@@ -165,13 +171,21 @@ def abort(
     _authorize(yes)
     try:
         worker = RepairWorkspace(GovernanceEngine(path), identity)
+        selected = worker.engine.load().defects[identity]
+        checkout = worker.path()
         receipt = AttemptEvidence(
-            revision=revision(worker.path()),
+            revision=revision(checkout),
             command="rill governance abort",
             exit_code=1,
             summary="Owner cancelled attempt; no test result claimed",
         )
-        typer.echo(worker.abort(receipt).model_dump_json())
+        typer.echo(
+            worker.abort(
+                receipt,
+                expected_checkout=checkout,
+                expected_attempt=selected.attempt_count,
+            ).model_dump_json()
+        )
     except (OSError, ValueError, PermissionError, KeyError, subprocess.SubprocessError) as exc:
         errors.print(f"BLOCKED: {exc}", style="red")
         raise typer.Exit(1) from exc

@@ -9,7 +9,7 @@ import pytest
 from rill_cli.core import governance_git
 from rill_cli.core.git_policy import git, revision
 from rill_cli.core.governance_contract import AttemptEvidence, DefectRecord, Disposition, Severity
-from rill_cli.core.governance_engine import GovernanceEngine
+from rill_cli.core.governance_engine import GovernanceEngine, RecoveryOutcome
 from rill_cli.core.governance_git import RepairWorkspace, check_frozen, freeze_contracts
 
 
@@ -21,6 +21,7 @@ def prepared(tmp_path: Path) -> tuple[Path, GovernanceEngine]:
     (root / "contracts").mkdir()
     (root / "contracts/api.json").write_text('{"type":"object"}\n', encoding="utf-8")
     (root / "README.md").write_text("# Product\n", encoding="utf-8")
+    (root / "justfile").write_text("ci-full:\n    @test -f fixed.txt\n", encoding="utf-8")
     git(root, "add", ".")
     git(
         root,
@@ -165,7 +166,8 @@ def test_successful_committed_repair_merges_only_into_isolated_feature_branch(
     worker = RepairWorkspace(engine, "issue-44")
     checkout = worker.open()
     (checkout / "README.md").write_text("# Fixed product\n", encoding="utf-8")
-    git(checkout, "add", "README.md")
+    (checkout / "fixed.txt").write_text("Verified repair artifact\n", encoding="utf-8")
+    git(checkout, "add", "README.md", "fixed.txt")
     git(
         checkout,
         "-c",
@@ -230,8 +232,108 @@ def test_stale_observation_cannot_affect_later_active_attempt(
             "issue-44",
             failure(root),
             old_attempt,
-            recovered=False,
+            RecoveryOutcome(recovered=False),
         )
     assert new.is_dir()
     assert engine.load().defects["issue-44"].state == Disposition.ATTEMPTING
     worker.abort(failure(new))
+
+
+def test_trivial_green_cannot_verify_unrepaired_p0(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    worker = RepairWorkspace(engine, "issue-44")
+    scratch = worker.open()
+    observed = worker.run_check([sys.executable, "-c", "print('success')"])
+    assert observed.exit_code == 0
+    with pytest.raises(PermissionError, match="Full regression gate failed"):
+        worker.complete()
+    assert not scratch.exists()
+    assert engine.load().defects["issue-44"].state == Disposition.RETRY_ELIGIBLE
+    assert revision(root) == observed.revision
+
+
+def test_l1_frozen_contract_rejects_git_mode_only_changes(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    contract = root / "contracts/api.json"
+    git(root, "update-index", "--chmod=+x", "contracts/api.json")
+    with pytest.raises(PermissionError, match="Staged L1"):
+        check_frozen(engine)
+    git(root, "update-index", "--chmod=-x", "contracts/api.json")
+    contract.chmod(contract.stat().st_mode | 0o111)
+    with pytest.raises(PermissionError, match="Frozen L1"):
+        check_frozen(engine)
+
+
+def test_noncritical_p1_is_quarantined_only_after_real_full_gate_passes(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    (root / "fixed.txt").write_text("Critical business path remains healthy\n", encoding="utf-8")
+    git(root, "add", "fixed.txt")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: verified baseline",
+    )
+    engine.register(
+        DefectRecord(
+            identity="isolatable-edge",
+            severity=Severity.P1,
+            baseline_revision=revision(root),
+            hard_gate=False,
+            root_cause="unrelated optional edge behavior",
+        )
+    )
+    worker = RepairWorkspace(engine, "isolatable-edge")
+    for _ in range(2):
+        checkout = worker.open()
+        failed = worker.run_check(
+            [sys.executable, "-c", "raise SystemExit(5)"],
+            isolate_test="tests/edge/test_optional.py::test_edge",
+            isolation_rationale="Full critical suite passes while optional edge test fails",
+        )
+        assert failed.exit_code == 5
+        assert not checkout.exists()
+    result = engine.load().defects["isolatable-edge"]
+    assert result.state == Disposition.QUARANTINED
+    assert result.isolation is not None
+    assert result.isolation.unaffected_command == "just ci-full"
+    assert "tests/edge/test_optional.py::test_edge" in (root / "TECH_DEBT.md").read_text()
+    with pytest.raises(PermissionError):
+        worker.open()
+
+
+def test_failed_critical_suite_cannot_quarantine_noncritical_p1(
+    prepared: tuple[Path, GovernanceEngine],
+) -> None:
+    root, engine = prepared
+    engine.register(
+        DefectRecord(
+            identity="unsafe-edge",
+            severity=Severity.P1,
+            baseline_revision=revision(root),
+            hard_gate=False,
+            root_cause="edge test failure with critical gate broken",
+        )
+    )
+    worker = RepairWorkspace(engine, "unsafe-edge")
+    for _ in range(2):
+        worker.open()
+        worker.run_check(
+            [sys.executable, "-c", "raise SystemExit(5)"],
+            isolate_test="tests/edge/test_optional.py::test_edge",
+            isolation_rationale="Request isolation only if native critical gate passes",
+        )
+    assert engine.load().defects["unsafe-edge"].state == Disposition.BLOCKED
+    assert not (root / "TECH_DEBT.md").exists()

@@ -5,6 +5,7 @@ import hashlib
 import os
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import fill
 
@@ -30,6 +31,12 @@ from .governance_contract import (
     Severity,
     schema_digest,
 )
+
+
+@dataclass(frozen=True)
+class RecoveryOutcome:
+    recovered: bool
+    isolation: IsolationEvidence | None = None
 
 
 class GovernanceEngine:
@@ -154,8 +161,7 @@ class GovernanceEngine:
         identity: str,
         evidence: AttemptEvidence,
         expected_attempt: int,
-        *,
-        recovered: bool,
+        outcome: RecoveryOutcome,
     ) -> DefectRecord:
         if evidence.exit_code == 0:
             raise ValueError("Failure must contain the actual failing exit code")
@@ -164,7 +170,7 @@ class GovernanceEngine:
             defect = ledger.defects[identity]
             if defect.attempt_count != expected_attempt:
                 raise PermissionError("Stale check cannot alter a later repair attempt")
-            self._apply_failure(defect, evidence, recovered, None)
+            self._apply_failure(defect, evidence, outcome.recovered, outcome.isolation)
 
         return self._update(fail).defects[identity]
 

@@ -19,7 +19,8 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root.mkdir()
     git(root, "init", "-q", "-b", "feat/governance")
     (root / "api.json").write_text('{"schema":true}\n', encoding="utf-8")
-    git(root, "add", "api.json")
+    (root / "justfile").write_text("ci-full:\n    @test -f fixed.txt\n", encoding="utf-8")
+    git(root, "add", "api.json", "justfile")
     git(
         root,
         "-c",
