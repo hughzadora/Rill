@@ -106,6 +106,25 @@ def test_dashboard_and_backup_audit_are_headless(target: FleetEngine) -> None:
     assert json.loads(runner.invoke(app, ["fleet", "backups", "--json"]).stdout) == []
 
 
+def test_dashboard_opens_relative_output_as_absolute_file_uri(
+    target: FleetEngine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    opened: list[str] = []
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fleet_cli.webbrowser, "open", opened.append)
+
+    result = CliRunner().invoke(
+        app,
+        ["--json", "fleet", "dashboard", "--output", "relative.html"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert opened == [(tmp_path / "relative.html").as_uri()]
+    assert (tmp_path / "relative.html").is_file()
+
+
 def test_no_implicit_registry_mutation_for_invalid_release(
     target: FleetEngine, tmp_path: Path
 ) -> None:

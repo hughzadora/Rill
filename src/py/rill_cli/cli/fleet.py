@@ -190,5 +190,5 @@ def dashboard_fleet(
     engine = FleetEngine(data_root=data_root) if data_root is not None else _engine()
     page = _run(lambda: dashboard.render_fleet(engine, demo=demo, output_path=output))
     if not no_open:
-        webbrowser.open(page.as_uri())
+        webbrowser.open(page.resolve().as_uri())
     _emit(ctx, {"dashboard": str(page)}, f"Fleet dashboard: {page}")

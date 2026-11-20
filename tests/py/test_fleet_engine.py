@@ -22,24 +22,41 @@ def engine(tmp_path: Path) -> FleetEngine:
     return FleetEngine(data_root=tmp_path / "xdg-data", codex_root=tmp_path / "home/.codex")
 
 
-def bundle(tmp_path: Path, *, version: str = "1.0.0", payload: bytes = b"# Skill\n") -> Path:
+def bundle(
+    tmp_path: Path,
+    *,
+    version: str = "1.0.0",
+    payload: bytes = b"# Skill\n",
+    extra_file: bool = False,
+    extra_payload: bytes = b"# Added in v2\n",
+) -> Path:
     root = tmp_path / f"asset-{version}"
     root.mkdir()
     source = root / "contents/SKILL.md"
     source.parent.mkdir()
     source.write_bytes(payload)
+    files = [
+        AssetFile(
+            source="contents/SKILL.md",
+            target="skills/demo/SKILL.md",
+            sha256=hashlib.sha256(payload).hexdigest(),
+        )
+    ]
+    if extra_file:
+        (root / "contents/EXTRA.md").write_bytes(extra_payload)
+        files.append(
+            AssetFile(
+                source="contents/EXTRA.md",
+                target="skills/demo/EXTRA.md",
+                sha256=hashlib.sha256(extra_payload).hexdigest(),
+            )
+        )
     manifest = AgentAssetManifest(
         id="demo-skill",
         name="Demo skill",
         kind="skill",
         version=version,
-        files=[
-            AssetFile(
-                source="contents/SKILL.md",
-                target="skills/demo/SKILL.md",
-                sha256=hashlib.sha256(payload).hexdigest(),
-            )
-        ],
+        files=files,
     )
     (root / FLEET_ASSET_MANIFEST).write_text(manifest.model_dump_json(), encoding="utf-8")
     return root
@@ -216,8 +233,265 @@ def test_repaired_global_config_has_byte_exact_backup(engine: FleetEngine, tmp_p
     assert target.read_bytes() == original
     backup = engine.audit_records()[-1].backup_id
     assert backup is not None
-    engine.rollback(backup)
+    undo = engine.rollback(backup)
     assert target.read_bytes() == b"External configuration drift\n"
+    engine.rollback(undo)
+    assert target.read_bytes() == original
+    assert (
+        engine.load().assets[0].file_hashes["config.toml"] == hashlib.sha256(original).hexdigest()
+    )
+
+
+def test_repair_of_one_asset_is_not_blocked_by_unrelated_drift(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    selected = engine.install_bundle(bundle(tmp_path))
+    engine.install_bundle(secondary_bundle(tmp_path))
+    selected_path = engine.codex_root / "skills/demo/SKILL.md"
+    independent_path = engine.codex_root / "skills/independent/SKILL.md"
+    independent_path.write_bytes(b"Unrelated external drift\n")
+
+    repaired = engine.repair_asset(selected.id)
+
+    assert repaired.id == selected.id
+    assert selected_path.read_bytes() == b"# Skill\n"
+    assert independent_path.read_bytes() == b"Unrelated external drift\n"
+
+
+def test_repair_rollback_restores_originally_absent_target(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.unlink()
+
+    engine.repair_asset(installed.id)
+    backup = engine.audit_records()[-1].backup_id
+    assert backup is not None
+
+    engine.rollback(backup)
+
+    assert not target.exists()
+
+
+def test_repair_rollback_preserves_later_changes_to_unrelated_assets(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    selected = engine.install_bundle(bundle(tmp_path))
+    engine.install_bundle(secondary_bundle(tmp_path))
+    selected_path = engine.codex_root / "skills/demo/SKILL.md"
+    selected_path.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(selected.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    later = secondary_bundle(tmp_path, version="2.0.0", payload=b"# Independent v2\n")
+    engine.upgrade_bundle(later)
+
+    engine.rollback(repair_backup)
+
+    independent = next(asset for asset in engine.load().assets if asset.id == "independent-skill")
+    independent_path = engine.codex_root / "skills/independent/SKILL.md"
+    assert independent.version == "2.0.0"
+    assert independent_path.read_bytes() == b"# Independent v2\n"
+    assert selected_path.read_bytes() == b"External drift before repair\n"
+
+
+def test_repair_snapshot_provenance_survives_multiple_undo_generations(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+
+    undo_repair = engine.rollback(repair_backup)
+    undo_undo = engine.rollback(undo_repair)
+    undo_repair_again = engine.rollback(undo_undo)
+
+    assert target.read_bytes() == b"External drift before repair\n"
+    engine.rollback(undo_repair_again)
+    assert target.read_bytes() == b"# Skill\n"
+
+
+def test_repair_rollback_rejects_path_reowned_after_asset_retirement(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    engine.retire_asset(installed.id)
+    engine.install_bundle(replacement_bundle(tmp_path))
+    replacement = target.read_bytes()
+    registry = engine.load()
+
+    with pytest.raises(PermissionError, match="no longer registered"):
+        engine.rollback(repair_backup)
+
+    assert target.read_bytes() == replacement
+    assert engine.load() == registry
+
+
+def test_repair_rollback_and_undo_preserve_files_added_by_upgrade(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+
+    undo = engine.rollback(repair_backup)
+
+    assert target.read_bytes() == b"External drift before repair\n"
+    assert extra.read_bytes() == b"# Added in v2\n"
+    assert engine.load().assets[0].version == "2.0.0"
+    engine.rollback(undo)
+    assert target.read_bytes() == b"# Skill\n"
+    assert extra.read_bytes() == b"# Added in v2\n"
+    assert engine.load().assets[0].version == "2.0.0"
+
+
+def test_repair_undo_rejects_new_owner_of_later_upgrade_path(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    undo = engine.rollback(repair_backup)
+    redo = engine.rollback(undo)
+    engine.upgrade_bundle(bundle(tmp_path, version="3.0.0"))
+    engine.install_bundle(replacement_bundle(tmp_path, target="skills/demo/EXTRA.md"))
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+    replacement = extra.read_bytes()
+    registry = engine.load()
+
+    with pytest.raises(PermissionError, match="owned by another registered asset"):
+        engine.rollback(redo)
+
+    assert extra.read_bytes() == replacement
+    assert engine.load() == registry
+
+
+def test_repair_undo_removes_files_added_after_undo_snapshot(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    undo = engine.rollback(repair_backup)
+    redo = engine.rollback(undo)
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+
+    engine.rollback(redo)
+
+    assert target.read_bytes() == b"External drift before repair\n"
+    assert not extra.exists()
+    assert engine.load().assets[0].version == "1.0.0"
+
+
+def test_repair_undo_preserves_drifted_file_added_after_snapshot(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    undo = engine.rollback(repair_backup)
+    redo = engine.rollback(undo)
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+    extra.write_bytes(b"Concurrent edit\n")
+    registry = engine.load()
+
+    with pytest.raises(PermissionError, match="target has drifted"):
+        engine.rollback(redo)
+
+    assert extra.read_bytes() == b"Concurrent edit\n"
+    assert engine.load() == registry
+
+
+def test_repair_rollback_undo_preserves_drifted_later_file(
+    engine: FleetEngine, tmp_path: Path
+) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+    extra.write_bytes(b"Concurrent edit\n")
+
+    undo = engine.rollback(repair_backup)
+
+    assert target.read_bytes() == b"External drift before repair\n"
+    assert extra.read_bytes() == b"Concurrent edit\n"
+    engine.rollback(undo)
+    assert target.read_bytes() == b"# Skill\n"
+    assert extra.read_bytes() == b"Concurrent edit\n"
+    assert engine.load().assets[0].version == "2.0.0"
+
+
+def test_repair_undo_rejects_later_managed_hash_change(engine: FleetEngine, tmp_path: Path) -> None:
+    installed = engine.install_bundle(bundle(tmp_path))
+    target = engine.codex_root / "skills/demo/SKILL.md"
+    target.write_bytes(b"External drift before repair\n")
+    engine.repair_asset(installed.id)
+    repair_backup = engine.audit_records()[-1].backup_id
+    assert repair_backup is not None
+    engine.upgrade_bundle(bundle(tmp_path, version="2.0.0", extra_file=True))
+    undo = engine.rollback(repair_backup)
+    redo = engine.rollback(undo)
+    engine.upgrade_bundle(
+        bundle(
+            tmp_path,
+            version="3.0.0",
+            extra_file=True,
+            extra_payload=b"# Changed in v3\n",
+        )
+    )
+    extra = engine.codex_root / "skills/demo/EXTRA.md"
+    upgraded_bytes = extra.read_bytes()
+    registry = engine.load()
+
+    with pytest.raises(PermissionError, match="registration changed"):
+        engine.rollback(redo)
+
+    assert extra.read_bytes() == upgraded_bytes
+    assert engine.load() == registry
+
+
+def test_symlinked_codex_home_is_rejected_before_root_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    actual = tmp_path / "actual-codex"
+    actual.mkdir()
+    alias = tmp_path / "codex-alias"
+    alias.symlink_to(actual, target_is_directory=True)
+    monkeypatch.setenv("CODEX_HOME", str(alias))
+    engine = FleetEngine(data_root=tmp_path / "data")
+
+    with pytest.raises(PermissionError, match="root is a symlink"):
+        engine.install_bundle(bundle(tmp_path))
 
 
 def test_release_archive_rejects_path_traversal(engine: FleetEngine, tmp_path: Path) -> None:
@@ -503,21 +777,47 @@ def test_rollback_and_retire_approval_invalidates_after_new_registration(
     assert not engine.load().projects
 
 
-def secondary_bundle(tmp_path: Path) -> Path:
+def secondary_bundle(
+    tmp_path: Path,
+    *,
+    version: str = "1.0.0",
+    payload: bytes = b"# Independent skill\n",
+) -> Path:
     """A separate installed owner, to test whole-fleet snapshot coverage."""
     root = tmp_path / "separate-owner"
     root.mkdir(exist_ok=True)
-    contents = b"# Independent skill\n"
-    (root / "SKILL.md").write_bytes(contents)
+    (root / "SKILL.md").write_bytes(payload)
     manifest = AgentAssetManifest(
         id="independent-skill",
         name="Independent skill",
+        kind="skill",
+        version=version,
+        files=[
+            AssetFile(
+                source="SKILL.md",
+                target="skills/independent/SKILL.md",
+                sha256=hashlib.sha256(payload).hexdigest(),
+            )
+        ],
+    )
+    (root / FLEET_ASSET_MANIFEST).write_text(manifest.model_dump_json())
+    return root
+
+
+def replacement_bundle(tmp_path: Path, *, target: str = "skills/demo/SKILL.md") -> Path:
+    root = tmp_path / "replacement-owner"
+    root.mkdir()
+    contents = b"# Replacement skill\n"
+    (root / "SKILL.md").write_bytes(contents)
+    manifest = AgentAssetManifest(
+        id="replacement-skill",
+        name="Replacement skill",
         kind="skill",
         version="1.0.0",
         files=[
             AssetFile(
                 source="SKILL.md",
-                target="skills/independent/SKILL.md",
+                target=target,
                 sha256=hashlib.sha256(contents).hexdigest(),
             )
         ],
