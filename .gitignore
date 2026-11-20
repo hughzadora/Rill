@@ -34,3 +34,8 @@ mise.local.toml
 # Mutation testing output (generated, never committed)
 .stryker-tmp/
 mutants/
+
+# Local Rill execution anchors
+.rill/state.json
+.rill/symbols.txt
+.rill/last-error.log

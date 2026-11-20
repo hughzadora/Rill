@@ -1,53 +1,10 @@
 {
-  "description": "Opt-in, reviewed Rill lifecycle hooks for the current repository.",
+  "description": "Rill CLI lifecycle; requires trusted globally installed rill binary",
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|compact|fork",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" start",
-            "timeout": 12,
-            "additionalContextLimit": 1200
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" subagent",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "apply_patch|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" check",
-            "timeout": 5,
-            "async": true
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/rill.py\" stop",
-            "timeout": 8
-          }
-        ]
-      }
-    ]
+    "SessionStart": [{"hooks": [{"type": "command", "command": "command -v rill >/dev/null 2>&1 && rill hook session-start || true", "timeout": 5}]}],
+    "PreCompact": [{"hooks": [{"type": "command", "command": "command -v rill >/dev/null 2>&1 && rill hook pre-compact || true", "timeout": 12}]}],
+    "PreToolUse": [{"matcher": "apply_patch|Edit|Write", "hooks": [{"type": "command", "command": "command -v rill >/dev/null 2>&1 && rill hook pre-tool-use", "timeout": 5}]}],
+    "PostToolUse": [{"matcher": "apply_patch|Edit|Write", "hooks": [{"type": "command", "command": "command -v rill >/dev/null 2>&1 && rill hook post-tool-use || true", "timeout": 5}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "command -v rill >/dev/null 2>&1 && rill hook stop || true", "timeout": 5}]}]
   }
 }

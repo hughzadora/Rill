@@ -1,0 +1,1 @@
+"""Embedded distribution metadata."""

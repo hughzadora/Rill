@@ -1,12 +1,10 @@
 _min_copier_version: "9.19.1"
-_subdirectory: standards/template
 _answers_file: .rill/copier-answers.yml
 _skip_if_exists:
   - "{% if preserve_agent_entry %}AGENTS.md{% endif %}"
   - "{% if preserve_codex_roles %}.codex/config.toml{% endif %}"
   - "{% if preserve_codex_roles %}.codex/agents/*{% endif %}"
   - "{% if preserve_hook_config %}.codex/hooks.json{% endif %}"
-  - "{% if preserve_hook_config %}.codex/hooks/rill.py{% endif %}"
   - "{% if preserve_rill_skills %}.agents/skills/rill-*/*{% endif %}"
 _envops:
   variable_start_string: "[["

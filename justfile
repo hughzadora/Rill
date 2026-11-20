@@ -196,11 +196,20 @@ verify-tests:
 # Rill's distributed factory is a product of the same #39 CI, not a
 # competing workspace-level quality framework.
 factory-ci:
-    mise exec --locked -- ruff check tools/adopt_rill.py standards/template/.codex/hooks/rill.py
-    mise exec --locked -- ruff format --check tools/adopt_rill.py standards/template/.codex/hooks/rill.py
+    mise exec --locked -- ruff check src/py/rill_cli tests/py
+    mise exec --locked -- ruff format --check src/py/rill_cli tests/py
+    mise exec --locked -- uv run pytest -n 0 tests/py
     mise exec --locked -- pnpm --dir apps/console run typecheck
     mise exec --locked -- pnpm --dir apps/console run test:coverage
     mise exec --locked -- pnpm --dir apps/console run build
     mise exec --locked -- node --test tests/preview.test.mjs
     mise exec --locked -- node --test tests/standard-adoption.test.mjs
     mise exec --locked -- pnpm exec playwright test -c playwright.console.config.mjs
+
+# Standalone directory-mode executable with embedded Copier template assets.
+build-cli:
+    mise exec --locked -- uv run pyinstaller --noconfirm --clean --specpath build --onedir --name rill --paths src/py --collect-all copier --collect-all rich --collect-all typer --collect-all jinja2_ansible_filters --add-data "standards/template:rill_cli/template" src/py/rill_cli/__main__.py
+
+check-fast:
+    mise exec --locked -- ruff check src/py/rill_cli tests/py
+    mise exec --locked -- uv run pytest -n 0 tests/py

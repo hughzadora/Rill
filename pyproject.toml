@@ -1,8 +1,16 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [project]
-name = "rill-local-quality"
-version = "0.1.0"
+name = "rill-cli"
+version = "0.2.0"
+description = "Standalone Rill software factory CLI"
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = ["typer>=0.19", "rich>=14", "copier>=9.19.1"]
+
+[project.scripts]
+rill = "rill_cli.cli.app:app"
 
 [dependency-groups]
 dev = [
@@ -12,20 +20,22 @@ dev = [
   "pytest-cov",
   "pytest-xdist",
   "mutmut>=3.2.0",
+  "pyinstaller>=6.17",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/py/rill_cli"]
+
+[tool.hatch.build]
+include = ["src/py/rill_cli/**"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"standards/template" = "rill_cli/template"
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-src = [
-  "src/rill_quality",
-  "tests/py",
-  "tests/fixtures/independent-python-shell/services/python/src",
-]
-
-# This distributed Hook invokes the consumer system Python (3.11+).
-[tool.ruff.per-file-target-version]
-"standards/template/.codex/hooks/rill.py" = "py311"
+src = ["src/py", "src/rill_quality", "tests/py"]
 
 [tool.ruff.lint]
 select = [
@@ -55,16 +65,16 @@ max-statements = 50
 "tests/**/*.py" = ["S101", "PLR2004"]
 
 [tool.pyright]
-include = ["src/rill_quality", "tests/py"]
+include = ["src/py/rill_cli", "src/rill_quality", "tests/py"]
 typeCheckingMode = "strict"
 venvPath = "."
 venv = ".venv"
-extraPaths = ["src"]
+extraPaths = ["src", "src/py"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --strict-markers --tb=short"
 testpaths = ["tests/py"]
-pythonpath = ["src"]
+pythonpath = ["src", "src/py"]
 
 [tool.mutmut]
 source_paths = ["src/rill_quality"]

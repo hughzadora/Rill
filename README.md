@@ -1,25 +1,24 @@
-# Rill local quality foundation
+# Rill — standalone software-factory CLI
 
-This repository provides a reproducible four-way local CI foundation for
-TypeScript/React, Python and shell code. It uses upstream tooling and avoids
-custom quality-runner wrappers.
+`rill` is a versioned Typer/Rich CLI with Copier-generated Codex roles,
+Skills, lifecycle Hooks, deterministic local guards and independent product
+quality gates. Its distributable template has one source of truth at
+`standards/template/`, embedded at `rill_cli/template/` during packaging.
 
-## Bootstrap and verify
+## CLI lifecycle
 
-```sh
-just lock
-just setup
-just ci-full
-```
+`rill version`, `rill init PATH --yes`, `rill upgrade PATH --yes`,
+`rill status PATH`, `rill doctor PATH`, `rill hook EVENT`.
 
-Use `just ci` to run incremental checks. Every run includes security and
-repository guardrails. The other three workstreams are selected by changed
-files; shared configuration changes run all workstreams. Selected tasks are
-started concurrently and every failed task makes the aggregate command fail.
+See [INSTALL.md](INSTALL.md) for pinned mise global distribution and
+supported architectures. `just build-cli` creates a standalone onedir
+executable at `dist/rill/rill`. `just check-fast`, `just ci`, and
+`just ci-full` retain their independent native quality checks.
 
-Runtime tool versions are locked by Mise. The current runtime families are
-Node LTS, pnpm 12 and Python 3.14. pnpm and uv separately lock project
-dependencies. The Justfile is the sole CI orchestrator.
+Initial adoption requires a clean Git root or empty directory. Upgrades
+require a clean product worktree and matching hashes of Rill-managed files.
+Rill never silently replaces changes made to managed files. Git Issues,
+Pull Requests and native Codex approvals remain authoritative.
 
 ## React and browser checks
 

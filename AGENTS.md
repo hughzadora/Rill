@@ -5,7 +5,8 @@
 2. **Single source of truth.** Mise manages CLI tool versions and their lock.
    The root justfile owns every CI task. No external orchestration wrappers.
 3. **Standard layout.** Put TypeScript and shell sources in src/ts or src/sh.
-   Use a named Python package in src/rill_quality; tests belong in tests/ts,
+   Use named Python packages in `src/py/rill_cli` and `src/rill_quality`;
+   tests belong in tests/ts,
    tests/py or tests/sh. Browser E2E tests belong in tests/e2e.
 4. **Use upstream libraries.** For Python HTTP use httpx; avoid hand-rolled
    networking or CLI frameworks. Forbid as-any casts, TypeScript ignores,
