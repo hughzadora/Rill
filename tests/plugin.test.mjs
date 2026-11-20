@@ -128,3 +128,40 @@ test("Rill consumer template explicitly opts into bounded Hook context", (t) => 
     /Rill project detected/,
   );
 });
+
+test("Rill consumer entry remains recognized with CRLF checkout line endings", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "rill-crlf-hook-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(join(directory, "PRD.md"), "# Consumer specification\r\n");
+  writeFileSync(
+    join(directory, "AGENTS.md"),
+    read("templates/consumer/AGENTS.md").replaceAll("\n", "\r\n"),
+  );
+  const result = spawnSync(process.execPath, [join(root, "hooks/session-start.mjs")], {
+    cwd: directory,
+    encoding: "utf8",
+    input: JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd: directory }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    JSON.parse(result.stdout).hookSpecificOutput.additionalContext,
+    /Rill project detected/,
+  );
+});
+
+test("unrelated FIFO AGENTS file never blocks a globally installed Hook", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "rill-fifo-hook-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(join(directory, "PRD.md"), "# Generic specification\n");
+  const fifo = join(directory, "AGENTS.md");
+  const mkfifo = spawnSync("mkfifo", [fifo], { encoding: "utf8" });
+  assert.equal(mkfifo.status, 0, mkfifo.stderr);
+  const result = spawnSync(process.execPath, [join(root, "hooks/session-start.mjs")], {
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 1000,
+    input: JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd: directory }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "");
+});

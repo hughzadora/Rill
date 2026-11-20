@@ -1,5 +1,33 @@
-import { existsSync, readFileSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
+
+const FACTORY_ENTRY = "# Rill Agent Entry\n";
+const CONSUMER_ENTRY =
+  "# Consumer Product Agent Entry\n\nThis is the consuming product, not the Rill factory source repository.";
+// The canonical prefix with CRLF is the maximum input we ever need to inspect.
+const ENTRY_BYTES = Buffer.byteLength(CONSUMER_ENTRY.replaceAll("\n", "\r\n"), "utf8");
+
+function isRillProject(cwd) {
+  const entryPath = join(cwd, "AGENTS.md");
+  try {
+    if (!lstatSync(entryPath).isFile()) return false;
+    const fd = openSync(
+      entryPath,
+      constants.O_RDONLY | constants.O_NONBLOCK | (constants.O_NOFOLLOW ?? 0),
+    );
+    try {
+      if (!fstatSync(fd).isFile()) return false;
+      const buffer = Buffer.alloc(ENTRY_BYTES);
+      const count = readSync(fd, buffer, 0, buffer.length, 0);
+      const prefix = buffer.toString("utf8", 0, count).replaceAll("\r\n", "\n");
+      return prefix.startsWith(FACTORY_ENTRY) || prefix.startsWith(CONSUMER_ENTRY);
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+}
 
 let input = "";
 for await (const chunk of process.stdin) {
@@ -12,16 +40,8 @@ try {
   if (payload?.hook_event_name !== "SessionStart" || typeof payload.cwd !== "string") {
     process.exit(0);
   }
-  if (!existsSync(join(payload.cwd, "PRD.md"))) process.exit(0);
-  const agentsPath = join(payload.cwd, "AGENTS.md");
-  if (!existsSync(agentsPath)) process.exit(0);
-  const entry = readFileSync(agentsPath, "utf8");
-  const isRillFactory = entry.startsWith("# Rill Agent Entry\n");
-  const isRillConsumer =
-    entry.startsWith("# Consumer Product Agent Entry\n") &&
-    entry.includes("This is the consuming product, not the Rill factory source repository.");
-  // A generic PRD is not Rill enrollment. Match only Rill's explicit agent entry.
-  if (!isRillFactory && !isRillConsumer) process.exit(0);
+  // Generic product documents are not Rill enrollment.
+  if (!existsSync(join(payload.cwd, "PRD.md")) || !isRillProject(payload.cwd)) process.exit(0);
 
   const additionalContext =
     "Rill project detected. Read AGENTS.md as a router and only targeted FR/NFR lines from PRD.md. " +
