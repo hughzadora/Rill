@@ -29,7 +29,7 @@ from .constants import (
     TEMPLATE_SCHEMA,
     UPGRADE_COMMIT,
 )
-from .git_policy import commit, ensure_branch, head_summary
+from .git_policy import commit, ensure_branch, git, head_summary
 from .state import load, save
 
 
@@ -164,6 +164,42 @@ def _profile_data(
     return {}, values
 
 
+def _project_scope(root: Path) -> list[str]:
+    """Use the validated Copier profile's real package layout, not one fixed src root."""
+    values = _answers(root / COPIER_ANSWERS)
+    workspace = str(values.get("js_workspace", "."))
+    locations = [
+        ("react", workspace, "react_root"),
+        ("node", workspace, "node_root"),
+        ("python", ".", "python_root"),
+        ("shell", ".", "shell_sources"),
+    ]
+    paths: set[str] = set(DEFAULT_SCOPE)
+    for enabled, base, key in locations:
+        if values.get(enabled) is not True:
+            continue
+        relative = Path(base) / str(values.get(key, "."))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"Unsafe Copier task root: {relative}")
+        if relative.parts:
+            paths.add(relative.as_posix().rstrip("/") + "/")
+    return sorted(paths)
+
+
+def _undo_uncommitted_init(root: Path, before: dict[str, str], after: dict[str, str]) -> None:
+    """Only undo unchanged files created by this failed initialization."""
+    added = sorted(set(after) - set(before))
+    if not added:
+        return
+    git(root, "reset", "-q", "--", *added, check=False)
+    for relative in added:
+        path = root / relative
+        if path.is_symlink() or not path.is_file():
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() == after[relative]:
+            path.unlink()
+
+
 def _finalize(
     root: Path,
     state: dict[str, object],
@@ -182,10 +218,18 @@ def _finalize(
             "managed": {name: digest for name, digest in after.items() if name in owned},
         }
     )
-    state.setdefault("task_scope", list(DEFAULT_SCOPE))
-    save(root, state)
+    if not upgrade:
+        state["task_scope"] = _project_scope(root)
+    else:
+        state.setdefault("task_scope", list(DEFAULT_SCOPE))
     changed = [name for name in owned if before.get(name) != after.get(name)]
-    commit(root, UPGRADE_COMMIT if upgrade else INIT_COMMIT, changed)
+    try:
+        commit(root, UPGRADE_COMMIT if upgrade else INIT_COMMIT, changed)
+    except subprocess.CalledProcessError:
+        if not upgrade:
+            _undo_uncommitted_init(root, before, after)
+        raise
+    save(root, state)
 
 
 def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
@@ -198,11 +242,11 @@ def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None)
     root = preflight(path)
     if not upgrade and (root / COPIER_ANSWERS).exists():
         raise ValueError("Already installed: use rill upgrade")
-    ensure_branch(root, upgrade=upgrade, version=__version__)
     before = fingerprint(root)
     state = load(root)
-    state["rollback_head"] = head_summary(root) if upgrade else None
     tracked, values = _profile_data(root, upgrade, supplied, state, before)
+    ensure_branch(root, upgrade=upgrade, version=__version__)
+    state["rollback_head"] = head_summary(root) if upgrade else None
     copier.run_copy(
         src_path=str(source()),
         dst_path=root,
