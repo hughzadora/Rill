@@ -17,7 +17,7 @@ from .constants import (
 from .dashboard import render as render_dashboard
 from .git_policy import branch, check_dirty, head_summary, protect_branch
 from .guardrails import audit, patch_targets, symbols, validate
-from .state import load, record_error, save
+from .state import load, lock_state, record_error, save
 
 
 def _payload() -> dict[str, object]:
@@ -58,9 +58,10 @@ def run(event: str, root: Path) -> int:
         output = root / SYMBOLS_PATH
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(symbols(root), encoding="utf-8")
-        state = load(root)
-        state["last_compact_head"] = head_summary(root)
-        save(root, state)
+        with lock_state(root):
+            state = load(root)
+            state["last_compact_head"] = head_summary(root)
+            save(root, state)
         render_dashboard(root)
         return 0
     if event == "stop":

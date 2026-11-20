@@ -29,7 +29,7 @@ ci:
     pnpm --dir [[ (js_workspace ~ "/" ~ node_root) | tojson ]] run build
 {% endif %}{% if python %}    uv --directory [[ python_root | tojson ]] run --locked ruff check [[ python_sources | tojson ]] [[ python_tests | tojson ]]
     uv --directory [[ python_root | tojson ]] run --locked ruff format --check [[ python_sources | tojson ]] [[ python_tests | tojson ]]
-    uv --directory [[ python_root | tojson ]] run --locked pytest -q --ignore=[[ python_integration | tojson ]] [[ python_tests | tojson ]]
+    uv --directory [[ python_root | tojson ]] run --locked pytest -q --ignore=[[ python_integration | tojson ]] --cov=[[ python_sources | tojson ]] --cov-report=term-missing:skip-covered --cov-fail-under=[[ python_coverage ]] [[ python_tests | tojson ]]
 {% endif %}{% if shell %}    mise exec aqua:koalaman/shellcheck@0.11.0 -- shellcheck --severity=style [[ shell_sources | tojson ]]/*.sh
     mise exec aqua:mvdan/sh@3.14.1 -- shfmt -d -i 2 [[ shell_sources | tojson ]]/*.sh
     mise exec aqua:bats-core/bats-core@1.14.0 -- bats [[ shell_tests | tojson ]]

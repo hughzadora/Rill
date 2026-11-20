@@ -33,7 +33,7 @@ from .constants import (
     UPGRADE_COMMIT,
 )
 from .git_policy import branch, commit, ensure_branch, git, revision
-from .state import load, save
+from .state import load, lock_state, save
 
 
 def source() -> Path:
@@ -253,13 +253,19 @@ def _finalize(
 def _upgrade_in_worktree(
     root: Path,
     state: dict[str, object],
-    tracked: dict[str, object],
-    values: dict[str, object],
+    profile: tuple[dict[str, object], dict[str, object]],
     before: dict[str, str],
+    baseline: tuple[str, str],
 ) -> Path:
     """Native Git worktree isolates Copier, signing and commit failures."""
-    start_head = revision(root)
-    start_branch = branch(root)
+    tracked, values = profile
+    start_head, start_branch = baseline
+    if (
+        revision(root) != start_head
+        or branch(root) != start_branch
+        or git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
+    ):
+        raise RuntimeError("Project changed while preparing upgrade")
     with tempfile.TemporaryDirectory(prefix="rill-upgrade-") as directory:
         scratch = Path(directory) / "checkout"
         git(root, "worktree", "add", "--detach", str(scratch), start_head)
@@ -311,7 +317,7 @@ def _apply_upgraded_commit(
     if (
         revision(root) != start_head
         or branch(root) != start_branch
-        or git(root, "status", "--porcelain", "-z").stdout
+        or git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
     ):
         raise RuntimeError("Project changed while rendering upgrade; no files overwritten")
     created = start_branch in PROTECTED_BRANCHES
@@ -344,14 +350,24 @@ def _prepare_target(path: Path, upgrade: bool, supplied: dict[str, str]) -> Path
     return root
 
 
+def _upgrade_from_root(root: Path, baseline: tuple[str, str]) -> Path:
+    """Render and apply an upgrade while holding the runtime state lock."""
+    before = fingerprint(root)
+    state = load(root)
+    tracked, values = _profile_data(root, True, {}, state, before)
+    return _upgrade_in_worktree(root, state, (tracked, values), before, baseline)
+
+
 def install(path: Path, *, upgrade: bool = False, data: list[str] | None = None) -> Path:
     supplied = select_data(data or [])
     root = _prepare_target(path, upgrade, supplied)
+    if upgrade:
+        with lock_state(root):
+            baseline = (revision(root), branch(root))
+            return _upgrade_from_root(root, baseline)
     before = fingerprint(root)
     state = load(root)
     tracked, values = _profile_data(root, upgrade, supplied, state, before)
-    if upgrade:
-        return _upgrade_in_worktree(root, state, tracked, values, before)
     ensure_branch(root, upgrade=False, version=__version__)
     state["rollback_head"] = None
     copier.run_copy(

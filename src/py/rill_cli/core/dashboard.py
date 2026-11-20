@@ -27,7 +27,7 @@ from .constants import (
 from .fixtures import demo_fleet
 from .fleet import FleetEngine
 from .git_policy import branch, business_changes, git, head_summary, history, revision
-from .state import load, save, write_json
+from .state import load, lock_state, save, write_json
 
 
 def facts(root: Path) -> dict[str, object]:
@@ -45,7 +45,7 @@ def facts(root: Path) -> dict[str, object]:
         loaded = None
     ci = cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
     current_head = git(root, "rev-parse", "--verify", "HEAD", check=False).stdout.strip()
-    dirty = bool(git(root, "status", "--porcelain", "-z").stdout)
+    dirty = bool(git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout)
     if not current_head or ci.get("head") != current_head:
         ci = {"result": "unverified", "reason": "No CI receipt for this Git HEAD"}
     elif dirty and ci.get("result") == "pass":
@@ -91,7 +91,7 @@ def record_ci(root: Path, tier: str, status: str, start_head: str) -> None:
         "recorded_at": datetime.now(tz=UTC).isoformat(),
     }
     if status == "pass":
-        if git(root, "status", "--porcelain", "-z").stdout:
+        if git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout:
             summary["result"] = "unverified"
             summary["reason"] = "Checks passed on uncommitted files; HEAD is not verified"
         else:
@@ -102,9 +102,10 @@ def record_ci(root: Path, tier: str, status: str, start_head: str) -> None:
 def receipt(root: Path, decision: str) -> None:
     if decision not in ALLOWED_DECISIONS:
         raise ValueError("Unsupported owner decision")
-    state = load(root)
-    state["owner_decision"] = decision
-    save(root, state)
+    with lock_state(root):
+        state = load(root)
+        state["owner_decision"] = decision
+        save(root, state)
 
 
 class _ReceiptServer(HTTPServer):

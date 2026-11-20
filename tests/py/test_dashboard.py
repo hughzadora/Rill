@@ -163,3 +163,19 @@ def test_dirty_worktree_cannot_carry_verified_sha(project: Path) -> None:
     summary = json.loads((project / CI_SUMMARY_PATH).read_text(encoding="utf-8"))
     assert summary["last_verified_sha"] == revision(project)
     assert cast("dict[str, object]", facts(project)["ci"])["result"] == "pass"
+
+
+def test_ci_receipt_and_dashboard_see_untracked_source_when_git_hides_it(project: Path) -> None:
+    git(project, "config", "status.showUntrackedFiles", "no")
+    source = project / "src/not_tested.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("value = 1\n", encoding="utf-8")
+
+    record_ci(project, "full", "pass", revision(project))
+
+    summary = json.loads((project / CI_SUMMARY_PATH).read_text(encoding="utf-8"))
+    assert summary["result"] == "unverified"
+    assert "last_verified_sha" not in summary
+    observed = facts(project)
+    assert observed["dirty"] == 1
+    assert cast("dict[str, object]", observed["ci"])["result"] == "unverified"

@@ -2,11 +2,47 @@
 
 import json
 import os
+import shutil
+import subprocess
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
+from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import cast
 
 from .constants import DEFAULT_SCOPE, ERROR_LOG_PATH, SCHEMA_VERSION, STATE_PATH
+
+
+def _lock_path(root: Path) -> Path:
+    result = subprocess.run(  # noqa: S603 - trusted native Git, fixed argument vector
+        [
+            shutil.which("git") or "git",
+            "-C",
+            str(root),
+            "rev-parse",
+            "--git-path",
+            "rill-state.lock",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    path = Path(result.stdout.strip())
+    return path if path.is_absolute() else root / path
+
+
+@contextmanager
+def lock_state(root: Path) -> Generator[None]:
+    """Serialize state read-modify-write operations across CLI, hooks and upgrades."""
+    path = _lock_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as stream:
+        flock(stream.fileno(), LOCK_EX)
+        try:
+            yield
+        finally:
+            flock(stream.fileno(), LOCK_UN)
 
 
 def load(root: Path) -> dict[str, object]:

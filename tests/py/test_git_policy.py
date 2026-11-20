@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from rill_cli.core.constants import MAX_COMMIT_CHURN, MAX_COMMIT_FILES, MAX_DIRTY_FILES
+from rill_cli.core.constants import (
+    COPIER_ANSWERS,
+    MAX_COMMIT_CHURN,
+    MAX_COMMIT_FILES,
+    MAX_DIRTY_FILES,
+)
 from rill_cli.core.git_policy import (
     branch,
     business_changes,
@@ -198,6 +203,69 @@ def test_default_api_package_cannot_bypass_churn_limit(repo: Path) -> None:
     source.write_text("export const api = true;\n" * (MAX_COMMIT_CHURN + 1), encoding="utf-8")
     git(repo, "add", "apps/api/src/index.ts")
     with pytest.raises(PermissionError, match="Atomic business change"):
+        check_staged(repo)
+
+
+def test_custom_profile_paths_are_included_in_atomic_gates(repo: Path) -> None:
+    answers = repo / COPIER_ANSWERS
+    answers.parent.mkdir(parents=True, exist_ok=True)
+    answers.write_text(
+        "react: true\nnode: true\npython: false\nshell: false\n"
+        "js_workspace: frontend\nreact_root: web\nnode_root: api\n",
+        encoding="utf-8",
+    )
+    frontend = repo / "frontend/web/src/App.tsx"
+    backend = repo / "frontend/api/src/server.ts"
+    frontend.parent.mkdir(parents=True)
+    backend.parent.mkdir(parents=True)
+    frontend.write_text("export const app = true;\n", encoding="utf-8")
+    backend.write_text("export const api = true;\n", encoding="utf-8")
+
+    git(repo, "add", "frontend/web", "frontend/api")
+
+    with pytest.raises(PermissionError, match="Backend and frontend"):
+        check_staged(repo)
+
+
+def test_custom_profile_paths_enforce_dirty_file_limit(repo: Path) -> None:
+    answers = repo / COPIER_ANSWERS
+    answers.parent.mkdir(parents=True, exist_ok=True)
+    answers.write_text(
+        "react: true\nnode: false\npython: false\nshell: false\n"
+        "js_workspace: frontend\nreact_root: web\n",
+        encoding="utf-8",
+    )
+    root = repo / "frontend/web/src"
+    root.mkdir(parents=True)
+    for index in range(MAX_DIRTY_FILES + 1):
+        (root / f"app-{index}.tsx").write_text("export {};\n", encoding="utf-8")
+
+    with pytest.raises(PermissionError, match="ATOMIC GATE BLOCKED"):
+        check_dirty(repo)
+
+
+def test_overlapping_profile_roots_classify_single_language_commits(repo: Path) -> None:
+    answers = repo / COPIER_ANSWERS
+    answers.parent.mkdir(parents=True, exist_ok=True)
+    answers.write_text(
+        "react: true\nnode: false\npython: true\nshell: false\n"
+        "js_workspace: .\nreact_root: .\npython_root: .\npython_sources: src\n",
+        encoding="utf-8",
+    )
+    frontend = repo / "src/App.tsx"
+    backend = repo / "src/py/service.py"
+    frontend.parent.mkdir(parents=True)
+    backend.parent.mkdir(parents=True)
+    frontend.write_text("export const app = true;\n", encoding="utf-8")
+    backend.write_text("value = True\n", encoding="utf-8")
+
+    git(repo, "add", "src/App.tsx")
+    check_staged(repo)
+    git(repo, "reset", "--quiet")
+    git(repo, "add", "src/py/service.py")
+    check_staged(repo)
+    git(repo, "add", "src/App.tsx")
+    with pytest.raises(PermissionError, match="Backend and frontend"):
         check_staged(repo)
 
 

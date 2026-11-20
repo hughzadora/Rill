@@ -4,10 +4,14 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import cast
+
+import yaml
 
 from .constants import (
     BACKEND_PATH_PREFIXES,
     BRANCH_PREFIXES,
+    COPIER_ANSWERS,
     DISABLED_GIT_HOOKS,
     FALLBACK_GIT_AUTHOR,
     FALLBACK_GIT_EMAIL,
@@ -77,13 +81,72 @@ def changed_paths(root: Path, *, staged: bool = False) -> list[str]:
 
 
 def is_business(path: str) -> bool:
-    return path.startswith(
-        ("src/", *FRONTEND_PATH_PREFIXES, *BACKEND_PATH_PREFIXES)
-    ) and not path.startswith(("src/ts/__tests__/", "src/py/tests/"))
+    return _is_business_path(path, FRONTEND_PATH_PREFIXES, BACKEND_PATH_PREFIXES)
+
+
+def _is_business_path(path: str, frontend: tuple[str, ...], backend: tuple[str, ...]) -> bool:
+    prefixes = ("src/", *frontend, *backend)
+    excluded = ("src/ts/__tests__/", "src/py/tests/")
+    return path.startswith(prefixes) and not path.startswith(excluded)
+
+
+def _business_classification(
+    path: str, frontend: tuple[str, ...], backend: tuple[str, ...]
+) -> tuple[bool, bool, bool]:
+    front = [len(prefix) for prefix in frontend if path.startswith(prefix)]
+    back = [len(prefix) for prefix in backend if path.startswith(prefix)]
+    if not front and not back:
+        return False, False, False
+    if max(front, default=0) > max(back, default=0):
+        return True, True, False
+    if max(back, default=0) > max(front, default=0):
+        return True, False, True
+    suffix = Path(path).suffix.lower()
+    if suffix == ".py":
+        return True, False, True
+    if suffix in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue", ".svelte"}:
+        return True, True, False
+    return True, True, True
+
+
+def _profile_prefix(workspace: str, name: object) -> str:
+    relative = Path(workspace) / str(name)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"Unsafe product business root: {relative}")
+    if not relative.parts or relative == Path("."):
+        return "src/"
+    return relative.as_posix().rstrip("/") + "/"
+
+
+def _business_prefixes(root: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    answers_path = root / COPIER_ANSWERS
+    if not answers_path.is_file():
+        return ("src/", *FRONTEND_PATH_PREFIXES), ("src/", *BACKEND_PATH_PREFIXES)
+    loaded: object = yaml.safe_load(answers_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("Invalid Copier profile for atomic business scope")
+    answers = cast("dict[str, object]", loaded)
+    workspace = str(answers.get("js_workspace", "."))
+    frontend = ["src/ts/"]
+    backend = ["src/py/"]
+    if answers.get("react") is True:
+        frontend.append(_profile_prefix(workspace, answers.get("react_root", "apps/web")))
+    if answers.get("node") is True:
+        backend.append(_profile_prefix(workspace, answers.get("node_root", "apps/api")))
+    if answers.get("python") is True:
+        backend.append(
+            _profile_prefix(
+                str(answers.get("python_root", ".")), answers.get("python_sources", "src")
+            )
+        )
+    return tuple(frontend), tuple(backend)
 
 
 def business_changes(root: Path) -> list[str]:
-    return [name for name in changed_paths(root) if is_business(name)]
+    frontend, backend = _business_prefixes(root)
+    return [
+        name for name in changed_paths(root) if _business_classification(name, frontend, backend)[0]
+    ]
 
 
 def protect_branch(root: Path) -> None:
@@ -122,11 +185,16 @@ def _staged_churn(root: Path, business: list[str]) -> int:
 def check_staged(root: Path, *, trusted_detached: bool = False) -> None:
     if not (trusted_detached and branch(root) == "(detached)"):
         protect_branch(root)
-    business = [name for name in changed_paths(root, staged=True) if is_business(name)]
+    frontend, backend = _business_prefixes(root)
+    classified = [
+        (name, *_business_classification(name, frontend, backend))
+        for name in changed_paths(root, staged=True)
+    ]
+    business = [name for name, tracked, _, _ in classified if tracked]
     if len(business) > MAX_COMMIT_FILES:
         raise PermissionError(f"Atomic commit exceeds {MAX_COMMIT_FILES} business files")
-    back = any(name.startswith(BACKEND_PATH_PREFIXES) for name in business)
-    front = any(name.startswith(FRONTEND_PATH_PREFIXES) for name in business)
+    front = any(is_front for _, _, is_front, _ in classified)
+    back = any(is_back for _, _, _, is_back in classified)
     if back and front:
         raise PermissionError("Backend and frontend must use separate commits")
     if _staged_churn(root, business) > MAX_COMMIT_CHURN:

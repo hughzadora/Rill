@@ -649,9 +649,9 @@ test("independent Python/Shell project executes actual source gates and rejects 
   const project = join(sandbox, "new-python-shell");
   cpSync(join(repository, "tests/fixtures/independent-python-shell"), project, { recursive: true });
   git(project, ["init", "-q", "-b", "main"]);
-  copyStandard(project, { project_name: "Python Shell", react: false, node: false, python: true, shell: true, python_root: "services/python" });
+  copyStandard(project, { project_name: "Python Shell", react: false, node: false, python: true, shell: true, python_root: "services/python", python_coverage: 100 });
   verifySingleRunner(project);
-  verifyJustfile(project, ["uv --directory", "ruff", "pytest", "bats"]);
+  verifyJustfile(project, ["uv --directory", "ruff", "pytest", "--cov=", "--cov-fail-under=100", "bats"]);
   // CI receipts require an actual initial revision, not an unborn Git HEAD.
   execute("just", ["ci"], { cwd: project, mustFail: true });
   git(project, ["add", "."]);
@@ -660,6 +660,10 @@ test("independent Python/Shell project executes actual source gates and rejects 
   execute("just", ["ci"], { cwd: project });
   const source = join(project, "services/python/src/independent_service/core.py");
   const content = readFileSync(source, "utf8");
+  writeFileSync(source, content + "\n\ndef uncovered() -> bool:\n    return True\n");
+  const coverageFailure = execute("just", ["ci"], { cwd: project, mustFail: true });
+  assert.match(coverageFailure, /Required test coverage of 100% not reached/);
+  writeFileSync(source, content);
   writeFileSync(source, "def broken(:\n");
   execute("just", ["ci"], { cwd: project, mustFail: true });
   writeFileSync(source, content);

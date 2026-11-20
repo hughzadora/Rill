@@ -4,12 +4,14 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from threading import Event, Thread
 from typing import cast
 
 import pytest
 
 from rill_cli.core import installer
 from rill_cli.core.constants import COPIER_ANSWERS, STATE_PATH
+from rill_cli.core.dashboard import receipt
 from rill_cli.core.git_policy import branch, git, revision
 from rill_cli.core.guardrails import validate
 from rill_cli.core.installer import install
@@ -79,6 +81,73 @@ def test_hash_conflict_does_not_create_upgrade_branch(tmp_path: Path) -> None:
     assert branch(project) == "main"
     assert git(project, "branch", "--list", "upgrade/*").stdout.strip() == ""
     assert git(project, "status", "--porcelain").stdout.strip() == ""
+
+
+def test_upgrade_rejects_commit_after_managed_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = install(tmp_path / "baseline-race")
+    git(project, "branch", "-m", "main")
+    initial_head = revision(project)
+    original_validation = installer.upgrade_values
+
+    def commit_after_validation(
+        root: Path, state: dict[str, object], before: dict[str, str]
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        validated = original_validation(root, state, before)
+        (root / "REVIEW.md").write_text("Owner commit during validation\n", encoding="utf-8")
+        git(root, "add", "REVIEW.md")
+        git(root, "-c", "core.hooksPath=/dev/null", "commit", "-m", "test(rill): race upgrade")
+        return validated
+
+    monkeypatch.setattr(installer, "upgrade_values", commit_after_validation)
+
+    with pytest.raises(RuntimeError, match="Project changed while preparing upgrade"):
+        install(project, upgrade=True)
+
+    assert revision(project) != initial_head
+    assert (project / "REVIEW.md").read_text(encoding="utf-8") == "Owner commit during validation\n"
+    assert branch(project) == "main"
+
+
+def test_upgrade_lock_does_not_dirty_previous_template_checkout(tmp_path: Path) -> None:
+    project = install(tmp_path / "previous-template")
+    git(project, "branch", "-m", "main")
+
+    install(project, upgrade=True)
+
+    assert branch(project).startswith("upgrade/rill-v")
+    assert git(project, "status", "--porcelain", "-z", "--untracked-files=all").stdout == ""
+
+
+def test_upgrade_serializes_runtime_state_updates_during_copier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = install(tmp_path / "state-race")
+    git(project, "branch", "-m", "main")
+    original_copy = installer.copier.run_copy
+    started = Event()
+    writers: list[Thread] = []
+
+    def concurrent_runtime_write(**kwargs: object) -> None:
+        cast("Callable[..., object]", original_copy)(**kwargs)
+
+        def update_receipt() -> None:
+            started.set()
+            receipt(project, "approve")
+
+        writer = Thread(target=update_receipt)
+        writers.append(writer)
+        writer.start()
+        assert started.wait(timeout=5)
+
+    monkeypatch.setattr(installer.copier, "run_copy", concurrent_runtime_write)
+    install(project, upgrade=True)
+
+    for writer in writers:
+        writer.join(timeout=5)
+        assert not writer.is_alive()
+    assert load(project)["owner_decision"] == "approve"
 
 
 def test_failed_signed_upgrade_restores_branch_index_and_exact_state(
