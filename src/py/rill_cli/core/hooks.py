@@ -8,7 +8,12 @@ from pathlib import Path
 from select import select
 from typing import cast
 
-from .constants import FAILURE_LIMIT, SYMBOLS_PATH
+from .constants import (
+    FAILURE_LIMIT,
+    HOOK_INPUT_TIMEOUT_SECONDS,
+    MAX_HOOK_PAYLOAD_BYTES,
+    SYMBOLS_PATH,
+)
 from .dashboard import render as render_dashboard
 from .git_policy import branch, check_dirty, head_summary, protect_branch
 from .guardrails import audit, patch_targets, symbols, validate
@@ -20,17 +25,16 @@ def _payload() -> dict[str, object]:
     if sys.stdin.isatty():
         return {}
     try:
-        ready, _, _ = select([sys.stdin], [], [], 0)
+        ready, _, _ = select([sys.stdin], [], [], HOOK_INPUT_TIMEOUT_SECONDS)
         if not ready:
             return {}
-        data: object = json.load(sys.stdin)
+        data: object = json.loads(sys.stdin.readline(MAX_HOOK_PAYLOAD_BYTES))
     except ValueError, OSError:
         return {}
     return cast("dict[str, object]", data) if isinstance(data, dict) else {}
 
 
 def run(event: str, root: Path) -> int:
-    payload = _payload()
     if event == "session-start":
         state = load(root)
         try:
@@ -71,7 +75,7 @@ def run(event: str, root: Path) -> int:
         print("{}")
         return 0
     if event in {"pre-tool-use", "post-tool-use"}:
-        return _check_tool(event, root, payload)
+        return _check_tool(event, root, _payload())
     raise ValueError(f"Unknown hook event: {event}")
 
 

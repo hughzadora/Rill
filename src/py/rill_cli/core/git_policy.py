@@ -53,7 +53,7 @@ def history(root: Path) -> list[dict[str, str]]:
 
 def changed_paths(root: Path, *, staged: bool = False) -> list[str]:
     args = (
-        ("diff", "--cached", "--name-only", "-z")
+        ("diff", "--cached", "--no-renames", "--name-only", "-z")
         if staged
         else (
             "status",
@@ -107,17 +107,20 @@ def ensure_branch(root: Path, *, upgrade: bool = False, version: str = "") -> No
 
 
 def validate_message(message: str) -> None:
+    subject = message.splitlines()[0] if message.splitlines() else ""
     if not re.fullmatch(
         r"(?:feat|fix|refactor|chore|docs|test|ci|perf|build|revert)(?:\([a-z0-9-]+\))?: .+",
-        message.strip(),
+        subject,
     ):
         raise ValueError("Commit message must follow Conventional Commits")
 
 
 def _staged_churn(root: Path, business: list[str]) -> int:
-    result = git(root, "diff", "--cached", "--numstat", check=False)
+    result = git(root, "diff", "--cached", "--no-renames", "--numstat", "-z", check=False)
     churn = 0
-    for row in result.stdout.splitlines():
+    for row in result.stdout.split("\0"):
+        if not row:
+            continue
         add, deleted, name = row.split("\t", maxsplit=2)
         if name in business and add.isdigit() and deleted.isdigit():
             churn += int(add) + int(deleted)

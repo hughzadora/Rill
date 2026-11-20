@@ -101,3 +101,21 @@ def test_native_auto_commit_skips_only_unrelated_global_hooks(repo: Path) -> Non
     assert head_summary(repo) != "(unborn)"
     assert history(repo)[0]["subject"] == "chore(rill): initialize harness"
     assert not commit(repo, "chore(rill): initialize harness", ["justfile"])
+
+
+def test_unicode_staged_file_cannot_bypass_churn_limit(repo: Path) -> None:
+    source = repo / "src/安全.py"
+    source.parent.mkdir()
+    source.write_text("value = 1\n" * (MAX_COMMIT_CHURN + 1), encoding="utf-8")
+    git(repo, "add", "--", "src/安全.py")
+    assert "src/安全.py" in changed_paths(repo, staged=True)
+    with pytest.raises(PermissionError, match="business change"):
+        check_staged(repo)
+
+
+def test_conventional_message_allows_body_and_breaking_footer() -> None:
+    validate_message(
+        "feat(api): add endpoint\n\nWhy this matters.\n\nBREAKING CHANGE: new contract"
+    )
+    with pytest.raises(ValueError, match="Conventional"):
+        validate_message("wrong subject\n\nFix: legitimate details")

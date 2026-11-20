@@ -6,6 +6,7 @@ import runpy
 import shutil
 import subprocess
 import sys
+import time
 from importlib.metadata import version as package_version
 from pathlib import Path
 
@@ -132,6 +133,26 @@ def test_hook_without_stdin_data_does_not_block(tmp_path: Path) -> None:
             process.stdout.close()
         if process.stderr:
             process.stderr.close()
+
+
+def test_pre_tool_use_waits_for_delayed_native_payload(tmp_path: Path) -> None:
+    git(tmp_path, "init", "-b", "feat/rill-test")
+    with subprocess.Popen(
+        [sys.executable, "-m", "rill_cli", "hook", "pre-tool-use"],
+        cwd=tmp_path,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ) as child:
+        assert child.stdin is not None
+        time.sleep(0.1)
+        child.stdin.write(json.dumps({"tool_input": {"file_path": ".codex/config.toml"}}) + "\n")
+        child.stdin.flush()
+        assert child.wait(timeout=5) == 0
+        assert child.stdout is not None
+        result = json.loads(child.stdout.read())
+        assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_init_requires_explicit_yes(tmp_path: Path) -> None:
