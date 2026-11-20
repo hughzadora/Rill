@@ -1,122 +1,53 @@
-# Rill Product Requirements
+# Rill Product Requirements — v10.0.1
 
-## Definition
+> Single **living** specification for Rill's current product. Permanent purpose and authority: [CONSTITUTION.md](CONSTITUTION.md). GitHub Issues/PRs and Git preserve execution history. Requirements are not evidence of completed implementation.
 
-Rill is a reusable **full-lifecycle software delivery system** for both new
-and existing repositories. Its output is verified, maintainable software with
-reproducible engineering evidence. It is neither one business application nor
-an Issue title browser. The owner supplies outcomes and consequential product
-decisions; native agents and maintained tools carry out research,
-implementation, testing, repair and review.
+## Vision, Scope & Non-Goals
 
-Default supported stack: **React + Tailwind CSS, Node.js + TypeScript, Python,
-and Shell**. Every present language gets its applicable, executable gates.
-The standard must be adoptable without copying the Rill repository or
-replacing functioning tools in an existing product.
+Rill is a distributable native-first Codex software factory. The owner specifies outcomes, consequential choices and protected authorization; native agents and maintained tools research, design, build, test, diagnose, independently review and recover real new/existing software projects. The product must work in an independent project without Rill's development conversation.
 
-## Delivery contracts
+In scope: official native capability packaging, documented CLI, workflow Skills/roles/Hooks and justified MCP; real quality/security gates; accurate GitHub/CI evidence; safe project enrollment; accessible read-only status; fresh-session recovery.
 
-- **Intake**
-  - Product result: Detect stack, dependencies, constraints, current tests
-    and risk
-  - Required evidence: Greenfield and brownfield real pilots
-- **Requirements**
-  - Product result: Business result, in/out scope, positive and failure cases
-  - Required evidence: Native GitHub parent/sub-issue and versioned docs
-- **Prototype**
-  - Product result: Runnable, clickable user journey
-  - Required evidence: System Chrome interaction and mobile proof
-- **System design**
-  - Product result: Interactive flows, dependency and risk tradeoffs
-  - Required evidence: Human inspectable design, native consequential choice
-- **Implementation**
-  - Product result: Actual application code with existing regressions
-    preserved
-  - Required evidence: Candidate diff and executed checks
-- **Integration**
-  - Product result: Service, browser, accessibility and failure-path
-    operation
-  - Required evidence: Current-candidate positive and negative tests
-- **Cleanup**
-  - Product result: Remove obsolete code, reduce complexity, add needed tests
-    and comments
-  - Required evidence: Static analysis, focused regression and review
-- **Delivery**
-  - Product result: Full quality matrix and independent review
-  - Required evidence: CI, actual owner click test, scoped PR
-- **Handoff**
-  - Product result: Exact next work without copied transcript store
-  - Required evidence: Fresh agent reads Issues, Git and docs
+Not in scope: custom agent runtime/scheduler/permission model, copied transcript DB, full-screen TUI, blanket wipe of **consumer** project work, fake approvals, universal open-source repository decoration, automatic paid fallback, parallel GitHub tracker, or compatibility layers for retired **Rill** versions. Rebuild Rill implementation cleanly on this isolated branch; Git retains prior history for research, but legacy interfaces/configuration are not supported.
 
-## Large-feature lifecycle
+## Functional Requirements
 
-1. Requirements and acceptance.
-2. Fast clickable prototype; owner checks experience.
-3. Interactive design and major decision through native harness control.
-4. Agent implementation with existing regressions (new unit tests follow later).
-5. Integration, simulated and genuine owner use.
-6. Deep clean, documentation, necessary why-comments and focused unit tests.
-7. Full second regression, independent reviewer and owner click acceptance.
-8. Focused PR with complete evidence, then separate protected merge/release.
+Status: `[PLANNED]`, `[IN-PROGRESS]`, `[DONE]`. A status reflects **verified current delivery**, never file presence. Paths are planned anchors only until confirmed by code. All currently redesigned capabilities start as planned.
 
-Small tasks may combine stages but cannot skip risk-relevant quality checks.
-Owner checkpoints are prototype, major design choice and final real behavior.
+| ID | Outcome / acceptance | Proposed landing area | Status |
+|---|---|---|---|
+| FR-01 | Versioned, independently installable native Codex package; fresh trusted session proves actual loading, model/permissions/roles/Hooks and optional MCP. | `bundle/`, `src/` | [PLANNED] |
+| FR-02 | `rill setup/init/doctor` operate on real isolated new/brownfield repos without destructive consumer overwrites; explicit JSON and exit codes. | `src/`, `bundle/` | [PLANNED] |
+| FR-03 | Owner intent flows through proportionate brainstorming, primary-source research, grill and a current acceptance-ready spec before execution. | `bundle/skills/`, `PRD.md` | [PLANNED] |
+| FR-04 | Native worker roles implement scoped code and regression tests; no hand-rolled agent runtime or unnecessary owner coordination. | `bundle/agents/`, `bundle/skills/` | [PLANNED] |
+| FR-05 | Applicable source-complete lint, type, integration, accessibility, secret, supply-chain, coverage and negative tests gate delivery and reject false PASS. | `bundle/stacks/`, `.github/workflows/` | [PLANNED] |
+| FR-06 | Actual independent reviewer assesses exact tested candidate; two-round bound and platform-native protected authorization. | `bundle/agents/`, `bundle/skills/` | [PLANNED] |
+| FR-07 | Fresh agent recovers project, exact SHA, Issues/PR dependencies, tests and next action after interruption or context compaction. | `bundle/skills/`, GitHub | [PLANNED] |
+| FR-08 | Versioned updates/rollback and conflict checks preserve consumer-owned files; no legacy Rill compatibility adapters. | `src/`, `bundle/` | [PLANNED] |
+| FR-09 | Every enrolled product has **one** live root `PRD.md`; scoped reads, stable requirement IDs, status plus evidence-linked source traceability. | `bundle/repo-common/PRD.md` | [PLANNED] |
+| FR-10 | Bundle an upstream-derived brainstorming Skill; Rill-controlled research/grill entrypoints invoke it before **substantive new design**, without duplicate interviews. | `bundle/skills/brainstorming/` | [IN-PROGRESS] |
+| FR-11 | Optional accessible local status view displays version-bound actual gate state, blockers, unknowns and safe next action; never pretends to approve. | `src/`, `bundle/` | [PLANNED] |
+| FR-12 | Independent external new/existing repositories prove actual feature, native workflows, genuine CI, fresh-agent recovery, independent PR and release/rollback. | External pilot evidence in GitHub | [PLANNED] |
 
-## Standalone local CLI acceptance
+## Non-functional and Resource Constraints
 
-The owner uses an installed `rill` binary without cloning the factory or
-maintaining its Python virtual environment. The complete lifecycle is
-`version`, `init PATH --yes`, `upgrade PATH --yes`, `status`, `doctor`,
-`ui PATH [--no-open] [--serve]`, and `hook EVENT`. Machine-readable calls use
-`--json`; failures distinguish policy denial (1) and environment error (2).
+| ID | Contract / measurable proof | Status |
+|---|---|---|
+| NFR-01 | CLI startup benchmark on all supported targets; proposed <20ms is **not** a requirement until measured against real binary and load. | [PLANNED] |
+| NFR-02 | Existing plan usage limits; local deterministic work before paid inference; bounded agents/retries and no unapproved paid service or credits. | [PLANNED] |
+| NFR-03 | Measure Actions per stack and adopt tiered jobs; proposed <60s per job is an aspiration, not a universal correctness gate. | [PLANNED] |
+| NFR-04 | Applicable real-source coverage with validated inventory; >=80% proposed floor subject to evidence, not a proxy for quality. | [PLANNED] |
+| NFR-05 | Native sandbox, approvals and Hook trust are independently checked at runtime. Global instructions and reviewer prompts are not security isolation. | [PLANNED] |
+| NFR-06 | TypeScript 7-first baseline unless a separately approved evidence-based change; standard tools and clean conventional structure. | [PLANNED] |
 
-An initialized project must receive a clean Git repository, a protected
-feature branch, versioned Copier assets, an atomic harness initialization
-commit, and a compact private state anchor. Upgrade must require a clean
-worktree, verify managed-file hashes and retain the prior Git HEAD as a
-restore point. Copier and Git perform the actual update; no manually
-reimplemented commit parser or unsafe blanket reset may replace them.
-Product-owned files remain outside Rill's upgrade scope.
-The dashboard is an offline HTML view of real state, bounded symbols, Git
-history and revision-bound CI receipts. A dirty working tree cannot certify
-a Git commit; a one-shot localhost decision records owner input but does not
-authorize releases or destructive operations.
+## Living Document and Evidence Rules
 
-The native agent roster contains Explorer, module-owner Worker (including
-its tests) and read-only Reviewer, with a three-child limit and maximum
-one nesting level. Full local CI must pass before candidate-bound review;
-if a second review still fails, stop rather than loop or weaken tests.
-A live Codex dispatch must confirm whether model and permission settings
-actually took effect; TOML parsing is insufficient evidence.
+1. One current `PRD.md` per Rill or consumer repository. This constitution defines the Rill factory's **why** only. Retire redundant DESIGN/ROADMAP/MULTI_AGENT as *live specification authorities*, keeping historical reasoning in Git/Issues.
+2. Modify relevant requirements in place upon product decisions, not append conversational histories. Deprecated behaviors disappear from the current PRD but their decision provenance survives in Git/Issues. Stable IDs are never recycled for unrelated meanings.
+3. `AGENTS.md` is only a concise index. During routine work, use `rg -n` and bounded line slices for relevant FR/NFR and acceptance; full-file read is permitted for initial scope review and deliberate broad audits.
+4. Transition to `[DONE]` only with actual implementation paths, exact source SHA, passing source-bound test receipts and required native/user evidence. GitHub issue closure is not sufficient proof. Record references in Issue/PR and keep reverse links where useful.
+5. Conventional files and native platform capabilities are preferred. Do not hand-code parsers, package managers, Git commit logic, session managers, or incompatible platform controls.
 
-Supported release archives target Linux x64/ARM64 and Apple Silicon macOS 26+
-only. GitHub PR CI uses one Ubuntu runner and the light L2 gate; costly
-macOS release runners are Tag-only. No Windows or Intel Mac release target.
+## Acceptance and Authority
 
-## Industrial acceptance
-
-The [quality matrix](README.md) covers lint, types, contracts,
-unit/component/integration/CLI/browser/accessibility and negative tests,
-build, coverage, performance where relevant, dependency/license/secrets/SBOM,
-recovery, independent review and actual product acceptance.
-
-Project-management needs actual priority, ownership, stages, acceptance,
-blockers, dependencies, candidates, reviews and next human action, not a
-static tree of titles. GitHub remains the native authority; the interactive
-console is a live presentation, not a second mutable project database.
-
-A fixture gate does not prove real project adoption. The factory is complete
-only after **new-project and existing-project** installations, version
-distribution, observed execution, upgrade and rollback are verified.
-
-## Authority
-
-Only the real native harness may bind consequential owner selection or
-protected approval. No purchase, upgrade, privilege expansion, production
-change or merge is implied by this specification. Never hide failures by
-lowering thresholds or masking source roots.
-
-The current product engineering parent is
-[Issue #22](https://github.com/hughzadora/Rill/issues/22), and
-[Issue #23](https://github.com/hughzadora/Rill/issues/23) is the permanent
-bug parent. Closed historical #10 and #18 remain evidence, not live backlogs.
+A reviewed, independently installed release completes genuine scoped work in one real greenfield and one brownfield product repository, passes applicable positive/negative hosted checks, survives session interruption, obtains separate reviewer findings, preserves consumer files on update, demonstrates rollback and produces a verifiable PR. A real owner accepts the actual feature separately. No specification grants permission for purchase, privilege escalation, production changes or protected merge.

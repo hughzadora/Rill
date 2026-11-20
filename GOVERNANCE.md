@@ -1,1 +1,0 @@
-standards/template/GOVERNANCE.md
