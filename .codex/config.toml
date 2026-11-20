@@ -1,44 +1,33 @@
-# Rill distributed native Codex configuration. Trust review required.
-# Project-scoped native Codex defaults; the host retains approval authority.
-model = "gpt-6.2-sol"
-model_reasoning_effort = "low"
+# Project-scoped native Codex defaults; host trust and approvals remain authoritative.
+model = "gpt-6-luna"
+model_reasoning_effort = "medium"
 
 [agents]
 enabled = true
-max_concurrent_threads_per_session = 1
+max_threads = 3
+max_depth = 1
 default_subagent_model = "gpt-6-luna"
-default_subagent_reasoning_effort = "high"
-
-[agents.default]
-description = "Bounded native general-purpose execution."
-config_file = "./agents/default.toml"
+default_subagent_reasoning_effort = "medium"
 
 [agents.explorer]
-description = "Read-only source and official upstream exploration."
+description = "Read-only, bounded module and source-location discovery."
 config_file = "./agents/explorer.toml"
 
-[agents.risk_reviewer]
-description = "Independent trust, migration and security review."
-config_file = "./agents/risk-reviewer.toml"
-
 [agents.worker]
-description = "Bounded implementation and native tool execution."
+description = "Context-owned module implementation and its regression tests."
 config_file = "./agents/worker.toml"
 
 [agents.reviewer]
-description = "Independent evidence-based review of a completed candidate."
+description = "Independent, read-only diff review after local full CI passes."
 config_file = "./agents/reviewer.toml"
 
-# Read-only upstream research, no credentials or paid fallback.
+# Read-only upstream documentation; never a paid fallback.
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
 enabled = true
 required = false
 default_tools_approval_mode = "approve"
 
-
-# Project-only: prevent the retired user-installed Rill 0.1.2 hooks/MCP
-# from running alongside this supported, versioned factory distribution.
-# This does NOT uninstall or alter any user-wide plugin or another project.
+# Disable only the retired project-local Rill plugin, not the user's other plugins.
 [plugins."rill@rill-local"]
 enabled = false

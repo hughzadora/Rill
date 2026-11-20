@@ -1,80 +1,37 @@
-# Native Multi-Agent Operating Model
+# Native, Context-Centric Multi-Agent Operation
 
-## Ownership and configuration
+Codex owns delegation, session state, sandboxes, compaction and approvals.
+Rill supplies project-scoped role defaults, source guardrails, handoffs and
+quality evidence; it does not replace native orchestration.
 
-Codex owns sessions, compaction, sandbox, delegated tools, permissions
-and native owner decisions. Use native roles from .codex/agents and the
-project layer .codex/config.toml, not a hand-rolled workflow engine.
-Claude Code subagents use a different native format and must not be
-falsely reported as configured by Codex TOML.
+Canonical role source: `.codex/config.toml` and `.codex/agents/`. Release
+consumer assets come only from `standards/template/`; the source
+`src/py/rill_cli/template/` is a symlink. Frozen builds embed the same
+tree. The live `REVIEW.md` contains failure modes.
 
-Official references:
-[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
-[Codex config](https://learn.chatgpt.com/docs/config-file/config-reference),
-[Claude Code subagents](https://claude.com/resources/articles/subagents-in-claude-code).
+## Configured roles (three only)
 
-The Copier consumer distribution now includes project-scoped
-`.codex/config.toml`, all five `.codex/agents/*.toml`, a Rill
-`AGENTS.md` entry for new repositories and reusable Skills. Existing
-consumer configs are preserved until reviewed; installed files never
-certify that a delegated task actually ran under the declared model.
+- **Explorer** (`gpt-6-luna`, low, read-only): narrow source slices,
+  `path:start-end | summary`, at most 150 characters.
+- **Worker** (`gpt-6-luna`, medium, workspace-write): own a module,
+  its implementation and its regression tests in the same context.
+- **Reviewer** (`gpt-6.2-sol`, low, read-only): after green full CI,
+  check only Git diff, cite `path:line` or reply `LGTM`.
 
-## Roles
+Coordinator remains the root agent, not an extra subagent role. Codex
+`max_threads = 3`, `max_depth = 1`; host approval policy remains in control.
+Only parallelize independent investigation or strictly disjoint modules.
 
-- **Coordinator**
-  - Work: Scope from owner intent, issue/PR and available evidence;
-    budget/sequence
-  - Required handoff: Clear next action and approvals needed
-- **Explorer**
-  - Work: Read-only source audit, root cause, current vendor docs
-  - Required handoff: Source links, versions, unknowns and alternatives
-- **Worker**
-  - Work: Bounded implementation on the real worktree
-  - Required handoff: Changed paths, actual command results and remaining
-    risks
-- **Default**
-  - Work: General bounded task when specialty adds no value
-  - Required handoff: Concrete source and results
-- **Reviewer**
-  - Work: Independent review of final diff and real outputs
-  - Required handoff: Ranked reproducible findings and accepted limitations
-- **Risk reviewer**
-  - Work: Security, trust, migrations, licensing, privacy, irreversible
-    actions
-  - Required handoff: Attack/failure cases and risk posture
+## Review and quota stop conditions
 
-The native configuration retains cost-aware coordinator defaults, a
-two-child limit and intentionally bounded specialist roles. Workers do
-not spawn additional children; the coordinator integrates work and uses
-a fresh independent reviewer rather than pretending to review itself.
+After a successful `just ci-full`, review only if the diff exceeds 30 changed
+lines or touches core/configuration/security/permissions/workflow code. One
+independent reviewer acts at once. If it rejects a candidate, have the same
+module owner repair it, rerun full CI and request a second review. If the
+second review fails, stop and return the outstanding blockers to the owner.
+No third loop, test weakening or automatic model escalation.
 
-A role file must contain the native name, description and
-developer_instructions. Model and effort are explicit defaults, not
-evidence that a particular model actually handled an actual turn.
-No paid-model fallback or automatic escalation is approved.
-
-## Delegation contract
-
-Assign native child issue, target revision, owned files, acceptance,
-available tools and stop conditions. Return actual observations, not
-a simulation of a panel of agents. Reuse the same agent for related
-incremental work where its real context is still valid; prefer
-parallel work only for genuinely independent exploration.
-
-At the end of code work, create a separate reviewer context with the
-current candidate and raw evidence. Review actual readability,
-design, functionality, security, tests, docs and user effect according
-to Google's code review guide. Findings are sent back to the
-coordinator/worker; reviewer does not edit implementation.
-
-## Verification and limits
-
-- Native TOML parser checks all role definitions and the configured cap.
-- Observe real fresh-session spawn to establish routing/model and sandbox.
-- Test candidate-bound independent reviewer from a separate context.
-- Verify owner interactions through the real harness, not a mock HTML dialog.
-- Compare costs, correctness and actual agent work when changing the role set.
-
-Current project roles are **configuration** until dispatch/review
-is observed in the target host session. The retired global Rill
-plugin remains a separate, known risk in bug #31.
+These are session instructions and configured capabilities, not proof of
+execution. Actual native dispatch, selected model and effective sandbox
+must be observed separately. A CLI's successful parse is not evidence of
+successful agent routing. Claude Code uses different native agent files.

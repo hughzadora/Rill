@@ -1,54 +1,58 @@
-# Rill engineering policy
+# Rill Engineering Policy
 
-1. **No append-only patching.** Refactor coherently and remove obsolete code.
-   Never preserve dead code or invent legacy compatibility directories.
-2. **Single source of truth.** Mise manages CLI tool versions and their lock.
-   The root justfile owns every CI task. No external orchestration wrappers.
-3. **Standard layout.** Put TypeScript and shell sources in src/ts or src/sh.
-   Use named Python packages in `src/py/rill_cli` and `src/rill_quality`;
-   tests belong in tests/ts,
-   tests/py or tests/sh. Browser E2E tests belong in tests/e2e.
-4. **Use upstream libraries.** For Python HTTP use httpx; avoid hand-rolled
-   networking or CLI frameworks. Forbid as-any casts, TypeScript ignores,
-   and unspecific Python type ignores; fix causes instead of suppressing checks.
-5. **Complexity limits.** Functions must be at most 60 lines, have
-   cyclomatic complexity at most 12, and accept at most five parameters.
-   Never duplicate code by copy-pasting blocks over five lines.
-6. **Vite and shadcn/ui conventions.** Use the cn() utility from @/lib/utils
-   for merging Tailwind classes; never hand-concatenate conditional classes.
-   Place reusable primitives in src/ts/components/ui, and application features
-   in src/ts/components or src/ts/pages.
-7. **Real interaction tests.** New user interactions require both focused
-   tests/ts/*.test.tsx unit tests and tests/e2e/*.spec.ts browser tests.
-   Run production Vite builds before Playwright against the built preview.
-8. **Proof before delivery.** Run just ci-full and require exit status zero,
-   including coverage, tests, browser checks and security scans.
-   Never claim a gate passed without checking actual execution.
-9. **Preserve Git history.** Document the change in its issue and PR.
-   The CI pipeline must remain reproducible on a clean machine.
+## Ownership and source of truth
 
-## 人类零代码全托管最高禁令（Zero-Touch Governance）
+1. Rill is a reusable native Codex software factory, not a one-off app.
+   Upstream Codex/Git/maintained tooling wins over redundant local inventions.
+1. Root `VERSION`, `mise.toml`/lock, and `justfile` are the version/tool/CI
+   authority. `standards/template/` is the only editable distribution source;
+   `src/py/rill_cli/template/` links to it. Frozen assets are generated,
+   not maintained separately.
+1. When modifying framework settings, `.codex/`, or distributable workflows,
+   synchronize their canonical template equivalents and test byte parity.
+   This user-approved task may change policies; never weaken gates to pass CI.
+1. Do not use obsolete `tools/adopt_rill.py` or create duplicate orchestration.
+   Use the released `rill` CLI and native Git Issues/PRs for task records.
 
-1. **严禁篡改护栏配置**：任何情况下，严禁为了通过 CI 而放宽、注释或修改
-   `justfile`、`biome.json`、`pyproject.toml`、`.semgrep.yml`、
-   `tsconfig.json`、`vitest.config.ts`、`stryker.config.json`
-   中的任何规则阈值。若业务确实需要调整，必须先停下来向人类审批者申请明确授权。
-2. **严禁伪造测试（Anti-Mock-Abuse）**：禁止编写无实质断言
-   （如仅 `expect(true).toBe(true)`）或硬编码迎合 Bug 的测试。
-   重要业务模块完成后，必须主动运行 `just verify-tests` 确保变异得分达标。
-3. **前后端契约唯一来源**：前后端交互数据模型必须由后端
-   （如 FastAPI OpenAPI）自动导出 Schema，前端使用
-   `openapi-typescript` 生成类型，严禁前后端各自手写重复接口定义。
+## Scope and code quality
 
-## Reusable factory and agent execution
+1. Assign each worker a module, its tests and exclusive file paths. Keep
+   Python packages under `src/py/`, TypeScript under `src/ts/`, tests under
+   `tests/`; use existing Vite, Tailwind/shadcn and official vendor tooling.
+1. No unreviewed magic numbers, global mutable state or hard-coded paths.
+   Do not duplicate schema/contracts across frontend and backend.
+1. Keep functions <=60 lines, complexity <=12, parameters <=5. Refactor
+   instead of preserving dead code, copy-paste or compatibility scaffolding.
+1. Never bypass typing, format/security gates or weaken, skip, delete or
+   replace existing tests with tautologies or over-mocking. Fix root causes.
+   Real UI interactions need meaningful unit and browser E2E verification.
+1. Run `just check-fast` for iteration; `just ci-full` and applicable
+   mutation checks for acceptance. Report only observed, revision-bound results.
 
-Rill's distributable factory is in `standards/template/`: native Codex
-roles, portable Skills, lifecycle Hooks, optional MCP, and project adoption.
-Use `tools/adopt_rill.py` and the published Copier template instead of
-reimplementing these for each project. Confirm effective runtime loading;
-the presence of config files does not prove a Hook or model was used.
+## Context-centric native delegation (no task-type splitting)
 
-`just ci-full` runs the #39 native-quality foundation **and** the
-consumer factory/console checks. Follow the installed native handoff and
-independent-review roles. Repository state and GitHub are authoritative,
-and privileged operations require owner approval.
+1. Coordinator retains scope, approvals and Git authority. For unrelated
+    module questions, dispatch 2-3 read-only `explorer` agents concurrently;
+    each reads `.rill/symbols.txt` then narrow `rg -n` source slices.
+1. Dispatch multiple `worker` agents only for genuinely independent modules
+    with non-overlapping file ownership. Each worker owns implementation AND
+    associated regression tests within one context; no coder/tester split.
+1. Native Codex limit is `max_threads = 3`, `max_depth = 1`. Do not create
+    nested workers, long-lived idle agents or paid automatic model fallback.
+1. Before any independent review, `just ci-full` must exit 0. Dispatch one
+    `reviewer` only when `git diff --stat` exceeds 30 changed lines OR the
+    diff touches core, configuration, permissions, security or workflows.
+1. Reviewer must read root `REVIEW.md`, review the exact Git diff and cite
+    verified findings as `path:line`; no significant finding means `LGTM`.
+1. Maximum TWO reviewer/fix rounds total. After round one fails, worker may
+    fix and rerun full CI; if round two still fails, STOP and report evidence
+    to the owner. Never schedule a third round or weaken tests for acceptance.
+
+## Safety and handoff
+
+1. Do not alter unrelated work, force-push, merge, publish, deploy, purchase
+    or grant access without the owner's specific authorization. Native sandbox
+    and approval boundaries supersede repository instructions.
+1. Record issue/PR evidence and compact handoff state; do not replay long
+    context or invent reviewer execution. A TOML file is configuration,
+    not proof that routing, model, permission or review actually ran.
