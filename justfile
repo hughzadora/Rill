@@ -30,6 +30,7 @@ commit-msg msg_file:
 
 # Repository-level checks are mandatory on full and incremental runs.
 _ci-guardrails:
+    @modified="$(git status --porcelain -- justfile mise.toml biome.json pyproject.toml .semgrep.yml tsconfig.json vitest.config.ts stryker.config.json playwright.config.ts | cut -c4- | sort -u)"; if [[ -n "$modified" ]]; then printf "%s\n" "======================================================================" "[AUDIT WARNING] Core CI guardrail configuration changed; human review required:" "$modified" "======================================================================"; fi
     mise exec --locked -- taplo check mise.toml pyproject.toml
     mise exec --locked -- taplo fmt --check mise.toml pyproject.toml
     mise exec --locked -- typos --force-exclude --exclude "**/.mise/locks/**" --exclude "**/dist/**" --exclude "**/playwright-report/**" --exclude "**/test-results/**"
@@ -39,7 +40,7 @@ _ci-guardrails:
     mise exec --locked -- pnpm exec jscpd src/
     @warnings="$(mise exec --locked -- lizard src/ -C 12 -L 60 -a 5 -w)"; if [[ -n "$warnings" ]]; then printf '%s\n' "$warnings" >&2; exit 1; fi
     mise exec --locked -- tokei src/
-    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --exit-code 1 --quiet .
+    mise exec --locked -- trivy fs --scanners vuln,misconfig,secret,license --severity HIGH,CRITICAL --ignored-licenses MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unicode-DFS-2016,BlueOak-1.0.0 --skip-dirs .mise --skip-dirs node_modules --skip-dirs .venv --skip-dirs dist --skip-dirs coverage --skip-dirs playwright-report --skip-dirs test-results --skip-dirs mutants --skip-dirs .stryker-tmp --exit-code 1 --quiet .
 
 # The browser tests run against the verified production build, not a dev server.
 _ci-ts:
@@ -57,7 +58,7 @@ _ci-py:
     mise exec --locked -- ruff format --check .
     mise exec --locked -- uv run --python "$(mise which python)" pyright
     mise exec --locked -- pip-licenses --python .venv/bin/python --allow-only "MIT;MIT License;Apache Software License;Apache-2.0;BSD License;BSD-2-Clause;BSD-3-Clause;PSF-2.0;Apache-2.0 OR BSD-2-Clause;Mozilla Public License 2.0 (MPL 2.0)"
-    mise exec --locked -- uv run --python "$(mise which python)" pytest --cov=src/py --cov-fail-under=80
+    mise exec --locked -- uv run --python "$(mise which python)" pytest --cov=src/rill_quality --cov-fail-under=80
 
 _ci-sh:
     mise exec --locked -- shellcheck --severity=style -x src/sh/*.sh
@@ -100,7 +101,7 @@ ci mode="incremental":
 
     for path in "${changed[@]}"; do
       case "$path" in
-        justfile|mise.toml|mise.lock|package.json|pnpm-lock.yaml|uv.lock|pyproject.toml|AGENTS.md|.editorconfig|.jscpd.json|.semgrep.yml|biome.json|knip.json|tsconfig.json|vitest.config.ts|vite.config.ts|playwright.config.ts|index.html|.github/workflows/*)
+        justfile|mise.toml|mise.lock|package.json|pnpm-lock.yaml|uv.lock|pyproject.toml|AGENTS.md|.editorconfig|.jscpd.json|.semgrep.yml|biome.json|knip.json|tsconfig.json|vitest.config.ts|vite.config.ts|stryker.config.json|playwright.config.ts|index.html|.github/workflows/*)
           run_all=true ;;
         src/ts/*|tests/ts/*|tests/e2e/*|*.ts|*.tsx|*.js|*.jsx|*.json|*.jsonc|*.css|*.html)
           run_ts=true ;;
@@ -146,3 +147,46 @@ ci mode="incremental":
 
 ci-full:
     just ci full
+
+# ==============================================================================
+# 4. 防假测试压测：前后端并行变异测试 (Mutation Testing)
+# ==============================================================================
+verify-tests:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ ! -d src/rill_quality ]] || ! find tests/py -type f -name 'test_*.py' -print -quit | grep -q .; then
+      printf '%s\n' "[mutation] Python sources or unit tests are missing." >&2
+      exit 1
+    fi
+
+    printf '%s\n' "[mutation] Running independent TypeScript and Python mutation suites."
+    pids=()
+    names=()
+
+    mise exec --locked -- pnpm exec stryker run &
+    pids+=("$!")
+    names+=(typescript)
+
+    (
+      mise exec --locked -- uv run mutmut run --max-children 4
+      results="$(mise exec --locked -- uv run mutmut results --all true)"
+      printf '%s\n' "$results"
+      if [[ -z "$results" ]] || ! awk 'NF && $0 !~ /: killed$/ { bad = 1 } END { exit bad }' <<< "$results"; then
+        printf '%s\n' "[mutation] Python produced no verified kills or has surviving, untested, or failed mutants." >&2
+        exit 1
+      fi
+    ) &
+    pids+=("$!")
+    names+=(python)
+
+    failed=0
+    for i in "${!pids[@]}"; do
+      if wait "${pids[i]}"; then
+        printf '[mutation] PASS %s\n' "${names[i]}"
+      else
+        printf '[mutation] FAIL %s\n' "${names[i]}" >&2
+        failed=1
+      fi
+    done
+    exit "$failed"

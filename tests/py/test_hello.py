@@ -1,6 +1,6 @@
-"""Exercise every executable statement in the greeting module."""
+"""Assert both branches of the Python greeting fixture."""
 
-from hello import hello
+from rill_quality.hello import hello
 
 
 def test_hello_with_name() -> None:
@@ -9,5 +9,5 @@ def test_hello_with_name() -> None:
 
 
 def test_hello_with_empty_name() -> None:
-    """Empty input is handled deterministically."""
-    assert hello("") == "Hello, !"
+    """The empty name must produce the documented fallback."""
+    assert hello("") == "Hello, stranger!"

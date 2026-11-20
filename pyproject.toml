@@ -5,12 +5,19 @@ requires-python = ">=3.14,<3.15"
 dependencies = []
 
 [dependency-groups]
-dev = ["ruff", "pyright", "pytest", "pytest-cov", "pytest-xdist"]
+dev = [
+  "ruff",
+  "pyright",
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+  "mutmut>=3.2.0",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-src = ["src/py", "tests/py"]
+src = ["src/rill_quality", "tests/py"]
 
 [tool.ruff.lint]
 select = [
@@ -40,13 +47,18 @@ max-statements = 50
 "tests/**/*.py" = ["S101", "PLR2004"]
 
 [tool.pyright]
-include = ["src/py", "tests/py"]
+include = ["src/rill_quality", "tests/py"]
 typeCheckingMode = "strict"
 venvPath = "."
 venv = ".venv"
-extraPaths = ["src/py"]
+extraPaths = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --strict-markers --tb=short"
 testpaths = ["tests/py"]
-pythonpath = ["src/py"]
+pythonpath = ["src"]
+
+[tool.mutmut]
+source_paths = ["src/rill_quality"]
+pytest_add_cli_args_test_selection = ["tests/py"]
+pytest_add_cli_args = ["-n", "0"]

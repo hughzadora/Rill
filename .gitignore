@@ -29,3 +29,7 @@ mise.local.toml
 # Logs and transient output
 *.log
 *.tmp
+
+# Mutation testing output (generated, never committed)
+.stryker-tmp/
+mutants/

@@ -45,3 +45,20 @@ Class ordering is enforced by the quality gate and can be fixed using Biome.
 Bats and Taplo archives have independently verified SHA-256 entries in
 `mise.lock`; refresh and reverify these when bumping their tool releases.
 Never disable locked-download verification to bypass a checksum failure.
+
+## Mutation-test effectiveness
+
+Run `just verify-tests` to test whether unit assertions actually detect
+introduced defects. Stryker 10 uses its native Vitest runner with a mutation
+break threshold of 60% (high 80%, low 60%). Its TypeScript 7 native checker
+still depends on the removed TypeScript JavaScript configuration API; for
+that reason Stryker's sandbox excludes the tsconfig. Strict TypeScript 7
+checking remains mandatory in `just ci-full`, and Stryker still
+mutates and executes the real Vitest suite.
+
+Mutmut 3.8 requires a named importable Python package. Python code lives
+in `src/rill_quality/`, not under a package literally called `py`,
+which conflicts with existing Python tooling. The Python mutation stage
+requires at least one tested mutant and rejects all outcomes other than
+`killed`, so an empty, untested or surviving result cannot pass.
+Mutation tests execute the two language runners concurrently.
