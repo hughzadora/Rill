@@ -35,6 +35,8 @@ test("recovery fails closed on stale CI, missing review or untrusted Hooks", () 
   assert.match(skill, /headSha.*exact current candidate/s);
   assert.match(skill, /older SHA is \*\*STALE\*\*, not PASS/);
   assert.match(skill, /untrusted Hook.*NOT_VERIFIED/);
+  assert.match(skill, /pulls\/NUMBER\/reviews/);
+  assert.match(skill, /review.*commit_id.*candidate.*STALE/i);
   assert.match(skill, /blocked|BLOCKED/);
   assert.match(skill, /UNKNOWN/);
   assert.match(skill, /CONSTITUTION.md.*if present/);
