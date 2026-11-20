@@ -32,6 +32,12 @@ The built CLI supports `rill init PATH --goal "Actual product outcome" --yes --j
 
 The command deliberately returns `CREATED_NOT_VERIFIED`: it does not install globally, trust Hooks, claim effective custom agent permissions, generate fake-green CI for an unknown product stack, or certify a real external product. `rill setup` and `rill doctor` are not implemented yet. Existing repositories have their own pending enrollment task.
 
+## Brownfield preparation (review worktree, not enrollment certification)
+
+`rill adopt PATH --json` inspects a clean existing Git repository without changing it. `rill adopt PATH --yes --json [--goal TEXT]` prepares a **new native Git review worktree and branch** rather than overwriting the existing working tree. Existing product tests, CI, README, PRD, agent instructions, and user-owned Codex configuration remain unchanged. Rill Plugin files are only added under previously unowned locations; conflicting configuration is reported in `pendingIntegration` and must be resolved by a separate reviewed change. The command returns `PREPARED_NOT_VERIFIED`, not a claim that Codex Hooks or product CI have run.
+
+Local independent product tests demonstrated a real positive business result and rejected a deliberate source regression. This is a bounded safety and code-delivery preflight; real owner-controlled brownfield enrollment, native Hook trust, deployment and public release still require separate evidence.
+
 ## Native execution evidence
 
 Native Codex JSONL events, not model prose, determine what ran. A Codex read of an installed Rill Skill was observed in an isolated read-only session. A second session **claimed** an Explorer result, but its trace contained only an empty `wait` call and stated that project configuration was untrusted/disabled. `src/native-evidence.ts` classifies such cases as **NOT_VERIFIED** and tests these false-positive paths. Installing a plugin does **not** automatically trust its Hooks or prove agent-model/sandbox configuration. No hook-trust bypass or user-global configuration edits are authorized.
