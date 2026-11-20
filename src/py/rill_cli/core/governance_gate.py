@@ -1,6 +1,8 @@
 """L4 deterministic Git/CI acceptance backed by existing native tools."""
 
 import json
+import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -17,8 +19,20 @@ from .governance_engine import GovernanceEngine
 from .governance_git import check_frozen
 
 
+def check_ci_committed_test_deletions(root: Path) -> None:
+    """CI must inspect committed diffs, not only an empty checkout index."""
+    if os.environ.get("CI") != "true":
+        return
+    baseline = os.environ.get("RILL_CI_BASE_SHA", "")
+    if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", baseline) is None:
+        raise PermissionError("CI has no trustworthy native event base SHA")
+    if _committed_test_deletions(root, baseline):
+        raise PermissionError("Committed test deletions violate CI baseline")
+
+
 def check_pre_commit(root: Path, *, data_root: Path | None = None) -> None:
     """Reject deleted tests and post-freeze contract edits, without rewriting tests."""
+    check_ci_committed_test_deletions(root)
     deleted = git(
         root,
         "diff",

@@ -27,6 +27,7 @@ TEMPLATE_SCHEMA = "copier.yml"
 SOURCE_TEMPLATE = Path("standards/template")
 CODEX_CONFIG = Path(".codex/config.toml")
 CODEX_HOOKS = Path(".codex/hooks.json")
+MISE_RILL_FRAGMENT = Path(".mise/conf.d/rill.toml")
 REVIEW_SKILL = Path(".agents/skills/rill-review/SKILL.md")
 DELIVER_SKILL = Path(".agents/skills/rill-deliver/SKILL.md")
 AGENT_ENTRY = Path("AGENTS.md")
@@ -58,6 +59,7 @@ FRAMEWORK_PATHS = (
     "stryker.config.json",
     ".semgrep.yml",
     ".codex/",
+    ".mise/conf.d/rill.toml",
     ".agents/",
     ".husky/",
     ".github/workflows/",
@@ -65,7 +67,7 @@ FRAMEWORK_PATHS = (
 DEFAULT_SCOPE = ("src/", "tests/", "package.json", "pyproject.toml")
 FRONTEND_PATH_PREFIXES = ("src/ts/", "apps/web/")
 BACKEND_PATH_PREFIXES = ("src/py/", "apps/api/")
-MANAGED_DIRECTORIES = (".codex", ".agents/skills", ".github/workflows", ".rill")
+MANAGED_DIRECTORIES = (".codex", ".agents/skills", ".github/workflows", ".rill", ".mise/conf.d")
 TOOL_NAMES = ("git", "mise", "uv", "pnpm", "just")
 HOOK_EVENTS = frozenset({"session-start", "pre-compact", "pre-tool-use", "post-tool-use", "stop"})
 PROTECTED_BRANCHES = frozenset({"main", "master"})

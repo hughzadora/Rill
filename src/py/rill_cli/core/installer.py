@@ -25,6 +25,7 @@ from .constants import (
     INIT_COMMIT,
     JUSTFILE,
     MANAGED_DIRECTORIES,
+    MISE_RILL_FRAGMENT,
     PROTECTED_BRANCHES,
     REVIEW_FILE,
     RUNTIME_ANCHORS,
@@ -96,6 +97,7 @@ def preflight(path: Path) -> Path:
 def ownership(root: Path) -> dict[str, bool]:
     return {
         "preserve_justfile": (root / JUSTFILE).exists(),
+        "preserve_mise_fragment": (root / MISE_RILL_FRAGMENT).exists(),
         "preserve_agent_entry": (root / AGENT_ENTRY).exists(),
         "preserve_codex_roles": (root / CODEX_CONFIG).exists(),
         "preserve_hook_config": (root / CODEX_HOOKS).exists(),
@@ -173,8 +175,9 @@ def _profile_data(
     before: dict[str, str],
 ) -> tuple[dict[str, object], dict[str, object]]:
     if upgrade:
-        return upgrade_values(root, state, before)
-    values: dict[str, object] = {**ownership(root), **supplied}
+        tracked, values = upgrade_values(root, state, before)
+        return tracked, {**values, "rill_release_version": __version__}
+    values: dict[str, object] = {**ownership(root), **supplied, "rill_release_version": __version__}
     return {}, values
 
 

@@ -7,6 +7,7 @@ _skip_if_exists:
   - "{% if preserve_hook_config %}.codex/hooks.json{% endif %}"
   - "{% if preserve_rill_skills %}.agents/skills/rill-*/*{% endif %}"
   - "{% if preserve_justfile %}justfile{% endif %}"
+  - "{% if preserve_mise_fragment %}.mise/conf.d/rill.toml{% endif %}"
 _envops:
   variable_start_string: "[["
   variable_end_string: "]]"
@@ -16,6 +17,11 @@ _envops:
 # Copier persists these choices so upgrades never silently change ownership.
 # For legacy installs lacking these answers, conservative true is mandatory.
 # The deterministic Rill installer explicitly sets false for new owned files.
+preserve_mise_fragment:
+  type: bool
+  default: true
+  help: "Preserve an existing native mise fragment owned by the target project."
+
 preserve_justfile:
   type: bool
   default: true

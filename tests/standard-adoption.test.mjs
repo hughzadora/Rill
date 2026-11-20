@@ -87,6 +87,8 @@ function file(directory, name, content) {
 
 function copyStandard(destination, answers) {
   const detectedOwnership = {
+    rill_release_version: appVersion,
+    preserve_mise_fragment: existsSync(join(destination, ".mise/conf.d/rill.toml")),
     preserve_justfile: existsSync(join(destination, "justfile")),
     preserve_agent_entry: existsSync(join(destination, "AGENTS.md")),
     preserve_codex_roles:

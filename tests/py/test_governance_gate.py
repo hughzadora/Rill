@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from rill_cli.core.constants import CI_SUMMARY_PATH
+from rill_cli import __version__
+from rill_cli.core.constants import CI_SUMMARY_PATH, MISE_RILL_FRAGMENT
 from rill_cli.core.git_policy import git, revision
 from rill_cli.core.governance_contract import DefectRecord, Severity
 from rill_cli.core.governance_engine import GovernanceEngine
@@ -176,6 +177,47 @@ def test_deleted_test_in_prior_commit_is_rejected_at_release(
     blockers = release_gate(root, data_root=engine.data_root.parent.parent)
     assert any("Committed test deletions" in issue for issue in blockers)
     assert not (root / "tests/test_api.py").exists()
+
+
+def test_ci_checks_already_committed_test_deletion_against_event_base(
+    workspace: tuple[Path, GovernanceEngine], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, engine = workspace
+    previous = revision(root)
+    git(root, "rm", "tests/test_api.py")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: delete test",
+    )
+    assert git(root, "status", "--porcelain").stdout == ""
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("RILL_CI_BASE_SHA", previous)
+    with pytest.raises(PermissionError, match="Committed test deletions"):
+        check_pre_commit(root, data_root=engine.data_root.parent.parent)
+    monkeypatch.delenv("RILL_CI_BASE_SHA")
+    with pytest.raises(PermissionError, match="no trustworthy native event base"):
+        check_pre_commit(root, data_root=engine.data_root.parent.parent)
+
+
+def test_generated_ci_installs_pinned_binary_before_executing_checks(tmp_path: Path) -> None:
+    project = install(tmp_path / "native-ci")
+    config = (project / MISE_RILL_FRAGMENT).read_text(encoding="utf-8")
+    assert f'version = "v{__version__}"' in config
+    assert 'asset_pattern = "rill-linux-x64.tar.gz"' in config
+    workflow = (project / ".github/workflows/rill-quality.yml").read_text(encoding="utf-8")
+    assert "fetch-depth: 0" in workflow
+    assert "RILL_CI_BASE_SHA:" in workflow
+    assert "mise install 'github:hughzadora/Rill'" in workflow
+    assert workflow.index("mise install 'github:hughzadora/Rill'") < workflow.index("just setup-ci")
+    assert "mise exec -- just ci" in workflow
 
 
 def test_generated_ci_fails_closed_when_release_cli_is_unavailable(tmp_path: Path) -> None:
