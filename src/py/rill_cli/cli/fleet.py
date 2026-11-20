@@ -183,9 +183,12 @@ def dashboard_fleet(
     ctx: typer.Context,
     no_open: bool = typer.Option(False, "--no-open"),
     demo: bool = typer.Option(False, "--demo"),
+    data_root: Path | None = typer.Option(None, "--data-root"),  # noqa: B008 - Typer API
+    output: Path | None = typer.Option(None, "--output"),  # noqa: B008 - Typer API
 ) -> None:
     """Generate an offline HTML fleet dashboard without executing any action."""
-    page = _run(lambda: dashboard.render_fleet(_engine(), demo=demo))
+    engine = FleetEngine(data_root=data_root) if data_root is not None else _engine()
+    page = _run(lambda: dashboard.render_fleet(engine, demo=demo, output_path=output))
     if not no_open:
         webbrowser.open(page.as_uri())
     _emit(ctx, {"dashboard": str(page)}, f"Fleet dashboard: {page}")

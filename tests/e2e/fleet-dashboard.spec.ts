@@ -13,13 +13,26 @@ test("generated offline fleet dashboard responds to search, theme and action dec
   const temp = mkdtempSync(join(tmpdir(), "rill-browser-fleet-"));
   try {
     const command = resolve(process.cwd(), ".venv/bin/rill");
-    const result = spawnSync(command, ["fleet", "dashboard", "--demo", "--no-open"], {
-      cwd: process.cwd(),
-      env: { ...process.env, XDG_DATA_HOME: temp },
-      encoding: "utf8",
-    });
+    const result = spawnSync(
+      command,
+      [
+        "fleet",
+        "dashboard",
+        "--demo",
+        "--no-open",
+        "--data-root",
+        join(temp, "data"),
+        "--output",
+        join(temp, "fleet-dashboard.html"),
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, XDG_DATA_HOME: temp },
+        encoding: "utf8",
+      },
+    );
     expect(result.status, result.stderr).toBe(0);
-    const html = join(temp, "rill", "fleet-dashboard.html");
+    const html = join(temp, "fleet-dashboard.html");
     await page.goto(pathToFileURL(html).href);
     await expect(page).toHaveTitle("Rill Fleet | Local operations");
     await expect(page.locator("#demoLabel")).toBeVisible();

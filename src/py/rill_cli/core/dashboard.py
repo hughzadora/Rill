@@ -199,14 +199,18 @@ def fleet_facts(engine: FleetEngine, *, demo: bool = False) -> dict[str, object]
     }
 
 
-def render_fleet(engine: FleetEngine, *, demo: bool = False) -> Path:
+def render_fleet(
+    engine: FleetEngine, *, demo: bool = False, output_path: Path | None = None
+) -> Path:
     """Render a self-contained HTML view without writes to global Codex config."""
     payload = fleet_facts(engine, demo=demo)
     serial = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
     serial = serial.replace("<", "\\u003c").replace(">", "\\u003e")
     serial = serial.replace("&", "\\u0026")
     source = fleet_dashboard_asset().read_text(encoding="utf-8")
-    output = engine.data_root / FLEET_HTML_FILE
+    output = output_path if output_path is not None else engine.data_root / FLEET_HTML_FILE
+    if output.is_symlink():
+        raise PermissionError("Refusing to overwrite a symlinked dashboard path")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(source.replace("__RILL_FLEET_DATA__", serial), encoding="utf-8")
     return output
