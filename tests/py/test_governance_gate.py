@@ -13,7 +13,7 @@ from rill_cli.core.constants import CI_SUMMARY_PATH, MISE_RILL_FRAGMENT
 from rill_cli.core.git_policy import git, revision
 from rill_cli.core.governance_contract import DefectRecord, Severity
 from rill_cli.core.governance_engine import GovernanceEngine
-from rill_cli.core.governance_gate import check_pre_commit, release_gate
+from rill_cli.core.governance_gate import check_pre_commit, committed_test_deletions, release_gate
 from rill_cli.core.governance_git import RepairWorkspace, freeze_contracts
 from rill_cli.core.installer import install
 
@@ -249,7 +249,8 @@ def test_root_actions_pin_real_event_baselines_with_complete_history() -> None:
     release = (root / ".github/workflows/release-rill.yml").read_text(encoding="utf-8")
     assert "github.event.pull_request.base.sha || github.event.before" in quality
     assert "fetch-depth: 0" in quality
-    assert "RILL_CI_BASE_SHA=$(git rev-parse HEAD^)" in release
+    assert "git describe --tags --abbrev=0 --match 'v*' HEAD^" in release
+    assert 'RILL_CI_BASE_SHA=$(git rev-parse "$previous^{commit}")' in release
     assert "fetch-depth: 0" in release
     assert "tags: ['v*']" in release
 
@@ -341,3 +342,197 @@ def test_nonroot_copier_python_test_deletion_staged_and_committed(
     monkeypatch.setenv("RILL_CI_BASE_SHA", baseline)
     with pytest.raises(PermissionError, match="Committed test deletions"):
         check_pre_commit(root, data_root=tmp_path / "data")
+
+
+def test_hosted_baseline_never_leaks_into_unrelated_temp_repositories(
+    workspace: tuple[Path, GovernanceEngine],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root, engine = workspace
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(tmp_path / "other-hosted-repo"))
+    monkeypatch.setenv("RILL_CI_BASE_SHA", "a" * 40)
+    check_pre_commit(root, data_root=engine.data_root.parent.parent)
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(root))
+    with pytest.raises(PermissionError, match="not an ancestor"):
+        check_pre_commit(root, data_root=engine.data_root.parent.parent)
+
+
+def test_release_interval_includes_earlier_deleted_test(tmp_path: Path) -> None:
+    root = tmp_path / "release-history"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "feat/candidate")
+    (root / "tests").mkdir()
+    (root / "tests/test_example.py").write_text("def test_original():\n    assert True\n")
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: baseline",
+    )
+    git(root, "tag", "v0.1.0")
+    old_release = revision(root)
+    git(root, "rm", "tests/test_example.py")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: remove old test",
+    )
+    (root / "README.md").write_text("Other feature\n")
+    git(root, "add", "README.md")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "feat: unrelated",
+    )
+    assert not committed_test_deletions(root, git(root, "rev-parse", "HEAD^").stdout.strip())
+    tag = git(root, "describe", "--tags", "--abbrev=0", "--match", "v*", "HEAD^")
+    assert tag.stdout.strip() == "v0.1.0"
+    assert committed_test_deletions(root, old_release)
+
+
+def test_original_copier_test_roots_survive_profile_relocation(tmp_path: Path) -> None:
+    root = tmp_path / "relocated"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "feat/candidate")
+    (root / ".rill").mkdir()
+    (root / ".rill/copier-answers.yml").write_text(
+        "python: true\npython_root: services/old\npython_tests: tests\n"
+    )
+    target = root / "services/old/tests/test_feature.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("def test_case():\n    assert True\n")
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: old profile",
+    )
+    original = revision(root)
+    git(root, "rm", "services/old/tests/test_feature.py")
+    (root / ".rill/copier-answers.yml").write_text(
+        "python: false\npython_root: services/new\npython_tests: tests\n"
+    )
+    git(root, "add", ".rill/copier-answers.yml")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "refactor: move profile",
+    )
+    assert committed_test_deletions(root, original)
+
+
+def test_merge_resolution_deleted_test_is_detected(tmp_path: Path) -> None:
+    root = tmp_path / "merge-deletion"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "feat/base")
+    (root / "tests").mkdir()
+    target = root / "tests/test_case.py"
+    target.write_text("def test_a():\n    assert True\n")
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: original",
+    )
+    original = revision(root)
+    git(root, "switch", "-c", "feat/side")
+    target.write_text("def test_side():\n    assert True\n")
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "feat: side",
+    )
+    git(root, "switch", "feat/base")
+    target.write_text("def test_main():\n    assert True\n")
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "feat: main",
+    )
+    merge = git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        "feat/side",
+        check=False,
+    )
+    assert merge.returncode != 0
+    git(root, "rm", "tests/test_case.py")
+    git(
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "merge: resolve deleting test",
+    )
+    assert committed_test_deletions(root, original)
