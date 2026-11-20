@@ -177,24 +177,101 @@ jobs:
               )
             ' "$report" >/dev/null
           done
-      - name: Verify system Google Chrome
-        run: google-chrome --version || google-chrome-stable --version
-      - name: Execute native Chrome E2E test cases
+      - name: Verify actual product in system Chrome with axe-core
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
         run: |
-          report=$(mktemp --suffix=.json)
-          trap 'rm -f "$report"' EXIT
-          pnpm exec playwright test --project=chrome --grep '@e2e' --reporter=json > "$report"
-          jq -e '[.suites[] | recurse(.suites[]?) | .specs[]?.tests[]?.results[]? | select(.status == "passed")] | length > 0' "$report"
-      - name: Execute native Chrome accessibility test cases
+          test -n "$(git grep -l -F -- '@axe-core/playwright' -- '*.js' '*.mjs' '*.cjs' '*.ts' '*.mts' '*.cts' '*.jsx' '*.tsx' || true)"
+          test -n "$(git grep -l -F -- '.analyze(' -- '*.js' '*.mjs' '*.cjs' '*.ts' '*.mts' '*.cts' '*.jsx' '*.tsx' || true)"
+          target=$(pnpm exec playwright test --list --project=chrome --reporter=json | jq -er '.config.configFile')
+          proof=$(mktemp -d .rill-browser-XXXXXXXX)
+          config=$(mktemp --suffix=.mjs .rill-playwright-XXXXXXXX)
+          trap 'rm -rf "$proof"; rm -f "$config"' EXIT
+          # Keep the config beside the target so relative setup and webServer paths still resolve.
+          printf 'import target from "./%s";\n' "$(basename "$target")" > "$config"
+          cat >> "$config" <<'BROWSER_CONFIG'
+          import { defineConfig } from "@playwright/test";
+
+          const adopted = target.default ?? target;
+          export default defineConfig({
+            ...adopted,
+            projects: adopted.projects.map((project) =>
+              project.name === "chrome"
+                ? {
+                    ...project,
+                    testDir: process.env.RILL_BROWSER_PROOF_DIR,
+                    testMatch: "**/proof.mjs",
+                    testIgnore: [],
+                    grepInvert: [],
+                  }
+                : project,
+            ),
+          });
+          BROWSER_CONFIG
+          cat > "$proof/proof.mjs" <<'BROWSER'
+          import AxeBuilder from "@axe-core/playwright";
+          import { expect, test } from "@playwright/test";
+
+          test("@rill-product-chrome-axe-proof", async ({ page, baseURL }, testInfo) => {
+            expect(testInfo.project.use.channel).toBe("chrome");
+            expect(baseURL, "Set baseURL to the product page to scan").toMatch(/^https?:\/\//);
+            const response = await page.goto(baseURL);
+            expect(response?.ok(), `Product page returned HTTP ${response?.status()}`).toBe(true);
+            const report = await new AxeBuilder({ page })
+              .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+              .analyze();
+            expect(report.violations).toEqual([]);
+          });
+          BROWSER
+          RILL_BROWSER_PROOF_DIR="$PWD/$proof" pnpm exec playwright test --config="$config" --project=chrome --grep '@rill-product-chrome-axe-proof' --repeat-each=1 --output="$proof/results" --reporter=json > "$proof/report.json" || { cat "$proof/report.json"; exit 1; }
+          jq -e '[.suites[] | recurse(.suites[]?) | .specs[]? | select(.title == "@rill-product-chrome-axe-proof") | .tests[]? | select(.projectName == "chrome") | .results[]? | select(.status == "passed")] | length == 1' "$proof/report.json"
+{% for tag, label in [("e2e", "E2E"), ("a11y", "accessibility")] %}
+      - name: Execute native Chrome [[ label ]] test cases
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
         shell: bash
         run: |
-          report=$(mktemp --suffix=.json)
-          trap 'rm -f "$report"' EXIT
-          pnpm exec playwright test --project=chrome --grep '@a11y' --reporter=json > "$report"
-          jq -e '[.suites[] | recurse(.suites[]?) | .specs[]?.tests[]?.results[]? | select(.status == "passed")] | length > 0' "$report"
+          traces=$(mktemp -d)
+          trap 'rm -rf "$traces"' EXIT
+          pnpm exec playwright test --project=chrome --grep '@[[ tag ]]' --trace on --output="$traces/results" --reporter=json > "$traces/report.json" || { cat "$traces/report.json"; exit 1; }
+          jq -r '
+            .suites[] | recurse(.suites[]?) | .specs[]?.tests[]?
+            | select(.projectName == "chrome") | .results[]?
+            | select(.status == "passed") | .attachments[]?
+            | select(.name == "trace" and .path != null) | .path
+          ' "$traces/report.json" > "$traces/passed-traces"
+          base_url=$(pnpm exec playwright test --list --project=chrome --reporter=json | jq -er '.config.webServer | if type == "array" then .[0].url else .url end')
+          python3 - "$traces/passed-traces" "$base_url" <<'TRACE'
+          import json
+          from pathlib import Path
+          import sys
+          from zipfile import ZipFile
+          from urllib.parse import urlsplit
+
+          product = urlsplit(sys.argv[2])
+          if product.scheme not in ("http", "https") or not product.netloc:
+              sys.exit("No valid Playwright product webServer URL configured")
+
+          def visited_page(path):
+              with ZipFile(path) as archive:
+                  for name in archive.namelist():
+                      if not name.endswith(".trace"):
+                          continue
+                      with archive.open(name) as events:
+                          for line in events:
+                              event = json.loads(line)
+                              if event.get("type") != "frame-snapshot":
+                                  continue
+                              frame = event["snapshot"]
+                              url = urlsplit(frame["frameUrl"])
+                              if (frame["isMainFrame"] and url.scheme == product.scheme
+                                      and url.netloc == product.netloc):
+                                  return True
+              return False
+
+          if not any(visited_page(path) for path in Path(sys.argv[1]).read_text().splitlines()):
+              sys.exit("No passing Chrome test recorded the product page")
+          TRACE
+{% endfor %}
 
       - name: React security and correctness lint with Oxlint
         working-directory: [[ (js_workspace ~ "/" ~ react_root) | tojson ]]
@@ -512,8 +589,52 @@ jobs:
         run: uv run --locked ruff format --check [[ python_sources | tojson ]] [[ python_tests | tojson ]]
       - name: Python static types
         run: uv run --locked mypy --strict [[ python_sources | tojson ]]
-      - name: Python unit/regression and coverage
-        run: uv run --locked pytest -q --cov=[[ python_sources | tojson ]] --cov-report=term-missing --cov-fail-under=[[ python_coverage ]] [[ python_tests | tojson ]]
+      - name: Python unit/regression execution
+        shell: bash
+        run: |
+          report=$(mktemp --suffix=.xml)
+          trap 'rm -f "$report"' EXIT
+          uv run --locked pytest -q --ignore=[[ python_integration | tojson ]] --junitxml="$report" [[ python_tests | tojson ]]
+          uv run --locked python - "$report" <<'PYTEST'
+          import sys
+          from xml.etree import ElementTree
+
+          root = ElementTree.parse(sys.argv[1]).getroot()
+          suites = [root] if root.tag == "testsuite" else root.findall("testsuite")
+          passed = sum(
+              int(s.get("tests", 0)) - int(s.get("skipped", 0))
+              - int(s.get("failures", 0)) - int(s.get("errors", 0))
+              for s in suites
+          )
+          if passed < 1:
+              sys.exit("No passing Python unit test was executed")
+          PYTEST
+      - name: Python complete product source coverage
+        shell: bash
+        run: |
+          result=$(mktemp --suffix=.json)
+          trap 'rm -f "$result"' EXIT
+          uv run --locked pytest -q --cov=[[ python_sources | tojson ]] --cov-report=json:"$result" --cov-fail-under=[[ python_coverage ]] [[ python_tests | tojson ]]
+          uv run --locked python - "$result" [[ python_sources | tojson ]] [[ python_coverage ]] <<'PYTEST'
+          import json
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          coverage = json.loads(Path(sys.argv[1]).read_text()).get("files", {})
+          sources = subprocess.check_output(
+              ["git", "ls-files", "-z", "--", sys.argv[2]]
+          ).decode().split("\0")
+          tracked = {Path(path).as_posix() for path in sources if path.endswith(".py")}
+          if not tracked:
+              sys.exit("No tracked Python product source")
+          for source in sorted(tracked):
+              entry = coverage.get(source)
+              if entry is None:
+                  sys.exit(f"Missing source coverage: {source}")
+              if entry.get("summary", {}).get("percent_covered", 0) < float(sys.argv[3]):
+                  sys.exit(f"Insufficient Python source coverage: {source}")
+          PYTEST
       - name: Python real integration
         shell: bash
         run: |

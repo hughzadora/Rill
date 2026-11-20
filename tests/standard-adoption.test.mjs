@@ -980,7 +980,7 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(workflow, /^ {2}security:/m);
   assert.match(workflow, /working-directory: "services\/python"/);
   assert.match(workflow, /uv sync --locked --dev/);
-  assert.match(workflow, /pytest -q --cov="src"/);
+  assert.match(workflow, /pytest -q --ignore="tests\/integration"/);
   assert.match(workflow, /uv build --no-build-isolation/);
   assert.match(workflow, /pip-licenses --format=json/);
   assert.match(workflow, /--fail-on "GPL;AGPL/);
@@ -1057,6 +1057,66 @@ test("independent Python/Shell project executes actual source gates and rejects 
   const uv = (...args) =>
     pinned(["uv"], "uv", ["--directory", pythonRoot, ...args]);
   uv("sync", "--locked", "--dev");
+  git(project, ["add", "."]);
+  executeGeneratedStep(
+    workflow,
+    "Python unit/regression execution",
+    pythonRoot,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Python complete product source coverage",
+    pythonRoot,
+  );
+  const uncoveredPython = join(
+    pythonRoot,
+    "src/independent_service/uncovered.py",
+  );
+  writeFileSync(
+    uncoveredPython,
+    "def untested() -> str:\n    return 'uncovered'\n",
+  );
+  git(project, ["add", "services/python/src/independent_service/uncovered.py"]);
+  executeGeneratedStep(
+    workflow,
+    "Python complete product source coverage",
+    pythonRoot,
+    {
+      mustFail: true,
+    },
+  );
+  rmSync(uncoveredPython);
+  git(project, [
+    "reset",
+    "-q",
+    "--",
+    "services/python/src/independent_service/uncovered.py",
+  ]);
+  const unitTestPath = join(pythonRoot, "tests/test_core.py");
+  const unitTestOriginal = readFileSync(unitTestPath, "utf8");
+  writeFileSync(
+    unitTestPath,
+    "import pytest\n\n@pytest.mark.skip(reason='intentional')\ndef test_no_op() -> None:\n    assert True\n",
+  );
+  executeGeneratedStep(
+    workflow,
+    "Python unit/regression execution",
+    pythonRoot,
+    {
+      mustFail: true,
+    },
+  );
+  writeFileSync(unitTestPath, unitTestOriginal);
+  executeGeneratedStep(
+    workflow,
+    "Python unit/regression execution",
+    pythonRoot,
+  );
+  executeGeneratedStep(
+    workflow,
+    "Python complete product source coverage",
+    pythonRoot,
+  );
   uv("run", "--locked", "ruff", "check", "src", "tests");
   uv("run", "--locked", "ruff", "format", "--check", "src", "tests");
   uv("run", "--locked", "mypy", "--strict", "src");
@@ -1171,6 +1231,162 @@ test("independent Python/Shell project executes actual source gates and rejects 
   assert.match(brokenShell, /not ok/);
   writeFileSync(script, originalShell);
   pinned(["aqua:bats-core/bats-core"], "bats", ["--tap", bats]);
+});
+
+test("generated React browser gates require page activity and scan the configured product URL", async (t) => {
+  const project = join(sandbox, "browser-proof");
+  const fixture = join(repository, "tests/fixtures/independent-react");
+  mkdirSync(project);
+  for (const name of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "playwright.config.mjs",
+    "e2e",
+  ]) {
+    cpSync(join(fixture, name), join(project, name), { recursive: true });
+  }
+  file(
+    project,
+    "server.mjs",
+    `import { createServer } from "node:http";
+createServer((request, response) => {
+  const status = request.url === "/health"
+    ? 200
+    : request.url === (process.env.PRODUCT_ROUTE ?? "/")
+      ? Number(process.env.PRODUCT_STATUS ?? 200)
+      : 404;
+  response.writeHead(status, { "Content-Type": "text/html" });
+  response.end('<!doctype html><html lang="en"><head><title>Inventory</title></head><body><main><h1>Inventory</h1></main></body></html>');
+}).listen(4178, "127.0.0.1");
+createServer((_request, response) => {
+  response.writeHead(200, { "Content-Type": "text/html" });
+  response.end("<html lang='en'><title>Unrelated service</title></html>");
+}).listen(4179, "127.0.0.1");`,
+  );
+  const config = join(project, "playwright.config.mjs");
+  const baselineConfig = readFileSync(config, "utf8")
+    .replace('command: "pnpm run dev"', 'command: "node server.mjs"')
+    .replace(
+      'url: "http://127.0.0.1:4178"',
+      'url: "http://127.0.0.1:4178/health"',
+    );
+  writeFileSync(config, baselineConfig);
+  git(project, ["init", "-q", "-b", "main"]);
+  git(project, ["add", "."]);
+  copyStandard(project, {
+    project_name: "Browser proof",
+    react: true,
+    node: false,
+    python: false,
+    shell: false,
+  });
+  const workflow = verifyWorkflow(project);
+  pinned(["node", "pnpm"], "pnpm", [
+    "--dir",
+    project,
+    "install",
+    "--frozen-lockfile",
+  ]);
+
+  const proof = "Verify actual product in system Chrome with axe-core";
+  const run = (label, options = {}) =>
+    executeGeneratedStep(workflow, label, project, {
+      ...options,
+      env: {
+        PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+        ...options.env,
+      },
+    });
+
+  const spec = join(project, "e2e/inventory.spec.mjs");
+  const original = readFileSync(spec, "utf8");
+  const navigating = `import { expect, test } from "@playwright/test";
+test("@e2e @a11y opens the product", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
+});`;
+  for (const [tag, label] of [
+    ["@e2e", "Execute native Chrome E2E test cases"],
+    ["@a11y", "Execute native Chrome accessibility test cases"],
+  ]) {
+    await t.test(`${tag} rejects traces without product page activity`, () => {
+      writeFileSync(spec, navigating);
+      run(label);
+      for (const body of [
+        "() => expect(true).toBe(true)",
+        'async ({ page }) => expect(page.url()).toBe("about:blank")',
+      ]) {
+        writeFileSync(
+          spec,
+          `import { expect, test } from "@playwright/test";\ntest("${tag}", ${body});\n`,
+        );
+        assert.match(
+          run(label, { mustFail: true }),
+          /No passing Chrome test recorded the product page/,
+        );
+      }
+    });
+  }
+  writeFileSync(spec, original);
+
+  for (const status of ["404", "500"]) {
+    await t.test(
+      `axe rejects a clean HTML response with HTTP ${status}`,
+      () => {
+        const result = run(proof, {
+          mustFail: true,
+          env: { PRODUCT_STATUS: status },
+        });
+        assert.match(
+          result,
+          new RegExp(`Product page returned HTTP ${status}`),
+        );
+      },
+    );
+  }
+  await t.test(
+    "axe preserves the Chrome project and scans its configured route with custom TypeScript discovery",
+    () => {
+      const browserDir = join(project, "tests/browser");
+      mkdirSync(browserDir, { recursive: true });
+      renameSync(spec, join(browserDir, "inventory.check.ts"));
+      rmSync(join(project, "e2e"), { recursive: true });
+      writeFileSync(
+        config,
+        baselineConfig
+          .replace(
+            'testDir: "./e2e",',
+            'testDir: "./tests/browser",\n  testMatch: "**/*.check.ts",',
+          )
+          .replace(
+            'baseURL: "http://127.0.0.1:4178",',
+            'baseURL: "http://127.0.0.1:4178/inventory/",',
+          ),
+      );
+      git(project, ["add", "."]);
+      run(proof, { env: { PRODUCT_ROUTE: "/inventory/" } });
+      writeFileSync(
+        join(browserDir, "inventory.check.ts"),
+        `import { test } from "@playwright/test";\ntest("@e2e wrong route", async ({ page }) => { await page.goto("http://127.0.0.1:4179/"); });\n`,
+      );
+      assert.match(
+        run("Execute native Chrome E2E test cases", {
+          mustFail: true,
+          env: { PRODUCT_ROUTE: "/inventory/" },
+        }),
+        /No passing Chrome test recorded the product page/,
+      );
+      writeFileSync(join(browserDir, "inventory.check.ts"), original);
+      const manifestPath = join(project, "package.json");
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      delete manifest.type;
+      writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+      renameSync(config, join(project, "playwright.config.ts"));
+      git(project, ["add", "."]);
+      run(proof, { env: { PRODUCT_ROUTE: "/inventory/" } });
+    },
+  );
 });
 
 test("independent React/Tailwind project executes actual Chrome/UI and CI source gates", () => {
@@ -1395,7 +1611,11 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
   );
   rmSync(quotedModule);
   git(project, ["reset", "--", "src/非ASCII模块.ts"]);
-  executeGeneratedStep(workflow, "Verify system Google Chrome", project);
+  executeGeneratedStep(
+    workflow,
+    "Verify actual product in system Chrome with axe-core",
+    project,
+  );
   const browserIsolated = {
     env: {
       PLAYWRIGHT_BROWSERS_PATH: join(project, "empty-browser-cache"),
@@ -1437,6 +1657,19 @@ test("independent React/Tailwind project executes actual Chrome/UI and CI source
     "Execute native Chrome E2E test cases",
     project,
     { ...browserIsolated, mustFail: true },
+  );
+  writeFileSync(e2eFile, baselineE2eFile);
+  writeFileSync(
+    e2eFile,
+    'import { test, expect } from "@playwright/test";\n' +
+      'test("@e2e empty confirmation", () => expect(true).toBe(true));\n' +
+      'test("@a11y empty confirmation", () => expect(true).toBe(true));\n',
+  );
+  executeGeneratedStep(
+    workflow,
+    "Verify actual product in system Chrome with axe-core",
+    project,
+    { mustFail: true },
   );
   writeFileSync(e2eFile, baselineE2eFile);
   executeGeneratedStep(workflow, "React production build", project);

@@ -80,7 +80,9 @@ unit and integration test sources. They execute **native** Biome, pinned Oxlint 
 Lizard complexity checks, TypeScript and the selected Node/Vitest
 runner with source coverage thresholds directly, rather than trusting package scripts that may
 be no-ops. React additionally executes real Chrome-tagged `@e2e` and
-`@a11y` Playwright tests directly; the target project's native
+`@a11y` Playwright tests directly, requires native browser Trace
+artifacts, and proves the installed system Chrome/axe-core tools
+can launch and scan; the target project's native
 `build` script remains required. Tests or real source missing
 from the checked-out Git tree cause CI to fail. The selected
 `node:test` runner requires locked `c8@12.0.0` and uses
@@ -94,7 +96,8 @@ requires human review of test quality and deployment artifacts.
 
 Python runs inside the configured `python_root`, with a locked uv
 environment, Ruff, strict mypy, pytest + pytest-cov, real integration
-tests, coverage floor and `uv build --no-build-isolation`. Include the
+tests, a separate non-skipped unit-test verdict, per-file tracked-source
+coverage reconciliation and `uv build --no-build-isolation`. Include the
 build backend in locked dev dependencies as well as the exact
 PEP 517 build requirement. An uninstalled backend fails instead of
 resolving a different build-time version. Its source and test paths are

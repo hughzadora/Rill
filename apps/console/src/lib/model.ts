@@ -100,15 +100,56 @@ export interface AcceptanceItem {
   checked: boolean;
 }
 
+function markdownFenceTransition(
+  line: string,
+  fence: string | undefined,
+): { fence: string | undefined; skip: boolean } {
+  const delimiter = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+  if (fence) {
+    const closes =
+      delimiter &&
+      delimiter[1][0] === fence[0] &&
+      delimiter[1].length >= fence.length &&
+      !delimiter[2].trim();
+    return { fence: closes ? undefined : fence, skip: true };
+  }
+  if (delimiter && (delimiter[1][0] === "~" || !delimiter[2].includes("`"))) {
+    return { fence: delimiter[1], skip: true };
+  }
+  return { fence: undefined, skip: false };
+}
+
 export function acceptanceItems(body: string): AcceptanceItem[] {
-  const lines = body.split(/\r?\n/);
-  const matched = lines.flatMap((line) => {
-    const value = line.match(/^\s*[-*]\s+\[([xX ])\]\s+(.+?)\s*$/);
-    return value
-      ? [{ checked: value[1].toLowerCase() === "x", text: value[2] }]
-      : [];
-  });
-  return matched;
+  const items: AcceptanceItem[] = [];
+  let sectionDepth: number | null = null;
+  let fence: string | undefined;
+  for (const line of body.split(/\r?\n/)) {
+    const state = markdownFenceTransition(line, fence);
+    fence = state.fence;
+    if (state.skip) continue;
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const depth = heading[1].length;
+      if (sectionDepth !== null && depth <= sectionDepth) break;
+      if (
+        sectionDepth === null &&
+        /^(acceptance(?: criteria)?|验收(?:标准|条件)?)(?:[:：])?$/i.test(
+          heading[2].trim(),
+        )
+      ) {
+        sectionDepth = depth;
+      }
+      continue;
+    }
+    if (sectionDepth === null) continue;
+    const check = line.match(/^\s*[-*]\s+\[([xX ])\]\s+(.+?)\s*$/);
+    if (check) {
+      items.push({ checked: check[1].toLowerCase() === "x", text: check[2] });
+    } else if (items.length && /^\s{2,}\S/.test(line)) {
+      items[items.length - 1].text += " " + line.trim();
+    }
+  }
+  return items;
 }
 
 export function issueSections(

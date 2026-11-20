@@ -41,6 +41,62 @@ describe("native issue evidence model", () => {
     ]);
   });
 
+  it("keeps later engineering receipts out of formal acceptance", () => {
+    expect(
+      acceptanceItems(
+        "## Acceptance\n- [ ] Real hosted pilot with a new\n  owner-controlled product\n- [ ] Existing project\n\n## Candidate evidence\n- [x] Local fixture\n- [x] Synthetic update",
+      ),
+    ).toEqual([
+      {
+        text: "Real hosted pilot with a new owner-controlled product",
+        checked: false,
+      },
+      { text: "Existing project", checked: false },
+    ]);
+    expect(acceptanceItems("## Evidence\n- [x] Test passed")).toEqual([]);
+    expect(
+      acceptanceItems(
+        "## Acceptance\n### Positive\n- [x] Real successful path\n### Negative\n- [ ] Error recovery\n## Later evidence\n- [x] Synthetic pass",
+      ),
+    ).toEqual([
+      { text: "Real successful path", checked: true },
+      { text: "Error recovery", checked: false },
+    ]);
+  });
+
+  it("does not treat acceptance evidence as formal criteria", () => {
+    expect(
+      acceptanceItems(
+        "## Acceptance evidence\n- [x] Fixture complete\n## Acceptance\n- [ ] Real owner pilot",
+      ),
+    ).toEqual([{ text: "Real owner pilot", checked: false }]);
+  });
+
+  it("ignores fenced headings and checklist examples", () => {
+    expect(
+      acceptanceItems(
+        [
+          "```markdown",
+          "## Acceptance",
+          "- [x] Example before acceptance",
+          "```",
+          "## Acceptance",
+          "- [ ] Real requirement",
+          "  ~~~~md",
+          "## Example heading",
+          "- [x] Example inside acceptance",
+          "~~~",
+          "- [x] Still inside the example",
+          "  ~~~~~",
+          "- [x] Another requirement",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      { text: "Real requirement", checked: false },
+      { text: "Another requirement", checked: true },
+    ]);
+  });
+
   it("preserves meaningful document sections for drilldown", () => {
     expect(issueSections("Intro\n\n## Acceptance\n- [ ] test")).toEqual([
       { title: "概览", content: "Intro" },
