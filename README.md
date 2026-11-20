@@ -1,43 +1,54 @@
 # Rill
 
-Rill is a native Codex-first software factory for new and existing software repositories. Its owner defines product outcomes and exceptional protected authorizations; agents and maintained tools perform bounded research, implementation, testing, review, and recovery.
+Rill is a **repository-root native Codex Plugin** for evidence-based software delivery. Its owner states outcomes, authorizes protected actions, and accepts completed work; Codex and established tools research, implement, test, review, and recover tasks.
 
-**Blueprint:** 10.0.1 (not a release). **Product SemVer:** `0.0.1` in canonical [VERSION](VERSION). The current tree is a development candidate, **not certified for production or consumer release**.
+**Blueprint:** 10.0.1 (design only). **Product SemVer:** `0.0.1`, recorded in [VERSION](VERSION). This source is a development candidate, not a certified release.
 
-## Authorities and evidence
+## One native plugin root
 
-- [CONSTITUTION.md](CONSTITUTION.md) — durable product intent.
-- [PRD.md](PRD.md) — the one living Rill specification and actual acceptance states.
-- [AGENTS.md](AGENTS.md) — compact agent entrypoint, with scope and authorization boundaries.
-- [GitHub Issue #51](https://github.com/hughzadora/Rill/issues/51) — current rebuild dependencies and work; [Issue #71](https://github.com/hughzadora/Rill/issues/71) — Anthropic/OpenAI source analysis and counterexamples.
-- GitHub PRs and exact-revision CI runs, not a model response, provide delivery evidence.
+OpenAI's [Plugin packaging contract](https://developers.openai.com/plugins/build/plugins) determines the layout:
 
-## Native package layout
+- `plugin.json` — **single portable Plugin identity at repository root**, with the OpenAI extension.
+- `skills/rill-recover/`, `skills/rill-update/` — the two Rill-specific, progressively disclosed Skills; upstream design/research Skills are not copied.
+- `hooks/hooks.json`, `hooks/session-start.mjs` — **one** native `SessionStart` Hook, using `PLUGIN_ROOT`. Codex must explicitly trust the active definition.
+- `.agents/plugins/marketplace.json` — repository Marketplace, pointing at `./`, not a second Plugin directory.
+- `.codex/config.toml` and `.codex/agents/` — official project-scoped Codex settings and role guidance. A role prompt does not create a security sandbox.
 
-- `plugin/plugin.json` — portable [Agent Plugins](https://developers.openai.com/plugins/build/plugins) manifest and canonical package identity. Only `plugin/skills/` and `plugin/hooks/` ship with the plugin.
-- `.agents/plugins/marketplace.json` — local development source pointing at `./plugin`.
-- `templates/consumer/` — consumer-owned PRD, entry instructions, project-scoped Codex roles, Hook definition, and a Marketplace pointing at its own `./.rill/plugin`.
-- `src/` — Rill CLI code, `tests/` — positive/negative CLI and source verification, `tools/` — maintained build scripts.
+There is **no** `plugin/` sub-package, `bundle/`, consumer `.rill/plugin`, duplicated Marketplace, duplicate consumer Hook, or separate bespoke updater.
 
-Upstream Skills are preferred for substantive research, brainstorming, and design critique; they are **not copied into Rill**. The distinct `rill-recover` and `rill-update` Skills stay in the plugin. Installed Skill discovery alone does not prove automatic invocation. The native Hook is subject to explicit host trust; a trusted local SessionStart callback was observed in [#54](https://github.com/hughzadora/Rill/issues/54), but consumer installation, custom roles and independent review require their own runtime receipts.
-
-## Develop and verify
-
-With pinned **Bun 1.4.5**, run `bun install --frozen-lockfile` and `bun run ci`. This runs strict `bun check`, `bun fmt --check`, maintained Biome lint (stable Bun does not yet provide a usable native `bun lint` executable), a nonbundled Bun build, Bun tests, and an independent Node V8 coverage gate requiring at least **80% per emitted JS file**. PR/main CI must run all applicable checks on the *exact candidate commit*; `bun test --changed` is optional local feedback, not a substitute.
-
-Use the native CLI only after building:
+### Install and inspect using the native host
 
 ```sh
+codex plugin marketplace add hughzadora/Rill
+codex plugin list --available --json
+codex plugin add rill@rill-source
+codex plugin list --json
+```
+
+For editing from a local repository, Codex supports `codex plugin marketplace add /absolute/path/to/Rill`. Plugin installation never constitutes Hook trust; review the active Hook definition in Codex before enabling it. A Marketplace refresh, repository edit or Git push is not evidence that the host's cached Plugin has updated. Confirm the installed version and native Hook events independently.
+
+### Optional consumer project preparation
+
+The Rill repo includes the developer-only `rill` helper for creating or reviewing *project-owned* files. It is not a custom Plugin manager, and does not copy a Plugin or install into a user account.
+
+```sh
+bun install --frozen-lockfile
+bun run build
 node dist/cli.js init /path/to/new-product --goal "Observable product outcome" --yes --json
 node dist/cli.js adopt /path/to/existing-product --json
 node dist/cli.js adopt /path/to/existing-product --yes --json
-node dist/cli.js update /path/to/enrolled-product --json
 ```
 
-`init` creates only a nonexisting target. `adopt --yes` and `update --yes` prepare **separate review worktrees**; they do not merge or overwrite the consumer's current working tree. Receipts deliberately say `CREATED_NOT_VERIFIED`, `PLAN_ONLY`, or `PREPARED_NOT_VERIFIED` until genuine checks pass. Consumer-owned configuration conflicts are preserved and reported instead of silently overwritten. `setup` and `doctor` remain unimplemented; their absence is not a release blocker waived by documentation.
+`init` requires a nonexistent directory, creates Git history roots, one consumer `PRD.md` and `AGENTS.md`, and copies the **official root `.codex/` configuration** for that product. `adopt` only prepares an isolated Git worktree and preserves existing product source/configuration; user-owned conflicts are reported. Both identify Plugin installation and trust as separate, not-verified host steps. Consumer code and Git history are never silently overwritten.
 
-For local plugin development, add the repository Marketplace with `codex plugin marketplace add /absolute/path/to/Rill` and install `rill@rill-source` in a separately chosen Codex home. The installed package is versioned independently from the Git checkout. Do not globally auto-trust Hooks, bypass approvals, or represent a reviewer prompt as sandbox isolation.
+Plugin upgrades are performed through supported **Codex Marketplace/Plugin commands**, with explicit authorization and independent checks for changed runtime permissions; `rill update` has been removed because it duplicated the native package manager.
 
-## Delivery limits
+## Governance and verification
 
-A green factory CI run does not certify a consumer product. Independent greenfield and brownfield pilots, actual supported permissions, exact-SHA non-author review, safe recovery, upgrade/rollback and owner acceptance remain separate tasks in [#51](https://github.com/hughzadora/Rill/issues/51). No paid service, extra credits, production release or protected merge is implied by this source tree.
+- [CONSTITUTION.md](CONSTITUTION.md) is the permanent product purpose, [PRD.md](PRD.md) is the **single living Rill requirements specification**, [AGENTS.md](AGENTS.md) is an index.
+- [#51](https://github.com/hughzadora/Rill/issues/51) holds the v10.0.1 rebuild dependencies. [#71](https://github.com/hughzadora/Rill/issues/71) records the four Anthropic research articles and cross-vendor verification; [#72](https://github.com/hughzadora/Rill/issues/72) records the native-package reconciliation.
+- Pinned **Bun 1.4.5**: `bun run ci` runs strict typecheck, Biome lint, `bun fmt --check`, build, real Bun tests, and per-file Node V8 coverage of all emitted JS at **>=80%**. Run the full suite against the exact candidate SHA; optional changed tests are not substitute release evidence.
+
+A successful package install or CI pass does not prove native Skill invocation, custom reviewer isolation, trusted Hook execution, independent greenfield/brownfield product acceptance, or a protected release. Record each separately with an exact-SHA receipt.
+
+No purchase, global Codex trust change, production mutation, destructive consumer update, merge, or release is authorized by these files.

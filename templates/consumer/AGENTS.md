@@ -6,4 +6,6 @@ This is the consuming product, not the Rill factory source repository.
 3. For substantive product questions, use available maintained upstream `research` and `grill-with-docs` workflows, and verify actual invocation instead of assuming it. Do not repeat prior decisions or create Rill-owned design Skill duplicates; skip for mechanical repairs and already-approved scope.
 4. Existing product code and tools are user-owned. Do not overwrite, delete, merge, deploy, expand privileges or spend money without the required native approval.
 5. Do not mistake a plugin's presence for its actual installation, Hook trust or custom agent runtime proof. Treat unverified capability as not verified.
-6. After context loss, use the installed `rill-recover` Skill to verify current GitHub issue/PR, source SHA and applicable checks; if unavailable, report the capability UNKNOWN.
+6. After context loss, use the native installed `rill-recover` Skill to verify current GitHub issue/PR, source SHA and applicable checks; if unavailable, report the capability UNKNOWN.
+
+7. Rill is installed from its own upstream Marketplace; this consumer repository does not contain a second Plugin package or manage Plugin upgrades. Verify `codex plugin list --json` and current Hook trust separately.

@@ -25,6 +25,7 @@ export interface AdoptionReceipt {
   version: string;
   preserved: string[];
   pendingIntegration: string[];
+  nativePlugin: "REQUIRES_NATIVE_INSTALL";
   nativeTrust: "REQUIRES_USER_APPROVAL";
   branch?: string;
   worktree?: string;
@@ -63,23 +64,20 @@ function rejectSymlinkAncestors(target: string, paths: string[]): void {
 
 function checkSource(root: string, version: string): void {
   const required = [
-    "plugin/plugin.json",
-    "plugin/hooks/hooks.json",
-    "plugin/hooks/session-start.mjs",
-    "plugin/skills/rill-recover/SKILL.md",
-    "plugin/skills/rill-update/SKILL.md",
+    "plugin.json",
     "templates/consumer/PRD.md",
     "templates/consumer/AGENTS.md",
-    "templates/consumer/.agents/plugins/marketplace.json",
-    "templates/consumer/.codex/config.toml",
-    "templates/consumer/.codex/hooks.json",
-    "templates/consumer/.codex/agents/reviewer.toml",
-    "templates/consumer/.codex/agents/worker.toml",
-    "templates/consumer/.codex/agents/explorer.toml",
+    ".codex/config.toml",
+    ".codex/agents/explorer.toml",
+    ".codex/agents/worker.toml",
+    ".codex/agents/reviewer.toml",
   ];
   const [manifestPath] = required;
-  if (manifestPath === undefined || required.some((path) => !existsSync(join(root, path)))) {
-    throw new RillCommandError("The Rill distribution is missing maintained consumer assets.", 2);
+  if (
+    manifestPath === undefined ||
+    required.some((path) => !existing(join(root, path)) || !lstatSync(join(root, path)).isFile())
+  ) {
+    throw new RillCommandError("The Rill distribution has missing or unsafe consumer assets.", 2);
   }
   const manifest: unknown = JSON.parse(readFileSync(join(root, manifestPath), "utf8"));
   if (
@@ -90,11 +88,14 @@ function checkSource(root: string, version: string): void {
     manifest.name !== "rill" ||
     manifest.version !== version
   ) {
-    throw new RillCommandError("The Rill bundle does not match the canonical VERSION.", 2);
+    throw new RillCommandError("The native Rill Plugin does not match canonical VERSION.", 2);
   }
 }
 
 function copyNew(source: string, destination: string): void {
+  if (lstatSync(source).isSymbolicLink()) {
+    throw new RillCommandError(`Refusing a symlink in Rill-managed assets: ${source}`, 2);
+  }
   if (existing(destination)) {
     throw new RillCommandError(`Managed target path already exists: ${destination}`, 1);
   }
@@ -118,15 +119,7 @@ function copyNew(source: string, destination: string): void {
 }
 
 function populate(root: string, worktree: string, goal: string, preserved: string[]): void {
-  const plugin = join(root, "plugin");
   const template = join(root, "templates/consumer");
-  copyNew(plugin, join(worktree, ".rill/plugin"));
-  if (!preserved.includes(".agents/plugins/marketplace.json")) {
-    copyNew(
-      join(template, ".agents/plugins/marketplace.json"),
-      join(worktree, ".agents/plugins/marketplace.json"),
-    );
-  }
   if (!preserved.includes("AGENTS.md")) {
     copyNew(join(template, "AGENTS.md"), join(worktree, "AGENTS.md"));
   }
@@ -143,14 +136,11 @@ function populate(root: string, worktree: string, goal: string, preserved: strin
     );
   }
   if (!preserved.includes(".codex/config.toml")) {
-    copyNew(join(template, ".codex/config.toml"), join(worktree, ".codex/config.toml"));
+    copyNew(join(root, ".codex/config.toml"), join(worktree, ".codex/config.toml"));
     const roles = ["explorer.toml", "worker.toml", "reviewer.toml"];
     for (const role of roles) {
-      copyNew(join(template, ".codex/agents", role), join(worktree, ".codex/agents", role));
+      copyNew(join(root, ".codex/agents", role), join(worktree, ".codex/agents", role));
     }
-  }
-  if (!preserved.includes(".codex/hooks.json")) {
-    copyNew(join(template, ".codex/hooks.json"), join(worktree, ".codex/hooks.json"));
   }
 }
 
@@ -183,38 +173,20 @@ export function adoptProject(
   checkSource(root, version);
 
   const guarded = [
-    ".rill",
-    ".rill/plugin",
-    ".agents",
-    ".agents/plugins",
-    ".agents/plugins/marketplace.json",
     "AGENTS.md",
     "PRD.md",
     ".codex",
     ".codex/agents",
     ".codex/config.toml",
-    ".codex/hooks.json",
     ".codex/agents/explorer.toml",
     ".codex/agents/worker.toml",
     ".codex/agents/reviewer.toml",
   ];
   rejectSymlinkAncestors(target, guarded);
-  if (existing(join(target, ".rill/plugin"))) {
-    throw new RillCommandError(
-      "Existing .rill/plugin is consumer-owned or managed by another version. Refusing overwrite.",
-      1,
-    );
-  }
 
   const preserved: string[] = [];
   const pendingIntegration: string[] = [];
-  for (const path of [
-    "AGENTS.md",
-    "PRD.md",
-    ".codex/config.toml",
-    ".agents/plugins/marketplace.json",
-    ".codex/hooks.json",
-  ]) {
+  for (const path of ["AGENTS.md", "PRD.md", ".codex/config.toml"]) {
     if (existing(join(target, path))) {
       preserved.push(path);
       // These native files cannot be silently combined with Rill's routing/trust configuration.
@@ -246,6 +218,7 @@ export function adoptProject(
     version,
     preserved,
     pendingIntegration,
+    nativePlugin: "REQUIRES_NATIVE_INSTALL",
     nativeTrust: "REQUIRES_USER_APPROVAL",
   };
   if (!apply) return receipt;

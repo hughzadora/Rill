@@ -7,13 +7,13 @@
   "repository": "https://github.com/hughzadora/Rill",
   "extensions": {
     "com.openai": {
-      "hooks": "./hooks/hooks.json",
       "interface": {
         "displayName": "Rill Software Factory",
         "shortDescription": "Evidence-bound, native software delivery workflows",
         "developerName": "Hugh Zadora",
         "category": "Productivity"
-      }
+      },
+      "hooks": "./hooks/hooks.json"
     }
   }
 }

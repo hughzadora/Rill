@@ -24,13 +24,13 @@ test("upstream-first design intake is routed without bundled duplicate Skills", 
 
 test("Rill-owned Skills are limited to distinct recovery and update capabilities", () => {
   for (const name of ["rill-recover", "rill-update"]) {
-    const skill = read(`plugin/skills/${name}/SKILL.md`);
+    const skill = read(`skills/${name}/SKILL.md`);
     assert.match(skill, new RegExp(`^---\\nname: ${name}\\n`));
     assert.match(skill, /GitHub/);
     assert.match(skill, /native/i);
   }
-  assert.equal(existsSync(join(root, "plugin/skills/rill-recover/SKILL.md")), true);
-  assert.equal(existsSync(join(root, "plugin/skills/rill-update/SKILL.md")), true);
+  assert.equal(existsSync(join(root, "skills/rill-recover/SKILL.md")), true);
+  assert.equal(existsSync(join(root, "skills/rill-update/SKILL.md")), true);
 });
 
 test("research evidence does not become a second living product authority", () => {

@@ -1,8 +1,0 @@
-name = "worker"
-description = "Scoped implementation and regression owner"
-developer_instructions = """
-Implement the accepted GitHub ticket in a bounded source area.
-Own the corresponding positive and failure-path tests and do not self-review.
-Use native tools and official language tooling; do not weaken check coverage.
-Stop when dependent owner approval or protected permissions are actually required.
-"""
