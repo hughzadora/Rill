@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<title>Rill / Factory Console</title>
+<style>
+:root{color-scheme:light;--bg:#f5f6f5;--ink:#16252b;--muted:#68777e;--edge:#dce3e1;--accent:#14685e;--soft:#e9f2ee}
+*{box-sizing:border-box}body{margin:0;font:15px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:1150px;margin:auto;padding:45px 25px 85px}.eyebrow{font-size:12px;font-weight:720;letter-spacing:.15em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(31px,4vw,50px);letter-spacing:-.055em;line-height:1.13;margin:8px 0 12px}p{color:var(--muted);max-width:760px;margin:7px 0 17px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;border-bottom:1px solid var(--edge);padding-bottom:23px;margin-bottom:27px}
+.label{color:var(--muted);font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.06em}
+.topline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 19px}.tile,.panel{background:#fff;border:1px solid var(--edge);border-radius:13px;box-shadow:0 6px 14px #15383006}
+.tile{padding:18px 20px}.tile strong{display:block;margin:6px 0;font-size:23px;letter-spacing:-.04em;overflow-wrap:anywhere}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.panel{padding:21px 24px;margin-bottom:16px}
+h2{font-size:16px;letter-spacing:-.02em;margin:0 0 13px}h3{font-size:14px;margin:0 0 6px}.mono,code{font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+pre{margin:0;background:#f6f7f7;border-radius:9px;padding:15px;white-space:pre-wrap;word-wrap:break-word;max-height:330px;overflow:auto}
+.pill{display:inline-flex;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:650;background:var(--soft);color:var(--accent)}
+.row{display:flex;gap:10px;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid #eff2f1}.row:last-child{border-bottom:0}
+.row .dim{color:var(--muted);font-size:12px;text-align:right;max-width:50%}.stack{display:grid;gap:10px}
+article{border:1px solid var(--edge);border-radius:10px;padding:13px 15px;background:#fcfdfc}article strong{display:block;font-size:13px}.muted{color:var(--muted);font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:9px}button{cursor:pointer;border:1px solid var(--edge);color:var(--ink);background:white;padding:9px 14px;border-radius:8px;font-weight:630}
+button.primary{color:white;background:var(--accent);border-color:var(--accent)}button:focus-visible{outline:3px solid #7fb8ab;outline-offset:3px}button:disabled{cursor:not-allowed;opacity:.55}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--edge);margin-top:24px;padding-top:16px}
+@media(max-width:760px){main{padding:24px 15px 45px}.topline{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}header{display:block}.panel{padding:18px}}
+</style>
+</head>
+<body><main>
+<header><div><span class="eyebrow">RILL / SOFTWARE FACTORY</span><h1>Engineering control panel.</h1><p>本地确定性快照 · 不联网 · 无模型推理 · 事实与授权分离</p></div><span class="pill" id="mode-pill">LOCAL</span></header>
+<div class="topline" id="metrics" aria-label="项目状态摘要"></div>
+<div class="grid">
+<div><section class="panel"><h2>工作进度 / Git 原子时间轴</h2><div id="history" class="stack"></div></section>
+<section class="panel"><h2>源代码符号索引</h2><pre id="symbols" class="mono"></pre></section></div>
+<div><section class="panel"><h2>阶段与护栏</h2><div id="state"></div></section>
+<section class="panel"><h2>CI / 确定性验收</h2><div id="ci"></div></section>
+<section class="panel"><h2>Owner 决策</h2><p class="muted">只有在本机通过 <code>rill ui --serve</code> 打开时才可回执。决策仅写入状态，不授予执行高危操作的权限。</p><div class="actions"><button data-decision="approve" class="primary">确认方向</button><button data-decision="reject">驳回</button><button data-decision="escalate">请求风险审查</button></div><p id="feedback" class="muted" role="status" aria-live="polite"></p></section></div>
+</div>
+<footer>Rill Factory · Generated from local state, Git and CI files. Dashboard values are observations, not release approvals.</footer>
+</main>
+<script type="application/json" id="rill-data">__RILL_DATA__</script>
+<script>
+(() => {
+  const info = JSON.parse(document.querySelector('#rill-data').textContent);
+  const el = (tag, text, parent, className) => { const node=document.createElement(tag); node.textContent=String(text ?? '—'); if(className)node.className=className; parent.append(node); return node; };
+  const by = (id) => document.getElementById(id);
+  const metric = (label,value) => { const cell=el('div','',by('metrics'),'tile'); el('span',label,cell,'label'); el('strong',value,cell); };
+  metric('Mode / Phase', `${info.mode} / ${info.phase}`); metric('Branch',info.branch); metric('Dirty business files',info.dirty); metric('Last commit',info.shortHead);
+  el('span',info.serving ? 'LOCAL RECEIPT MODE' : 'READ ONLY SNAPSHOT',by('mode-pill'));
+  for(const [label,value] of [['Task goal',info.taskGoal],['Task scope',info.scope.join(', ')],['Failure count',info.failures],['Owner decision',info.decision]]) {
+    const row=el('div','',by('state'),'row');el('span',label,row);el('span',value,row,'dim');
+  }
+  for(const commit of info.history){ const card=el('article','',by('history'));el('strong',commit.subject,card);el('span',`${commit.short}  ·  ${commit.when}`,card,'mono muted'); }
+  if(!info.history.length)el('p','尚无 Git 提交',by('history'));
+  by('symbols').textContent=info.symbols || '尚无符号快照。运行 rill hook pre-compact。';
+  const ci = info.ci && Object.keys(info.ci).length ? Object.entries(info.ci) : [['result','尚无 CI 回执']];
+  for(const [key,value] of ci){ const row=el('div','',by('ci'),'row');el('span',key,row);el('span',typeof value==='object' ? JSON.stringify(value) : value,row,'dim'); }
+  const feedback = by('feedback');
+  for(const button of document.querySelectorAll('[data-decision]')){
+    if(!info.serving){button.disabled=true; continue;}
+    button.addEventListener('click',async() => {
+      for(const node of document.querySelectorAll('[data-decision]'))node.disabled=true;
+      try{
+        const response=await fetch('/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:button.dataset.decision,token:info.token})});
+        if(!response.ok)throw new Error('回执被拒绝');
+        feedback.textContent='回执已记录。服务器将自动退出。';
+      }catch(error){feedback.textContent=String(error);for(const node of document.querySelectorAll('[data-decision]'))node.disabled=false;}
+    });
+  }
+})();
+</script></body></html>

@@ -2,3 +2,5 @@
 state.json
 symbols.txt
 last-error.log
+dashboard.html
+ci-summary.json
