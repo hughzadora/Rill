@@ -12,4 +12,4 @@ The [delivery workflow](workflow/DELIVERY.md) identifies the stages. The [bluepr
 
 ## Build the template
 
-Install mise, run `mise install --locked`, then `mise exec -- bun install --frozen-lockfile`. `mise run build` produces the versioned repository template in `dist/`.
+Install mise, run `mise install --locked`, then `mise exec -- bun install --frozen-lockfile`. From a Git checkout, `mise run build` produces the versioned base template and the available profile templates in `dist/`. The builder selects tracked template files.
