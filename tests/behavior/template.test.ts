@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { version } from "../../package.json";
@@ -11,6 +11,9 @@ test("the public build command ships a self-contained, versioned Codex template"
   try {
     for (const file of [
       ".agents",
+      ".editorconfig",
+      ".gitattributes",
+      ".gitignore",
       "src",
       "template",
       "workflow",
@@ -20,6 +23,15 @@ test("the public build command ships a self-contained, versioned Codex template"
       const source = new URL(file, project);
       await cp(source, join(directory, file), { recursive: true });
     }
+
+    for (const args of [
+      ["init", "-q"],
+      ["add", "--all"],
+    ]) {
+      const git = Bun.spawnSync(["git", ...args], { cwd: directory });
+      expect(git.exitCode, git.stderr.toString()).toBe(0);
+    }
+    await writeFile(join(directory, "template", "uncommitted.txt"), "must not ship");
 
     const result = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(result.exitCode, result.stderr.toString()).toBe(0);
@@ -38,6 +50,12 @@ test("the public build command ships a self-contained, versioned Codex template"
     expect(await files.get("RILL_VERSION")?.text()).toBe(`${version}\n`);
     expect(await files.get("AGENTS.md")?.text()).toContain("workflow/DELIVERY.md");
     expect(files.has("docs/agents/issue-tracker.md")).toBe(false);
+    expect(files.has("uncommitted.txt")).toBe(false);
+
+    const initial = await artifact.bytes();
+    const rebuilt = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
+    expect(rebuilt.exitCode, rebuilt.stderr.toString()).toBe(0);
+    expect(await artifact.bytes()).toEqual(initial);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
