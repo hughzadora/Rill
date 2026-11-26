@@ -1,0 +1,22 @@
+{
+  "name": "rill-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun src/template.ts",
+    "format": "oxfmt --write --disable-nested-config .",
+    "format:check": "oxfmt --check --disable-nested-config .",
+    "lint": "oxlint --type-aware --deny-warnings src tests",
+    "lint:fix": "oxlint --type-aware --fix src tests",
+    "test:behavior": "bun test ./tests/behavior/template.test.ts",
+    "typecheck": "tsrs --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.5",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "tsrs": "7.1.0-beta.tsrs5"
+  },
+  "packageManager": "bun@1.4.5"
+}
