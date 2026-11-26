@@ -1,7 +1,42 @@
 import { mkdir, mkdtemp, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 import { version } from "../package.json";
+
+const tarBlockSize = 512;
+const tarTimestampOffset = 136;
+const tarChecksumOffset = 148;
+const tarChecksumLength = 8;
+const tarSizeOffset = 124;
+const tarSizeLength = 12;
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+async function createArchive(entries: Map<string, Uint8Array | string>) {
+  const tarball = await new Bun.Archive(Object.fromEntries(entries)).bytes();
+  for (let offset = 0; offset + tarBlockSize <= tarball.length;) {
+    const header = tarball.subarray(offset, offset + tarBlockSize);
+    if (header.every((byte) => byte === 0)) break;
+
+    header.set(encoder.encode("00000000000\0"), tarTimestampOffset);
+    header.fill(0x20, tarChecksumOffset, tarChecksumOffset + tarChecksumLength);
+    const checksum = header.reduce((sum, byte) => sum + byte, 0);
+    const checksumField = `${checksum.toString(8).padStart(6, "0")}\0 `;
+    header.set(encoder.encode(checksumField), tarChecksumOffset);
+
+    const sizeField = decoder
+      .decode(header.subarray(tarSizeOffset, tarSizeOffset + tarSizeLength))
+      .replace(/\0.*$/, "")
+      .trim();
+    const size = Number.parseInt(sizeField, 8);
+    if (!Number.isSafeInteger(size) || size < 0) {
+      throw new Error(`Invalid tar entry size: ${sizeField}`);
+    }
+    offset += tarBlockSize + Math.ceil(size / tarBlockSize) * tarBlockSize;
+  }
+  return gzipSync(tarball, { level: 9 });
+}
 
 const root = await realpath(fileURLToPath(new URL("../", import.meta.url)));
 const outputDirectory = join(root, "dist");
@@ -77,7 +112,7 @@ try {
   for (const [name, entries] of artifacts) {
     const artifactName = `${name}-${version}.tar.gz`;
     const temporaryArtifact = join(stagingDirectory, artifactName);
-    const archive = new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" });
+    const archive = await createArchive(entries);
     const checksumName = `${artifactName}.sha256`;
     await Bun.write(temporaryArtifact, archive);
     const bytes = await readFile(temporaryArtifact);
@@ -88,7 +123,7 @@ try {
   const kitName = `rill-kit-${version}.tar.gz`;
   const checksumName = `${kitName}.sha256`;
   const kitPath = join(stagingDirectory, kitName);
-  const archive = new Bun.Archive(Object.fromEntries(kit), { compress: "gzip" });
+  const archive = await createArchive(kit);
   await Bun.write(kitPath, archive);
   const digest = Bun.CryptoHasher.hash("sha256", await readFile(kitPath), "hex");
   await Bun.write(join(stagingDirectory, checksumName), `${digest}  ${kitName}\n`);

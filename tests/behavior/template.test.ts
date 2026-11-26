@@ -75,6 +75,8 @@ test("the public build command ships a self-contained, versioned Codex template"
     }
 
     const initial = await artifact.bytes();
+    expect(initial.slice(4, 8)).toEqual(new Uint8Array([0, 0, 0, 0]));
+    await Bun.sleep(1_100);
     const rebuilt = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(rebuilt.exitCode, rebuilt.stderr.toString()).toBe(0);
     expect(await artifact.bytes()).toEqual(initial);
