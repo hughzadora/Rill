@@ -40,6 +40,7 @@ function withCheckout(
     symlinkSync(realpathSync(join(root, "node_modules")), join(checkout, "node_modules"), "dir");
     for (const input of [
       ".agents",
+      ".github",
       ".editorconfig",
       ".gitattributes",
       ".gitignore",

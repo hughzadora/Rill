@@ -5,6 +5,9 @@ node = "24.22.3"
 "aqua:google/osv-scanner" = "2.7.1"
 "aqua:crate-ci/typos" = "1.52.2"
 "aqua:lycheeverse/lychee" = "0.24.2"
+"aqua:rhysd/actionlint" = "1.7.12"
+"aqua:zizmorcore/zizmor" = "1.33.1"
+"aqua:koalaman/shellcheck" = "0.11.0"
 
 [env]
 TSRS_FAST = "0"
@@ -52,5 +55,16 @@ run = "typos"
 [tasks.links]
 run = "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md"
 
+[tasks.workflow-lint]
+run = "bun run oxlint --deny-warnings .github/scripts/require-results.js && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml"
+
 [tasks.verify]
-depends = ["check-fast", "test", "scan-secrets", "scan-dependencies", "spelling", "links"]
+depends = [
+  "check-fast",
+  "test",
+  "scan-secrets",
+  "scan-dependencies",
+  "spelling",
+  "links",
+  "workflow-lint",
+]

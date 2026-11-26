@@ -15,7 +15,10 @@ const suites = {
   },
   qualification: {
     directory: "tests/tooling/qualification",
-    files: ["tests/tooling/qualification/gates.test.ts"],
+    files: [
+      "tests/tooling/qualification/gates.test.ts",
+      "tests/tooling/qualification/workflow.test.ts",
+    ],
   },
 };
 

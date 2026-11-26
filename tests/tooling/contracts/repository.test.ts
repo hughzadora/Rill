@@ -22,12 +22,22 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
     "scan-history": "gitleaks git --redact=100 .",
     "scan-dependencies": "osv-scanner scan source --recursive .",
     spelling: "typos",
+    "workflow-lint":
+      "bun run oxlint --deny-warnings .github/scripts/require-results.js && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml",
     links:
       "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md",
   };
   const compositions = {
     "check-fast": ["format-check", "lint", "typecheck"],
-    verify: ["check-fast", "test", "scan-secrets", "scan-dependencies", "spelling", "links"],
+    verify: [
+      "check-fast",
+      "test",
+      "scan-secrets",
+      "scan-dependencies",
+      "spelling",
+      "links",
+      "workflow-lint",
+    ],
     qualify: ["test"],
   };
   for (const name of new Set([...Object.keys(commands), ...Object.keys(compositions)])) {
