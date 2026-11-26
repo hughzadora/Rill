@@ -1,9 +1,9 @@
-import { lstat, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "../package.json";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
+const root = await realpath(fileURLToPath(new URL("../", import.meta.url)));
 const outputDirectory = join(root, "dist");
 const profileRoot = "template/profiles/";
 
@@ -42,7 +42,10 @@ const common = new Map<string, Uint8Array | string>([["RILL_VERSION", `${version
 const profiles = new Map<string, Map<string, Uint8Array>>();
 for (const source of files) {
   const path = join(root, source);
-  if (!(await lstat(path)).isFile()) {
+  if ((await realpath(path)) !== path) {
+    throw new Error(`Cannot package a linked template path: ${source}`);
+  }
+  if (!(await stat(path)).isFile()) {
     throw new Error(`Template source must be a regular file: ${source}`);
   }
   const bytes = await readFile(path);
@@ -69,11 +72,14 @@ try {
   for (const [name, entries] of artifacts) {
     const artifactName = `${name}-${version}.tar.gz`;
     const temporaryArtifact = join(stagingDirectory, artifactName);
-    await Bun.write(
-      temporaryArtifact,
-      new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" }),
-    );
+    const archive = new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" });
+    const checksumName = `${artifactName}.sha256`;
+    const temporaryChecksum = join(stagingDirectory, checksumName);
+    await Bun.write(temporaryArtifact, archive);
+    const digest = Bun.CryptoHasher.hash("sha256", await readFile(temporaryArtifact), "hex");
+    await Bun.write(temporaryChecksum, `${digest}  ${artifactName}\n`);
     await rename(temporaryArtifact, join(outputDirectory, artifactName));
+    await rename(temporaryChecksum, join(outputDirectory, checksumName));
     console.log(`dist/${artifactName}`);
   }
 } finally {
