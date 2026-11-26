@@ -66,8 +66,16 @@ try {
   }
 
   const report = join(temporary, "junit.xml");
+  const timeout = selection === "qualification" ? ["--timeout=120000"] : [];
   const result = Bun.spawnSync(
-    [process.execPath, "test", "--reporter=junit", `--reporter-outfile=${report}`, ...paths],
+    [
+      process.execPath,
+      "test",
+      "--reporter=junit",
+      `--reporter-outfile=${report}`,
+      ...timeout,
+      ...paths,
+    ],
     { cwd: root, stdout: "inherit", stderr: "inherit" },
   );
   if (result.exitCode !== 0) throw new Error(`Bun ${selection} suite failed (${result.exitCode})`);

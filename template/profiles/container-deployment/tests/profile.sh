@@ -13,6 +13,11 @@ esac
 evidence_root=${RILL_DEPLOYMENT_EVIDENCE_DIR:-"$profile/.rill-deployment"}
 mkdir -p -- "$evidence_root"
 evidence=$(mktemp -d "$evidence_root/$1.XXXXXX")
+if buildx=$(command -v docker-cli-plugin-docker-buildx); then
+  export DOCKER_CONFIG="$evidence/docker-cli"
+  mkdir -p -- "$DOCKER_CONFIG/cli-plugins"
+  ln -s -- "$buildx" "$DOCKER_CONFIG/cli-plugins/docker-buildx"
+fi
 printf 'Deployment evidence: %s\n' "$evidence"
 if [[ $1 != verify ]]; then
   bash "$profile/tests/iac.sh" "$evidence"
@@ -30,6 +35,7 @@ context="$profile/image"
 docker_image=$(cat "$evidence/accepted/image.id")
 "${policy[@]}" image "$evidence/accepted" "$evidence/image-pass.json"
 "${image[@]}" smoke "$evidence/accepted" "$evidence/initial-smoke"
+"${image[@]}" save "$evidence/accepted"
 if [[ $1 == verify ]]; then
   exit 0
 fi
@@ -43,13 +49,13 @@ printf 'An unexpected page from the next build.\n' >"$fixture/broken behavior/si
 
 "${image[@]}" build "$fixture/root user" "$evidence/root-image"
 status=0
-"${policy[@]}" image "$evidence/root-image" "$evidence/image-root-user.json" || status=$?
+"${policy[@]}" image "$evidence/root-image" "$evidence/image-root-user.json" \
+  2>"$evidence/image-root-user.diagnostics" || status=$?
 if [[ $status != 42 ]]; then
-  printf 'Expected Trivy findings exit 42 for the root-user image, got %s\n' "$status" >&2
+  printf 'Expected image policy exit 42 for the root-user image, got %s\n' "$status" >&2
   exit 1
 fi
-jq -e 'any(.Results[].Misconfigurations[]?; .ID == "DS002" and .Status == "FAIL")' \
-  "$evidence/image-root-user.json" >/dev/null
+grep -Fq 'runs as root' "$evidence/image-root-user.diagnostics"
 
 "${image[@]}" build "$fixture/broken behavior" "$evidence/rejected"
 if [[ $(cat "$evidence/rejected/image.id") == "$docker_image" ]]; then
@@ -67,6 +73,7 @@ grep -Fx 'An unexpected page from the next build.' "$evidence/rejected-smoke/res
 
 "${image[@]}" load "$evidence/accepted" >"$evidence/recovered-load.log"
 "${image[@]}" smoke "$evidence/accepted" "$evidence/recovered-smoke"
+diff "$evidence/initial-smoke/response.html" "$evidence/recovered-smoke/response.html"
 jq -e -s '.[0][0].Image == .[1][0].Image and .[0][0].Id != .[1][0].Id' \
   "$evidence/initial-smoke/container.json" "$evidence/recovered-smoke/container.json" >/dev/null
 printf 'Image policy rejected root metadata. Recovery restored the accepted image and HTTP behavior.\n'

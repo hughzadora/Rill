@@ -28,7 +28,8 @@ smoke)
   docker start "$container" >/dev/null
   ready=0
   for _ in {1..30}; do
-    if curl --silent --fail "http://127.0.0.1:$port/health" >"$result/health.txt"; then
+    if curl --silent --fail --connect-timeout 1 --max-time 2 \
+      "http://127.0.0.1:$port/health" >"$result/health.txt"; then
       ready=1
       break
     fi
@@ -41,7 +42,13 @@ smoke)
     printf 'Container did not become ready\n' >&2
     exit 42
   fi
-  curl --silent --fail "http://127.0.0.1:$port/" >"$result/response.html"
+  curl --silent --fail --connect-timeout 1 --max-time 2 \
+    "http://127.0.0.1:$port/" >"$result/response.html"
+  expected=${RILL_EXPECTED_MARKER:-"Rill deployment fixture is serving."}
+  if ! grep -Fq -- "$expected" "$result/response.html"; then
+    printf 'The served page did not contain the accepted behavior.\n' >&2
+    exit 43
+  fi
   ;;
 save)
   output=$2

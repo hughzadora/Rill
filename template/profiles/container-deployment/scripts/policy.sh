@@ -21,12 +21,18 @@ image)
   image_id=$(<"$2/image.id")
   docker_host=${DOCKER_HOST:-${TRIVY_DOCKER_HOST:-}}
   if [[ $docker_host == unix://* ]]; then
-      "${scanner[@]}" image --docker-host "$docker_host" --scanners vuln --include-non-failures --format json "$image_id" >"$3" || status=$?
+    "${scanner[@]}" image --docker-host "$docker_host" --scanners vuln --include-non-failures --format json "$image_id" >"$3" || status=$?
   else
     "${scanner[@]}" image --scanners vuln --include-non-failures --format json "$image_id" >"$3" || status=$?
   fi
-  if ! jq -e 'any(.Results[]?; .MisconfSummary and ((.MisconfSummary.Successes // 0) + (.MisconfSummary.Failures // 0) > 0))' "$3" >/dev/null; then
-    printf 'Image scan passed (no misconfig checks applicable to single-stage image)\n'
+  if ! jq -e 'has("SchemaVersion") and has("ArtifactName")' "$3" >/dev/null; then
+    printf 'Trivy did not report an image scan\n' >&2
+    exit 1
+  fi
+  user=$(docker image inspect --format '{{.Config.User}}' "$image_id")
+  if [[ -z $user || $user == 0 || $user == 0:* || $user == root || $user == root:* ]]; then
+    printf 'Image %s runs as root (Config.User=%q)\n' "$image_id" "$user" >&2
+    exit 42
   fi
   ;;
 *)

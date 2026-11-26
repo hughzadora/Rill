@@ -1,10 +1,10 @@
 # Container deployment profile
 
-This profile qualifies an inert static HTTP image as a deployment candidate. It checks the Dockerfile with Trivy, builds a pinned digest image with the local Docker daemon, checks the built image, exercises health and response behavior on a loopback-published port, and rehearses restoring a saved accepted image after a rejected replacement.
+This profile qualifies an inert static HTTP image as a deployment candidate. It checks the Dockerfile with Trivy, builds a pinned digest image with the local Docker daemon, checks the built image, exercises health and accepted-response behavior on a loopback-published port, and rehearses restoring a saved accepted image after a rejected replacement. The image uses BusyBox `httpd` on pinned Alpine 3.24.4, so it has no application package manager or Python runtime to drift. When the product changes the page, update `RILL_EXPECTED_MARKER` or the default marker in `scripts/image.sh` with the product behavior.
 
 ## Setup
 
-Install a local Docker daemon and review the pinned tools in `mise.toml`. `RILL_DOCKER_HOST` selects a non-default Docker socket; the default is `$HOME/.colima/rill-issue-13/docker.sock`. Start the daemon before running any task.
+Install a local Docker daemon and review the pinned tools in `mise.toml`. `RILL_DOCKER_HOST` selects a non-default Docker socket; the default is `$HOME/.colima/rill-issue-13/docker.sock`. Start the daemon before running any task. `tests/profile.sh` activates the pinned Docker CLI plugin when `docker-cli-plugin-docker-buildx` is installed, so builds use the supported BuildKit path rather than the deprecated legacy builder.
 
 Review `trivy.yaml`, `image/Dockerfile`, and the scripts before trusting them. Run:
 

@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 
 const root = realpathSync(new URL("../../../", import.meta.url));
@@ -23,6 +23,17 @@ const mise = installedMise;
 const bun = Bun.spawnSync([mise, "where", "bun"], { cwd: root });
 if (bun.exitCode !== 0) throw new Error(bun.stderr.toString());
 const installs = dirname(dirname(bun.stdout.toString().trim()));
+const generated = new Set([
+  ".hypothesis",
+  ".pytest_cache",
+  ".rill-deployment",
+  ".ruff_cache",
+  ".stryker-tmp",
+  ".venv",
+  "node_modules",
+  "reports",
+  "target",
+]);
 
 function withCheckout(
   exercise: (
@@ -36,6 +47,8 @@ function withCheckout(
     const home = join(temporary, "home");
     const data = join(temporary, "mise");
     for (const directory of [checkout, home, data]) mkdirSync(directory);
+    const initialized = Bun.spawnSync(["git", "init", "-q"], { cwd: checkout });
+    expect(initialized.exitCode, initialized.stderr.toString()).toBe(0);
     symlinkSync(installs, join(data, "installs"), "dir");
     symlinkSync(realpathSync(join(root, "node_modules")), join(checkout, "node_modules"), "dir");
     for (const input of [
@@ -63,7 +76,7 @@ function withCheckout(
     ]) {
       cpSync(join(root, input), join(checkout, input), {
         recursive: true,
-        filter: (source) => !lstatSync(source).isSymbolicLink(),
+        filter: (source) => !lstatSync(source).isSymbolicLink() && !generated.has(basename(source)),
       });
     }
     exercise(checkout, (task) => {
@@ -79,7 +92,7 @@ function withCheckout(
           MISE_OFFLINE: "true",
           MISE_COLOR: "false",
         },
-        timeout: 20_000,
+        timeout: 100_000,
       });
       return {
         exitCode: result.exitCode,
