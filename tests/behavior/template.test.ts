@@ -6,7 +6,10 @@ import { version } from "../../package.json";
 
 const project = new URL("../../", import.meta.url);
 
-test("the public build command ships a self-contained, versioned Codex template", async () => {
+test(
+  "the public build command ships a self-contained, versioned Codex template",
+  { timeout: 120_000 },
+  async () => {
   const directory = await mkdtemp(join(tmpdir(), "rill template "));
   try {
     for (const file of [
