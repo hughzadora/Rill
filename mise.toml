@@ -31,7 +31,11 @@ run = "bun run typecheck"
 depends = ["format-check", "lint", "typecheck"]
 
 [tasks.test]
-run = "bun run test:behavior"
+run = "bun run test"
+
+[tasks.qualify]
+depends = ["test"]
+run = "bun run test:qualification"
 
 [tasks."scan-secrets"]
 run = "gitleaks dir --redact=100 ."
