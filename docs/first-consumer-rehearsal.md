@@ -7,6 +7,8 @@ The Codex session created a Chinese shopping list. It chose a responsive page wi
 | Rill source that rebuilt the same kit bytes | `51bd4fe8326a15fef5ec23550878c257da899120`                                                                                                                          |
 | Locally built `rill-kit-0.1.0.tar.gz`       | SHA-256 `242338b1879b389dce0626b61dbc0872945ab992401ee0dd010ccd143631ae97`                                                                                          |
 | Nested `rill-typescript-bun-0.1.0.tar.gz`   | SHA-256 `b0cd3f0503a3bb4d961a49375365ecd259e3eca205fe7da5f32bdb29ecbcc164`                                                                                          |
+| Published `rill-kit-0.1.1.tar.gz`           | GitHub digest `sha256:8a892f783f1f7be9f8d87eb9f06e20f281a568505c33758f7658214012f8145b`                                                                             |
+| Published `rill-kit-0.1.1.tar.gz.sha256`    | GitHub digest `sha256:715a4c2b1556582bfdb87da1d7eba0f0caec47e41ff807e9ae1c989f69afdf6b`                                                                             |
 | Consumer on Darwin arm64                    | `UNCOMMITTED`. Sorted project file SHA-256 inventory digest `27e7a6224d602b236a75e615e9e103cc1f58a65d797f7c999d342d51f4e0ee89` before and after all commands below. |
 | `mise.lock`                                 | SHA-256 `7dad14397a4ff1a971b97feeed31eb64b78da94c31735ff2557beaac0886ba1d`                                                                                          |
 | `bun.lock`                                  | SHA-256 `3e0dad26b26ea3709ef7f3b25384ba98cd8d7447d8e925d5ed9b058228ea3897`                                                                                          |
@@ -19,3 +21,5 @@ Follow-up separated the service worker's TypeScript runtime configuration from t
 - Chromium `159.0.8154.6` at a 360-pixel viewport exercised adding items, keyboard toggling, rejected blank input, offline reload, and persistence after offline writes. An injected storage quota failure preserved prior data and the unsaved entry. A retry saved the entry once. Axe `4.14.1` reported zero violations in the checked WCAG 2.0 and 2.1 A/AA tags for that page state.
 
 Final acceptance remains pending for a published, fixed-version asset in a clean environment where the Rill source checkout is inaccessible. It requires the completed natural-request and consequential-ambiguity sessions, a committed product candidate with reproducible browser evidence, and independent review. See [the product request journey](../workflow/ACCEPTANCE.md#qualify-the-product-request-journey).
+
+The published kit is `v0.1.1` at `https://github.com/hughzadora/rill/releases/tag/v0.1.1`. The release is not immutable and no auditable workflow log proves the published asset was generated from the claimed source commit (see release-integrity gap in the Rill complete-body goal).
