@@ -23,7 +23,9 @@ Retain the reviewer identity, reviewed revision, findings with references, and d
 
 ## Hosted CI
 
-Apply the [GitHub capability](../modern-ai-dlc-engineering-master-blueprint.md#93-github-capabilities-record-the-real-enforcement-boundary) and [CI aggregation](../modern-ai-dlc-engineering-master-blueprint.md#94-always-aggregate-actual-required-results) recipes for configured or approved GitHub hosting. Match expected jobs, matrix targets and required events to actual native runs. Verify the always-running aggregate rejects non-success or absent required jobs and observe a run triggered by a change outside ordinary source paths. Record the tested head or merge/queue revision, job links, raw results and the actual required checks, review and branch controls visible on the repository. Where controls are unavailable, document the bypassable boundary and preserve actual CI and independent review. Local execution, hosted runs and observed platform enforcement have distinct evidence.
+For configured or approved GitHub hosting, inspect the actual controls using the [GitHub capability recipe](../modern-ai-dlc-engineering-master-blueprint.md#93-github-capabilities-record-the-real-enforcement-boundary). Where controls are unavailable, document the bypassable boundary and preserve applicable CI and independent review.
+
+For an existing or approved GitHub verification workflow with required jobs, apply the [CI aggregation recipe](../modern-ai-dlc-engineering-master-blueprint.md#94-always-aggregate-actual-required-results). Match expected jobs, matrix targets and required events to actual native runs. Verify the always-running aggregate rejects non-success or absent required jobs and observe a run triggered by a change outside ordinary source paths. Record the tested head or merge/queue revision, job links, raw results and the actual required checks, review and branch controls visible on the repository. Local execution, hosted runs and observed platform enforcement have distinct evidence.
 
 ## Evidence
 
