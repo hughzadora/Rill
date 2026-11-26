@@ -19,7 +19,7 @@ iac)
   ;;
 image)
   image_id=$(<"$2/image.id")
-  docker_host=${DOCKER_HOST:-}
+  docker_host=${DOCKER_HOST:-${TRIVY_DOCKER_HOST:-}}
   if [[ $docker_host == unix://* ]]; then
       "${scanner[@]}" image --docker-host "$docker_host" --scanners vuln --include-non-failures --format json "$image_id" >"$3" || status=$?
   else

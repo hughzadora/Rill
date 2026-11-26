@@ -22,9 +22,7 @@
   "paths": {
     "/v1/reservation-quotes": {
       "post": {
-        "tags": [
-          "Quotes"
-        ],
+        "tags": ["Quotes"],
         "operationId": "createReservationQuote",
         "summary": "Quote reservation capacity",
         "description": "Returns whether the requested number of seats fits the stated capacity.",
@@ -47,10 +45,7 @@
                     "maximum": 100
                   }
                 },
-                "required": [
-                  "requested",
-                  "available"
-                ],
+                "required": ["requested", "available"],
                 "additionalProperties": false
               }
             }
@@ -68,9 +63,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": [
-                    "accepted"
-                  ],
+                  "required": ["accepted"],
                   "additionalProperties": false
                 }
               }
@@ -85,14 +78,10 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "enum": [
-                        "invalid-request"
-                      ]
+                      "enum": ["invalid-request"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -107,14 +96,10 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "enum": [
-                        "payload-too-large"
-                      ]
+                      "enum": ["payload-too-large"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -129,14 +114,10 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "enum": [
-                        "unsupported-media-type"
-                      ]
+                      "enum": ["unsupported-media-type"]
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }

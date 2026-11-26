@@ -3,4 +3,7 @@ useDefault = true
 
 [[allowlists]]
 description = "Reproducible dependencies, outputs, and local Git metadata"
-paths = ['''(^|/)(\.git|node_modules|dist|reports)(/|$)''']
+paths = [
+  '''(^|/)(\.git|node_modules|dist|reports|__pycache__)(/|$)''',
+  '''(^|/)\.rill-deployment(/|$)''',
+]

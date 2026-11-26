@@ -20,10 +20,7 @@ run = "uv run --locked --no-sync rill-tasks --help"
 run = "uv build --locked --no-build-isolation --no-sources"
 
 [tasks.format]
-run = [
-  "uv run --locked --no-sync ruff format src tests",
-  "oxfmt --write README.md .oxfmtrc.json",
-]
+run = ["uv run --locked --no-sync ruff format src tests", "oxfmt --write README.md .oxfmtrc.json"]
 
 [tasks."format-check"]
 run = [
@@ -72,11 +69,4 @@ run = "typos"
 run = "lychee --offline --no-progress README.md"
 
 [tasks.verify]
-depends = [
-  "check-fast",
-  "test",
-  "scan-secrets",
-  "scan-dependencies",
-  "spelling",
-  "links",
-]
+depends = ["check-fast", "test", "scan-secrets", "scan-dependencies", "spelling", "links"]

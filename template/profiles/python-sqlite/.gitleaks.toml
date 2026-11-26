@@ -3,4 +3,6 @@ useDefault = true
 
 [[allowlists]]
 description = "Generated development dependencies and check outputs"
-paths = ['''(^|/)(\.git|\.venv|__pycache__|\.hypothesis|\.pytest_cache|\.ruff_cache|mutants|dist|reports)(/|$)''']
+paths = [
+  '''(^|/)(\.git|\.venv|__pycache__|\.hypothesis|\.pytest_cache|\.ruff_cache|mutants|dist|reports)(/|$)''',
+]
