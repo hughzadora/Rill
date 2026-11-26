@@ -59,6 +59,21 @@ test("the public build command ships a self-contained, versioned Codex template"
     expect(files.has("docs/agents/issue-tracker.md")).toBe(false);
     expect(files.has("uncommitted.txt")).toBe(false);
 
+    for (const profile of ["typescript-bun", "typescript-web"]) {
+      const profileName = `rill-${profile}-${version}.tar.gz`;
+      const profileBytes = kit.get(`templates/${profileName}`);
+      const profileChecksum = kit.get(`templates/${profileName}.sha256`);
+      expect(profileBytes, `${profile} archive`).toBeDefined();
+      expect(profileChecksum, `${profile} checksum`).toBeDefined();
+      if (!profileBytes || !profileChecksum) throw new Error(`Missing ${profile} archive`);
+      const bytes = await profileBytes.bytes();
+      const digest = Bun.CryptoHasher.hash("sha256", bytes, "hex");
+      expect(await profileChecksum.text()).toBe(`${digest}  ${profileName}\n`);
+      const profileFiles = await new Bun.Archive(bytes).files();
+      expect(profileFiles.has("README.md")).toBe(true);
+      expect(profileFiles.has("mise.toml")).toBe(true);
+    }
+
     const initial = await artifact.bytes();
     const rebuilt = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(rebuilt.exitCode, rebuilt.stderr.toString()).toBe(0);
