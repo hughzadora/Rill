@@ -62,7 +62,14 @@ test(
       expect(files.has("docs/agents/issue-tracker.md")).toBe(false);
       expect(files.has("uncommitted.txt")).toBe(false);
 
-      for (const profile of ["typescript-bun", "typescript-web"]) {
+      for (const profile of [
+        "container-deployment",
+        "python-sqlite",
+        "rust-cli",
+        "typescript-api",
+        "typescript-bun",
+        "typescript-web",
+      ]) {
         const profileName = `rill-${profile}-${version}.tar.gz`;
         const profileBytes = kit.get(`templates/${profileName}`);
         const profileChecksum = kit.get(`templates/${profileName}.sha256`);
@@ -78,9 +85,6 @@ test(
         const instructions = await profileFiles.get("AGENTS.md")?.text();
         expect(instructions).toContain("plain-language request");
         expect(instructions).toContain("workflow/DELIVERY.md");
-        if (profile === "typescript-web") {
-          expect(instructions).toContain("## TypeScript web profile");
-        }
       }
 
       const initial = await artifact.bytes();
