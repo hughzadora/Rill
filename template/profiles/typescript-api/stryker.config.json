@@ -1,0 +1,9 @@
+{
+  "testRunner": "command",
+  "commandRunner": { "command": "bun run test:behavior" },
+  "coverageAnalysis": "off",
+  "incremental": false,
+  "mutate": ["src/domain/capacity.ts"],
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "reporters": ["clear-text", "json", "html"]
+}

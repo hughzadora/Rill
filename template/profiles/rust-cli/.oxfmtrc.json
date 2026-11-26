@@ -1,0 +1,10 @@
+{
+  "ignorePatterns": [
+    "**/Cargo.lock",
+    "**/mise.lock",
+    "**/reports/**",
+    "**/target/**",
+    "**/mutants.out*/**",
+    "/modern-ai-dlc-engineering-master-blueprint.md"
+  ]
+}

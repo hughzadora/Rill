@@ -1,0 +1,82 @@
+[tools]
+python = "3.13.18"
+"aqua:astral-sh/uv" = "0.13.10"
+node = "24.22.3"
+"aqua:oxc-project/oxc/oxfmt" = "0.80.0"
+"aqua:gitleaks/gitleaks" = "8.30.1"
+"aqua:google/osv-scanner" = "2.7.1"
+"aqua:crate-ci/typos" = "1.52.2"
+"aqua:lycheeverse/lychee" = "0.24.2"
+
+[env]
+UV_PYTHON_DOWNLOADS = "never"
+PYRIGHT_PYTHON_GLOBAL_NODE = "on"
+PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
+
+[tasks.dev]
+run = "uv run --locked --no-sync rill-tasks --help"
+
+[tasks.build]
+run = "uv build --locked --no-build-isolation --no-sources"
+
+[tasks.format]
+run = [
+  "uv run --locked --no-sync ruff format src tests",
+  "oxfmt --write README.md .oxfmtrc.json",
+]
+
+[tasks."format-check"]
+run = [
+  "uv run --locked --no-sync ruff format --check src tests",
+  "oxfmt --check README.md .oxfmtrc.json",
+]
+
+[tasks.lint]
+run = "uv run --locked --no-sync ruff check src tests"
+
+[tasks."lint-fix"]
+run = "uv run --locked --no-sync ruff check --fix src tests"
+
+[tasks.typecheck]
+run = "uv run --locked --no-sync pyright"
+
+[tasks."check-fast"]
+depends = ["format-check", "lint", "typecheck"]
+
+[tasks."test:behavior"]
+run = "uv run --locked --no-sync pytest -p hypothesispytest tests/behavior"
+
+[tasks.test]
+run = "uv run --locked --no-sync python tests/tooling/check_suites.py behavior"
+
+[tasks.qualify]
+depends = ["test"]
+run = "uv run --locked --no-sync python tests/tooling/check_suites.py qualification"
+
+[tasks.mutation]
+run = "uv run --locked --no-sync python tests/tooling/run_mutation.py"
+
+[tasks."scan-secrets"]
+run = "gitleaks dir --verbose --redact=100 ."
+
+[tasks."scan-history"]
+run = "gitleaks git --redact=100 ."
+
+[tasks."scan-dependencies"]
+run = "osv-scanner scan source --lockfile uv.lock"
+
+[tasks.spelling]
+run = "typos"
+
+[tasks.links]
+run = "lychee --offline --no-progress README.md"
+
+[tasks.verify]
+depends = [
+  "check-fast",
+  "test",
+  "scan-secrets",
+  "scan-dependencies",
+  "spelling",
+  "links",
+]

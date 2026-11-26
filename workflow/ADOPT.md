@@ -1,6 +1,6 @@
 # Adopt Rill
 
-Tell Codex which exact Rill release and profile you want to use, and select an empty directory for your product. Ask Codex to handle the steps below. When the workspace is ready, say `用 Rill 开始：〈一句话描述想做的产品〉`.
+Tell Codex which exact Rill release to use and select an empty directory for your product. Ask Codex to handle the steps below. When the workspace is ready, describe what you want the product to do in your own words.
 
 1. Download `rill-kit-<version>.tar.gz` and its `.sha256` file from the same GitHub release tag. Run `shasum -a 256 -c rill-kit-<version>.tar.gz.sha256` or the equivalent `sha256sum -c` in the download directory. Stop on a mismatch.
 2. Extract the kit outside the project directory. Choose one archive under `templates/`. Use the base template if Rill should select the toolchain from your product requirements. Use a named profile when it matches the target.

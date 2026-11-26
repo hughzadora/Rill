@@ -72,6 +72,12 @@ test("the public build command ships a self-contained, versioned Codex template"
       const profileFiles = await new Bun.Archive(bytes).files();
       expect(profileFiles.has("README.md")).toBe(true);
       expect(profileFiles.has("mise.toml")).toBe(true);
+      const instructions = await profileFiles.get("AGENTS.md")?.text();
+      expect(instructions).toContain("plain-language request");
+      expect(instructions).toContain("workflow/DELIVERY.md");
+      if (profile === "typescript-web") {
+        expect(instructions).toContain("## TypeScript web profile");
+      }
     }
 
     const initial = await artifact.bytes();

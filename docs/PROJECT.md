@@ -4,13 +4,15 @@ Rill gives a person using Codex a repeatable way to turn a short product request
 
 ## Adoption
 
-Use a versioned repository template. Start a new product in a separate workspace, open that workspace in Codex, and say `用 Rill 开始：〈一句话描述想做的产品〉`. The repository skill also provides an explicit invocation. Each adopted project keeps its own product brief, tool configuration, local evidence, and Rill version.
+Use a versioned repository template. Start a new product in a separate workspace and describe the problem to Codex in your own words. A person can start with one sentence about the result they want. Codex draws on the request and workspace, records product assumptions, and makes routine toolchain and implementation choices. Each adopted project keeps its own product brief, tool configuration, local evidence, and Rill version.
 
 GitHub holds the Rill development source. The development checkout is replaceable. Adopt a published GitHub Release asset from a fixed tag, verify its checksum, and extract it into the consumer repository. Adoption requires the release artifact and the consumer's selected toolchain.
 
 ## First acceptance
 
-From an empty, independent repository, apply the TypeScript + Bun template and invoke Rill in a fresh Codex session. Supply a short product request with an observable outcome. Codex must identify the target, record the brief, and run real locked setup and checks. Verify `mise run verify` and `mise run qualify`, an actual runnable increment, and rejection of an injected violation with the expected diagnostic. Compare source and lockfiles across read-only acceptance. Record the artifact and exact revision reviewed.
+From a clean environment where the Rill source checkout is inaccessible, verify and adopt only the fixed-version release kit. Use the TypeScript + Bun route first. Open the resulting independent project in a fresh Codex session and submit a natural product request with an observable outcome. Codex resolves the target, records the brief and assumptions, installs the locked toolchain, delivers a runnable increment, and exercises the primary journey and a material failure through the actual product surface. Run `mise run verify` and `mise run qualify` and observe an injected violation fail with its expected diagnostic. Compare source and lockfiles across read-only acceptance. Retain the prompt, result, artifact digest, and exact revision reviewed.
+
+In a separate fresh session, use a request with two materially different plausible outcomes, such as a family list where sharing would affect who sees and changes the data. Acceptance requires a specific product question that names the practical choice and recommends a default. Record the asked question and the observed state of work depending on the answer. Assess both journeys with the [release candidate procedure](../workflow/ACCEPTANCE.md#qualify-the-product-request-journey).
 
 ## Complete delivery
 

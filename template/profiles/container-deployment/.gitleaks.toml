@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated local deployment evidence"
+paths = ['''(^|/)\.rill-deployment/''']

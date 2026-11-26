@@ -1,0 +1,3 @@
+examine_globs = ["src/lib.rs"]
+additional_cargo_args = ["--locked"]
+additional_cargo_test_args = ["--test", "batching", "--test", "cli"]

@@ -98,12 +98,25 @@ for (const source of files) {
   }
 }
 
+const projectInstructions = common.get("AGENTS.md");
+if (!(projectInstructions instanceof Uint8Array)) {
+  throw new Error("Missing shared project instructions");
+}
+
 await mkdir(outputDirectory, { recursive: true });
 const stagingDirectory = await mkdtemp(join(outputDirectory, ".rill-"));
 try {
   const artifacts = new Map([["rill", common]]);
   for (const [profile, entries] of profiles) {
-    artifacts.set(`rill-${profile}`, new Map([...common, ...entries]));
+    const project = new Map([...common, ...entries]);
+    const profileInstructions = entries.get("AGENTS.md");
+    if (profileInstructions) {
+      project.set(
+        "AGENTS.md",
+        `${decoder.decode(projectInstructions).trimEnd()}\n\n${decoder.decode(profileInstructions)}`,
+      );
+    }
+    artifacts.set(`rill-${profile}`, project);
   }
   const kit = new Map<string, Uint8Array | string>([
     ["RILL_VERSION", `${version}\n`],

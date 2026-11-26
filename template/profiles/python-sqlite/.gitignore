@@ -1,0 +1,16 @@
+__pycache__/
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+.venv/
+dist/
+mutants/
+reports/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal

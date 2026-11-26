@@ -1,0 +1,10 @@
+[files]
+extend-exclude = [
+  "node_modules/",
+  "dist/",
+  "reports/",
+  ".stryker-tmp/",
+  "bun.lock",
+  "mise.lock",
+  "modern-ai-dlc-engineering-master-blueprint.md",
+]

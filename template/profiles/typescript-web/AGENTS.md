@@ -1,4 +1,4 @@
-# TypeScript web profile
+## TypeScript web profile
 
 This overlay adds a browser application and Playwright acceptance to the TypeScript + Bun template. The base TypeScript tasks remain active. The browser build, process checks, and real browser journey are included in `mise run verify`; `mise run qualify` runs disposable positive and negative browser fixtures.
 
