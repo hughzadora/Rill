@@ -6,6 +6,8 @@ Rill gives a person using Codex a repeatable way to turn a short product request
 
 Use a versioned repository template. Start a new product in a separate workspace, open that workspace in Codex, and say `用 Rill 开始：〈一句话描述想做的产品〉`. The repository skill also provides an explicit invocation. Each adopted project keeps its own product brief, tool configuration, local evidence, and Rill version.
 
+GitHub holds the Rill development source. The development checkout is replaceable. Adopt a published GitHub Release asset from a fixed tag, verify its checksum, and extract it into the consumer repository. Adoption requires the release artifact and the consumer's selected toolchain.
+
 ## First acceptance
 
 From an empty, independent repository, apply the TypeScript + Bun template and invoke Rill in a fresh Codex session. Supply a short product request with an observable outcome. Codex must identify the target, record the brief, and run real locked setup and checks. Verify `mise run verify` and `mise run qualify`, an actual runnable increment, and rejection of an injected violation with the expected diagnostic. Compare source and lockfiles across read-only acceptance. Record the artifact and exact revision reviewed.

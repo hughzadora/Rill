@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { version } from "../../package.json";
@@ -35,8 +35,15 @@ test("the public build command ships a self-contained, versioned Codex template"
 
     const result = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(result.exitCode, result.stderr.toString()).toBe(0);
-    const artifact = Bun.file(join(directory, "dist", `rill-${version}.tar.gz`));
-    const files = await new Bun.Archive(await artifact.bytes()).files();
+    const artifactName = `rill-kit-${version}.tar.gz`;
+    const outputDirectory = join(directory, "dist");
+    const artifact = Bun.file(join(outputDirectory, artifactName));
+    const kit = await new Bun.Archive(await artifact.bytes()).files();
+    const template = kit.get(`templates/rill-${version}.tar.gz`);
+    if (!template) throw new Error("Base template missing from release kit");
+    expect(kit.has("ADOPT.md")).toBe(true);
+    expect(kit.has(`templates/rill-${version}.tar.gz.sha256`)).toBe(true);
+    const files = await new Bun.Archive(await template.bytes()).files();
 
     for (const file of [
       "AGENTS.md",
@@ -55,6 +62,22 @@ test("the public build command ships a self-contained, versioned Codex template"
     const initial = await artifact.bytes();
     const rebuilt = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(rebuilt.exitCode, rebuilt.stderr.toString()).toBe(0);
+    expect(await artifact.bytes()).toEqual(initial);
+
+    const checksum = ["shasum", "-a", "256", "-c", `${artifactName}.sha256`];
+    const validChecksum = Bun.spawnSync(checksum, { cwd: outputDirectory });
+    expect(validChecksum.exitCode, validChecksum.stderr.toString()).toBe(0);
+    await Bun.write(artifact, "corrupted archive");
+    const invalidChecksum = Bun.spawnSync(checksum, { cwd: outputDirectory });
+    expect(invalidChecksum.exitCode).not.toBe(0);
+    expect(invalidChecksum.stdout.toString()).toContain("FAILED");
+    await Bun.write(artifact, initial);
+
+    await rename(join(directory, "workflow"), join(directory, "relocated-workflow"));
+    await symlink(join(directory, "relocated-workflow"), join(directory, "workflow"));
+    const invalid = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
+    expect(invalid.exitCode).not.toBe(0);
+    expect(invalid.stderr.toString()).toContain("linked template path");
     expect(await artifact.bytes()).toEqual(initial);
   } finally {
     await rm(directory, { recursive: true, force: true });

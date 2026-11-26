@@ -1,9 +1,9 @@
-import { lstat, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "../package.json";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
+const root = await realpath(fileURLToPath(new URL("../", import.meta.url)));
 const outputDirectory = join(root, "dist");
 const profileRoot = "template/profiles/";
 
@@ -32,6 +32,7 @@ const files = [...new Set(tracked.stdout.toString().split("\0").filter(Boolean))
 for (const file of [
   "template/AGENTS.md",
   ".agents/skills/rill/SKILL.md",
+  "workflow/ADOPT.md",
   "workflow/DELIVERY.md",
   "modern-ai-dlc-engineering-master-blueprint.md",
 ]) {
@@ -42,7 +43,10 @@ const common = new Map<string, Uint8Array | string>([["RILL_VERSION", `${version
 const profiles = new Map<string, Map<string, Uint8Array>>();
 for (const source of files) {
   const path = join(root, source);
-  if (!(await lstat(path)).isFile()) {
+  if ((await realpath(path)) !== path) {
+    throw new Error(`Cannot package a linked template path: ${source}`);
+  }
+  if (!(await stat(path)).isFile()) {
     throw new Error(`Template source must be a regular file: ${source}`);
   }
   const bytes = await readFile(path);
@@ -66,16 +70,31 @@ try {
   for (const [profile, entries] of profiles) {
     artifacts.set(`rill-${profile}`, new Map([...common, ...entries]));
   }
+  const kit = new Map<string, Uint8Array | string>([
+    ["RILL_VERSION", `${version}\n`],
+    ["ADOPT.md", await readFile(join(root, "workflow", "ADOPT.md"))],
+  ]);
   for (const [name, entries] of artifacts) {
     const artifactName = `${name}-${version}.tar.gz`;
     const temporaryArtifact = join(stagingDirectory, artifactName);
-    await Bun.write(
-      temporaryArtifact,
-      new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" }),
-    );
-    await rename(temporaryArtifact, join(outputDirectory, artifactName));
-    console.log(`dist/${artifactName}`);
+    const archive = new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" });
+    const checksumName = `${artifactName}.sha256`;
+    await Bun.write(temporaryArtifact, archive);
+    const bytes = await readFile(temporaryArtifact);
+    const digest = Bun.CryptoHasher.hash("sha256", bytes, "hex");
+    kit.set(`templates/${artifactName}`, bytes);
+    kit.set(`templates/${checksumName}`, `${digest}  ${artifactName}\n`);
   }
+  const kitName = `rill-kit-${version}.tar.gz`;
+  const checksumName = `${kitName}.sha256`;
+  const kitPath = join(stagingDirectory, kitName);
+  const archive = new Bun.Archive(Object.fromEntries(kit), { compress: "gzip" });
+  await Bun.write(kitPath, archive);
+  const digest = Bun.CryptoHasher.hash("sha256", await readFile(kitPath), "hex");
+  await Bun.write(join(stagingDirectory, checksumName), `${digest}  ${kitName}\n`);
+  await rename(kitPath, join(outputDirectory, kitName));
+  await rename(join(stagingDirectory, checksumName), join(outputDirectory, checksumName));
+  console.log(`dist/${kitName}`);
 } finally {
   await rm(stagingDirectory, { recursive: true, force: true });
 }

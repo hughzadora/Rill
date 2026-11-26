@@ -9,7 +9,9 @@
     "format:check": "oxfmt --check --disable-nested-config .",
     "lint": "oxlint --type-aware --deny-warnings src tests",
     "lint:fix": "oxlint --type-aware --fix src tests",
-    "test:behavior": "bun test ./tests/behavior/template.test.ts",
+    "test": "bun tests/tooling/run-suite.ts ordinary",
+    "test:behavior": "bun tests/tooling/run-suite.ts behavior",
+    "test:qualification": "bun tests/tooling/run-suite.ts qualification",
     "typecheck": "tsrs --noEmit -p tsconfig.json"
   },
   "devDependencies": {
