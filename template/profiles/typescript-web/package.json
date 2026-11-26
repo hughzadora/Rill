@@ -1,0 +1,31 @@
+{
+  "name": "rill-typescript-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./src/index.html --target=browser --outdir=dist/web --entry-naming='[name].[ext]' --chunk-naming='[name].[ext]'",
+    "preview": "node scripts/preview.ts",
+    "browser:install": "node node_modules/@playwright/test/cli.js install chromium",
+    "format": "oxfmt --write --disable-nested-config .",
+    "format:check": "oxfmt --check --disable-nested-config .",
+    "lint": "oxlint --type-aware --deny-warnings src scripts tests playwright.config.ts",
+    "lint:fix": "oxlint --type-aware --fix src scripts tests playwright.config.ts",
+    "typecheck": "tsrs --noEmit -p tsconfig.json && tsrs --noEmit -p tsconfig.browser.json",
+    "unused": "knip",
+    "test": "bun run build && bun run test:process && bun run test:browser",
+    "test:process": "node --test --test-timeout=15000 tests/process/preview.test.ts",
+    "test:browser": "node node_modules/@playwright/test/cli.js test",
+    "test:qualification": "node --test tests/tooling/qualification.test.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.1",
+    "@playwright/test": "1.65.1",
+    "@types/node": "24.19.4",
+    "knip": "6.48.0",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "tsrs": "7.1.0-beta.tsrs5"
+  },
+  "packageManager": "bun@1.4.5"
+}
