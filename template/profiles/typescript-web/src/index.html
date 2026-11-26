@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reminders</title>
+    <script type="module" src="./reminders.ts"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font:
+          100%/1.5 system-ui,
+          sans-serif;
+      }
+      main {
+        max-inline-size: 40rem;
+        margin: 3rem auto;
+        padding-inline: 1rem;
+      }
+      form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+      }
+      label,
+      [role="alert"] {
+        grid-column: 1 / -1;
+      }
+      [role="alert"] {
+        margin: 0;
+      }
+      input,
+      button {
+        min-block-size: 2.75rem;
+        padding-inline: 0.75rem;
+        font: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
+      }
+      @media (max-width: 36rem) {
+        form {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Reminders</h1>
+      <form>
+        <label for="reminder">Reminder</label>
+        <input id="reminder" name="reminder" aria-describedby="reminder-error" />
+        <button type="submit">Add reminder</button>
+        <p id="reminder-error" role="alert"></p>
+      </form>
+      <ul aria-label="Reminders"></ul>
+    </main>
+  </body>
+</html>

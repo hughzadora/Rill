@@ -1,0 +1,9 @@
+[files]
+extend-exclude = [
+  "bun.lock",
+  "mise.lock",
+  "dist",
+  "reports",
+  "node_modules",
+  "modern-ai-dlc-engineering-master-blueprint.md",
+]
