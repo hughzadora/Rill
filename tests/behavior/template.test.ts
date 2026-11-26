@@ -35,10 +35,15 @@ test("the public build command ships a self-contained, versioned Codex template"
 
     const result = Bun.spawnSync([process.execPath, "run", "build"], { cwd: directory });
     expect(result.exitCode, result.stderr.toString()).toBe(0);
-    const artifactName = `rill-${version}.tar.gz`;
+    const artifactName = `rill-kit-${version}.tar.gz`;
     const outputDirectory = join(directory, "dist");
     const artifact = Bun.file(join(outputDirectory, artifactName));
-    const files = await new Bun.Archive(await artifact.bytes()).files();
+    const kit = await new Bun.Archive(await artifact.bytes()).files();
+    const template = kit.get(`templates/rill-${version}.tar.gz`);
+    if (!template) throw new Error("Base template missing from release kit");
+    expect(kit.has("ADOPT.md")).toBe(true);
+    expect(kit.has(`templates/rill-${version}.tar.gz.sha256`)).toBe(true);
+    const files = await new Bun.Archive(await template.bytes()).files();
 
     for (const file of [
       "AGENTS.md",

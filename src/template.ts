@@ -32,6 +32,7 @@ const files = [...new Set(tracked.stdout.toString().split("\0").filter(Boolean))
 for (const file of [
   "template/AGENTS.md",
   ".agents/skills/rill/SKILL.md",
+  "workflow/ADOPT.md",
   "workflow/DELIVERY.md",
   "modern-ai-dlc-engineering-master-blueprint.md",
 ]) {
@@ -69,19 +70,31 @@ try {
   for (const [profile, entries] of profiles) {
     artifacts.set(`rill-${profile}`, new Map([...common, ...entries]));
   }
+  const kit = new Map<string, Uint8Array | string>([
+    ["RILL_VERSION", `${version}\n`],
+    ["ADOPT.md", await readFile(join(root, "workflow", "ADOPT.md"))],
+  ]);
   for (const [name, entries] of artifacts) {
     const artifactName = `${name}-${version}.tar.gz`;
     const temporaryArtifact = join(stagingDirectory, artifactName);
     const archive = new Bun.Archive(Object.fromEntries(entries), { compress: "gzip" });
     const checksumName = `${artifactName}.sha256`;
-    const temporaryChecksum = join(stagingDirectory, checksumName);
     await Bun.write(temporaryArtifact, archive);
-    const digest = Bun.CryptoHasher.hash("sha256", await readFile(temporaryArtifact), "hex");
-    await Bun.write(temporaryChecksum, `${digest}  ${artifactName}\n`);
-    await rename(temporaryArtifact, join(outputDirectory, artifactName));
-    await rename(temporaryChecksum, join(outputDirectory, checksumName));
-    console.log(`dist/${artifactName}`);
+    const bytes = await readFile(temporaryArtifact);
+    const digest = Bun.CryptoHasher.hash("sha256", bytes, "hex");
+    kit.set(`templates/${artifactName}`, bytes);
+    kit.set(`templates/${checksumName}`, `${digest}  ${artifactName}\n`);
   }
+  const kitName = `rill-kit-${version}.tar.gz`;
+  const checksumName = `${kitName}.sha256`;
+  const kitPath = join(stagingDirectory, kitName);
+  const archive = new Bun.Archive(Object.fromEntries(kit), { compress: "gzip" });
+  await Bun.write(kitPath, archive);
+  const digest = Bun.CryptoHasher.hash("sha256", await readFile(kitPath), "hex");
+  await Bun.write(join(stagingDirectory, checksumName), `${digest}  ${kitName}\n`);
+  await rename(kitPath, join(outputDirectory, kitName));
+  await rename(join(stagingDirectory, checksumName), join(outputDirectory, checksumName));
+  console.log(`dist/${kitName}`);
 } finally {
   await rm(stagingDirectory, { recursive: true, force: true });
 }
