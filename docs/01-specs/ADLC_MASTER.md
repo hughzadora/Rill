@@ -5,25 +5,22 @@ status: active
 superseded_by:
 last_updated: 2026-11-27
 related_code:
+  - docs/00-constitution/ARCHITECTURE.md
+  - docs/00-constitution/OWNER_TASTE.md
   - mise.toml
   - .oxlintrc.json
-  - .dependency-cruiser.cjs
-  - stryker.config.json
   - src/template.ts
 ---
 
-# ADLC Execution & Realignment Protocol (Zero-Friction Edition)
+# ADLC Execution & Realignment Protocol
 
-> **SOLE OPERATIONAL AUTHORITY**. Read this file as your only execution contract. Do NOT invent custom task schedulers, state files, workarounds, or parallel state machines. Every state transition is owned by **GitHub Issues / PRs**, every workspace is isolated via **Git Worktree**, and every quality gate is executed deterministically via **`mise` + local compute** (`tsrs` / `oxlint` / `oxfmt` / `knip` / `tsconfig`).
+Sole operational authority for how work enters and leaves this repository. Every state transition is owned by GitHub Issues / PRs, every workspace is isolated via Git Worktree, and every quality gate runs deterministically through `mise` + local compute. Technical contract details (tsrs, oxfmt, oxlint, knip, Git worktree) live in `docs/00-constitution/ARCHITECTURE.md`; this protocol does not restate them.
 
-> Owner taste: read [../../docs/00-constitution/OWNER_TASTE.md](../../docs/00-constitution/OWNER_TASTE.md) before writing any document, issue, PR, plan, or goal; every artifact must be produced explicitly with writing-for-agents and must not contradict this file.
-> Leading word: **zero-friction** — every instruction below collapses a decision you would otherwise guess at. If a step says "run `mise run check-fast`", run exactly that; do not substitute another command, do not skip it, do not ask which package to install.
+**Leading word: `zero-friction`.** Every instruction names the exact command, file, and exit code. Do not paraphrase, do not substitute, do not ask which package to install. Run, observe, proceed.
 
----
+## 0. In-Flight Realignment Protocol (Execute This First)
 
-## 0. IN-FLIGHT REALIGNMENT PROTOCOL (EXECUTE THIS FIRST)
-
-**If the repository is already mid-development, execute Steps 0.1 → 0.5 sequentially before writing any new product code. Do not ask for permission to organize your own workspace.**
+If the repository is already mid-development, execute Steps 0.1 → 0.5 sequentially before writing any new product code. Do not ask for permission to organize your own workspace.
 
 ### Step 0.1: Freeze & Inspect Current Workspace
 
@@ -36,51 +33,67 @@ git worktree list
 gh issue list --state open --limit 20
 ```
 
+**Completion criterion:** You can see the current branch, dirty files, worktrees, and open issues.
+
 ### Step 0.2: Anchor Current Work to a GitHub Issue
 
-- **Rule**: No code exists without an owning GitHub Issue containing verifiable acceptance criteria.
-- If the current work lacks an open GitHub Issue, **halt coding immediately**, synthesize the current task into **Section 4 (Issue Contract Template)**, and run:
-  ```bash
-  gh issue create --title "<feat|fix>: <concise outcome>" --body "<filled template>" --label "ready"
-  ```
+- **Rule:** No code exists without an owning GitHub Issue containing verifiable acceptance criteria.
+- If the current work lacks an open GitHub Issue, halt coding immediately, synthesize the task into the Section 4 Issue Contract Template, and run:
+
+```bash
+gh issue create --title "<feat|fix>: <concise outcome>" --body "<filled template>" --label "ready"
+```
+
 - Capture the resulting `<ISSUE_ID>`.
 
-### Step 0.3: Migrate Dirty/In-Flight Changes into an Isolated Worktree
+**Completion criterion:** An open GitHub Issue labeled `ready` owns the current work; no local TODO files hold task state.
 
-- **Rule**: Never develop directly in the primary repository root (`main`).
+### Step 0.3: Migrate Dirty / In-Flight Changes into an Isolated Worktree
+
+- **Rule:** Never develop directly in the primary repository root (`main`).
 - Execute this exact migration sequence (replace `<ISSUE_ID>` and `<SLUG>`):
-  ```bash
-  # 1. Stash any uncommitted work in primary root
-  git stash push -u -m "realign-issue-<ISSUE_ID>" || true
 
-  # 2. Create isolated worktree off main
-  git worktree add ../wt-<ISSUE_ID> -b feat/<ISSUE_ID>-<SLUG> main
+```bash
+# 1. Stash any uncommitted work in primary root
+git stash push -u -m "realign-issue-<ISSUE_ID>" || true
 
-  # 3. Enter worktree and pop stashed changes
-  cd ../wt-<ISSUE_ID>
-  git stash pop || true
-  ```
-- **Bind Context**: From this moment onward, treat `../wt-<ISSUE_ID>` as your sole `PROJECT_ROOT`.
+# 2. Create isolated worktree off main
+git worktree add ../wt-<ISSUE_ID> -b feat/<ISSUE_ID>-<SLUG> main
+
+# 3. Enter worktree and pop stashed changes
+cd ../wt-<ISSUE_ID>
+git stash pop || true
+```
+
+- **Bind Context:** From this moment onward, treat `../wt-<ISSUE_ID>` as your sole `PROJECT_ROOT`.
+
+**Completion criterion:** `pwd` is `../wt-<ISSUE_ID>`, `git status` is clean, and the worktree is bound to `<ISSUE_ID>`.
 
 ### Step 0.4: Purge Any Existing Anti-Patterns ("Cheating" Audit)
 
 Scan your current diff (`git diff`) and immediately eliminate:
 
-1. Hardcoded test inputs/IDs/strings inside `src/` (sample fitting).
+1. Hardcoded test inputs / IDs / strings inside `src/` (sample fitting).
 2. Type escapes (`as any`, `as unknown as`, `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`).
 3. Swallowed errors (`catch {}`, empty `.catch(() => {})`, floating promises).
 4. Fake full-stack stubs (in-memory mock arrays pretending to be DB persistence, or frontend mock responses bypassing real API endpoints).
 5. Disabled or weakened tests (`.only`, `.skip`, `passWithNoTests`, or replacing concrete value assertions with `toBeDefined()`).
 
+**Leading word: `root-cause`.** Every failure gets three causal sentences — `[root cause] -> [affected upstream/downstream modules] -> [why local hardcoding/special-casing cannot fix it]` — before any patch is written.
+
+**Completion criterion:** `git diff` contains none of the five anti-patterns above.
+
 ### Step 0.5: Wire Local Compute Gates
 
-Verify `mise.toml`, `.oxlintrc.json`, `.dependency-cruiser.cjs`, and `stryker.config.json` match **Section 5**. Run `mise run check-fast` to confirm baseline health, then resume at **Stage 6 (Vertical Slice)**.
+Verify `mise.toml`, `.oxlintrc.json`, `.dependency-cruiser.cjs`, and `stryker.config.json` match the technical contract in `docs/00-constitution/ARCHITECTURE.md`. Run `mise run check-fast` to confirm baseline health, then resume at Stage 6 (Vertical Slice).
+
+**Completion criterion:** `mise run check-fast` exits 0 with 0 warnings and 0 errors.
 
 ---
 
-## 1. DETERMINISTIC 13-STAGE ADLC PIPELINE
+## 1. Deterministic 13-Stage ADLC Pipeline
 
-Follow this exact flow. **Never skip a stage. Never combine Discovery (Phase A) and Implementation (Phase B) in the same turn.**
+Follow this exact flow. Never skip a stage. Never combine Discovery (Phase A) and Implementation (Phase B) in the same turn.
 
 ```text
 [1. Intent] ──▶ [2. Explore & Research] ──▶ [3. Brainstorm & Design] ──▶ [4. GitHub Issue]
@@ -96,65 +109,61 @@ Follow this exact flow. **Never skip a stage. Never combine Discovery (Phase A) 
 
 ### Phase A: Discovery & Convergence (Codebase is READ-ONLY)
 
-| Stage                      | Trigger & Action                                                              | Hard Constraints (Zero Friction)                                                                                                         | Required Exit Artifact                       |
-| :------------------------- | :---------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------- |
-| **1. Intent**              | Clarify user outcome, target surface, and non-goals.                          | Ask **at most 1 concise question** if business intent is ambiguous. Never ask the user to pick packages, folder names, or test commands. | Clear 1-paragraph goal statement.            |
-| **2. Explore & Research**  | Inspect codebase, schemas, dependencies, and docs (`rg`, `git log`, `gh`).    | **ZERO file mutations allowed.** Map existing patterns so you reuse them instead of inventing parallel abstractions.                     | List of affected files & existing contracts. |
-| **3. Brainstorm & Design** | Design data contracts (Zod/OpenAPI/DB), domain invariants, and failure modes. | Design **contracts first**. Identify which local heavy-compute gates apply (`fast-check`, `StrykerJS`, `Playwright`, `Testcontainers`).  | Concrete schema diff & test oracle list.     |
-| **4. GitHub Issue**        | Persist the single source of truth via `gh issue create`.                     | Use **Section 4 Template** verbatim. Do not store task state in local markdown TODO files.                                               | `GitHub Issue #<id>` with label `ready`.     |
+| Stage                      | Trigger & Action                                                              | Hard Constraints (Zero Friction)                                                                                                     | Required Exit Artifact                       |
+| -------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| **1. Intent**              | Clarify user outcome, target surface, and non-goals.                          | Ask at most 1 concise question if business intent is ambiguous. Never ask the user to pick packages, folder names, or test commands. | Clear 1-paragraph goal statement.            |
+| **2. Explore & Research**  | Inspect codebase, schemas, dependencies, and docs (`rg`, `git log`, `gh`).    | ZERO file mutations allowed. Map existing patterns so you reuse them instead of inventing parallel abstractions.                     | List of affected files & existing contracts. |
+| **3. Brainstorm & Design** | Design data contracts (Zod/OpenAPI/DB), domain invariants, and failure modes. | Design contracts first. Identify which local heavy-compute gates apply (`fast-check`, `StrykerJS`, `Playwright`, `Testcontainers`).  | Concrete schema diff & test oracle list.     |
+| **4. GitHub Issue**        | Persist the single source of truth via `gh issue create`.                     | Use the Section 4 Issue Contract Template verbatim. Do not store task state in local markdown TODO files.                            | GitHub Issue #<id> with label `ready`.       |
+
+**Leading word: `issue-owned`.** No code exists without an owning GitHub Issue.
 
 ### Phase B: Isolated Delivery (Executed Strictly Inside `../wt-<id>`)
 
-| Stage                     | Deterministic Execution Command / Action                                                                                                                                                                                   | Hard Constraints (Zero Friction)                                                                                                                                  | Mandatory Exit Gate                               |
-| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ |
-| **5. Isolated Worktree**  | `git worktree add ../wt-<id> -b feat/<id>-<slug> main && cd ../wt-<id>`                                                                                                                                                    | Verify `pwd` is `../wt-<id>` and `git status` is clean before coding.                                                                                             | Worktree bound to `<id>`.                         |
-| **6. Vertical Slice**     | Implement end-to-end in strict order:<br>1. Shared Schema (`src/schemas`)<br>2. Pure Domain (`src/domain`)<br>3. Real Adapters (`src/adapters`)<br>4. UI/API Surface (`src/ui`)<br>5. Independent Tests (`tests/behavior`) | **No horizontal layering without vertical proof.** Build one complete working path first. Expected test values must NEVER be computed by calling production code. | Runnable vertical slice with real persistence/IO. |
-| **7. Fast Local Checks**  | Run after **every** file edit batch:<br>`mise run check-fast`                                                                                                                                                              | Executes `oxfmt --check` + `oxlint --type-aware` + `tsrs` (`TSRS_FAST=0`). Fix diagnostics immediately; never suppress them.                                      | Exit code `0` (0 warnings, 0 errors).             |
-| **8. Full Verification**  | Run when slice is feature-complete:<br>`mise run verify` AND `mise run qualify`                                                                                                                                            | Exploits local CPU/Docker: runs `depcruise`, `knip`, `fast-check`, `StrykerJS`, `Testcontainers`, `Playwright`, plus negative `qualify` fixtures.                 | Both tasks exit `0` with fresh reports.           |
-| **9. Independent Review** | Spawn a **separate read-only Reviewer Agent** (fresh context) with `gh issue view <id>` and `git diff`.                                                                                                                    | Self-review in the same context does NOT count. Reviewer runs **Section 3 Checklist** to detect sample-fitting or weakened assertions.                            | Explicit `APPROVED` verdict from Reviewer.        |
-| **10. Clean & Update**    | Post-review cleanup inside worktree:<br>1. `bun run knip` (delete dead exports/files)<br>2. Update `docs/` if behavior changed<br>3. `mise run format && mise run verify`                                                  | Do NOT clean before Stage 9 review; clean after review feedback is resolved so the final diff is spotless.                                                        | Clean `git status`, `verify` exits `0`.           |
-| **11. PR & CI**           | `git push -u origin feat/<id>-<slug>`<br>`gh pr create --fill --body "Closes #<id>"`                                                                                                                                       | Wait for hosted GitHub Actions `acceptance` aggregate check to pass. Merge only when all required checks are green.                                               | PR merged into `main`.                            |
-| **12. Release**           | Run authorized release/deploy workflow if in Issue scope.                                                                                                                                                                  | Verify live/packaged artifact health; never claim release from a build alone.                                                                                     | Verified artifact/deployment digest.              |
-| **13. Iterate**           | Clean up merged worktree:<br>`cd <PRIMARY_ROOT> && git worktree remove ../wt-<id> && git pull`                                                                                                                             | Return to **Stage 1** for the next product slice.                                                                                                                 | Clean primary repo; stale worktree deleted.       |
+| Stage                     | Deterministic Execution Command / Action                                                                                                                                                                    | Hard Constraints (Zero Friction)                                                                                                                              | Mandatory Exit Gate                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **5. Isolated Worktree**  | `git worktree add ../wt-<id> -b feat/<id>-<slug> main && cd ../wt-<id>`                                                                                                                                     | Verify `pwd` is `../wt-<id>` and `git status` is clean before coding.                                                                                         | Worktree bound to `<id>`.                           |
+| **6. Vertical Slice**     | Implement end-to-end in strict order: 1. Shared Schema (`src/schemas`) 2. Pure Domain (`src/domain`) 3. Real Adapters (`src/adapters`) 4. UI/API Surface (`src/ui`) 5. Independent Tests (`tests/behavior`) | No horizontal layering without vertical proof. Build one complete working path first. Expected test values must NEVER be computed by calling production code. | Runnable vertical slice with real persistence / IO. |
+| **7. Fast Local Checks**  | Run after every file edit batch: `mise run check-fast`                                                                                                                                                      | Executes `oxfmt --check` + `oxlint --type-aware` + `tsrs` (`TSRS_FAST=0`). Fix diagnostics immediately; never suppress them.                                  | Exit code 0 (0 warnings, 0 errors).                 |
+| **8. Full Verification**  | Run when slice is feature-complete: `mise run verify` AND `mise run qualify`                                                                                                                                | Runs local CPU / Docker checks plus negative `qualify` fixtures.                                                                                              | Both tasks exit 0 with fresh reports.               |
+| **9. Independent Review** | Spawn a separate read-only Reviewer Agent (fresh context) with `gh issue view <id>` and `git diff`.                                                                                                         | Self-review in the same context does NOT count. Reviewer runs the Section 3 Checklist.                                                                        | Explicit `APPROVED` verdict from Reviewer.          |
+| **10. Clean & Update**    | Post-review cleanup inside worktree: 1. `bun run knip` (delete dead exports / files) 2. Update `docs/` if behavior changed 3. `mise run format && mise run verify`                                          | Do NOT clean before Stage 9 review; clean after review feedback is resolved so the final diff is spotless.                                                    | Clean `git status`, `verify` exits 0.               |
+| **11. PR & CI**           | `git push -u origin feat/<id>-<slug>` then `gh pr create --fill --body "Closes #<id>"`                                                                                                                      | Wait for hosted GitHub Actions `acceptance` aggregate check to pass. Merge only when all required checks are green.                                           | PR merged into `main`.                              |
+| **12. Release**           | Run authorized release / deploy workflow if in Issue scope.                                                                                                                                                 | Verify live / packaged artifact health; never claim release from a build alone.                                                                               | Verified artifact / deployment digest.              |
+| **13. Iterate**           | Clean up merged worktree: `cd <PRIMARY_ROOT> && git worktree remove ../wt-<id> && git pull`                                                                                                                 | Return to Stage 1 for the next product slice.                                                                                                                 | Clean primary repo; stale worktree deleted.         |
+
+**Leading word: `clean`.** Tree and branches are clean before and after every operation.
 
 ---
 
-## 2. ANTI-CHEATING & LOCAL COMPUTE ENFORCEMENT RULES
+## 2. Anti-Cheating & Local Compute Enforcement Rules
 
-To maximize local hardware and make "patch-style cheating" impossible, these rules are non-negotiable:
+To maximize local hardware and make "patch-style cheating" impossible, these rules are non-negotiable. Specific check configurations live in `docs/00-constitution/ARCHITECTURE.md`; this section states the principles only.
 
-1. **Single Type Authority (`tsrs`)**:
-   - Always run with `TSRS_FAST=0`. Never install or run `tsc` as a second checker.
-   - `tsconfig.json` must enforce `"strict": true`, `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": true`, `"verbatimModuleSyntax": true`.
-2. **Zero-Tolerance Linting (`Oxlint`)**:
-   - Ban `typescript/no-explicit-any`, `typescript/no-unsafe-*`, `typescript/ban-ts-comment`, `typescript/no-floating-promises`, `no-empty`, `jest/no-focused-tests`, `jest/no-disabled-tests`, and cap `eslint/complexity` at `10` (prevents `if (input === "test_case")` patch branching).
-3. **Strict Architectural Boundaries (`dependency-cruiser`)**:
-   - `src/domain/**` MUST have **zero** imports from `src/adapters/**`, `src/ui/**`, `node:*`, `bun:*`, `process.env`, or external SDKs.
-   - `src/ui/**` MUST NOT import `src/adapters/**` or backend DB models directly.
-4. **Property-Based & Mutation Testing (Local CPU Exploitation)**:
-   - **Property Testing (`fast-check`)**: Every domain parser, calculator, validator, and state machine MUST have `fc.assert(fc.property(...))` tests generating randomized edge inputs (empty strings, Unicode, negative/boundary numbers, malformed shapes).
-   - **Mutation Testing (`StrykerJS`)**: Before Stage 9, run `bun run test:mutation` scoped to modified `src/domain/**/*.ts` files (`break: 100` threshold for critical business/auth logic). Surviving mutants prove your tests are weak—strengthen assertions until mutants die.
-5. **Real Full-Stack Execution (`Testcontainers` + `Playwright`)**:
-   - Database/adapter tests MUST run against real local Docker containers via `Testcontainers` (PostgreSQL/Redis/etc.), never mocked repository classes.
-   - Browser E2E tests via Playwright MUST assert real HTTP network requests (`page.waitForResponse`) and verify persisted state across page reloads.
-6. **2-Strike Repair Limit (Anti-Loop Rule)**:
-   - If a repair attempt fails twice with the same error signature, STOP patching. Run a discriminating diagnostic (`git diff`, trace logs, or isolated reproduction) to identify the root cause before editing again.
+1. **Single Type Authority (`tsrs`)**: Always run with `TSRS_FAST=0`. Never install or run `tsc` as a second checker.
+2. **Zero-Tolerance Linting (`Oxlint`)**: Ban `any`, unsafe type assertions, floating promises, empty `catch`, focused / disabled tests (`jest/no-focused-tests`, `jest/no-disabled-tests`), cap cyclomatic complexity at 10.
+3. **Strict Architectural Boundaries**: `src/domain/**` must have zero imports from adapters, UI, `node:*`, `bun:*`, `process.env`, or external SDKs. `src/ui/**` must not import `src/adapters/**` or backend DB models directly.
+4. **Property-Based & Mutation Testing (Local CPU)**: Domain parsers, calculators, validators, and state machines must have property tests generating randomized edge inputs. Before Stage 9, run mutation testing on modified `src/domain/**` files; surviving mutants prove weak tests.
+5. **Real Full-Stack Execution**: Database / adapter tests run against real local Docker containers via Testcontainers, never mocked repository classes. Browser E2E via Playwright must assert real HTTP network requests and persisted state across reloads.
+6. **2-Strike Repair Limit (Anti-Loop Rule)**: If a repair attempt fails twice with the same error signature, STOP patching. Run a discriminating diagnostic (`git diff`, trace logs, isolated reproduction) to identify the root cause before editing again.
+
+**Leading word: `root-cause`.** Every failure gets three causal sentences; no patch without cause.
 
 ---
 
-## 3. INDEPENDENT REVIEWER CHECKLIST (STAGE 9 MANDATE)
+## 3. Independent Reviewer Checklist (Stage 9 Mandate)
 
 When acting as the Independent Reviewer Agent in Stage 9, read ONLY `gh issue view <id>` and `git diff main...HEAD`. Reject (`REQUEST_CHANGES`) immediately if ANY check fails:
 
-- **Zero Sample Fitting**: Search `git diff` for string/number literals in `src/` that match test fixtures in `tests/`. Any match = REJECT.
+- **Zero Sample Fitting**: Search `git diff` for string / number literals in `src/` that match test fixtures in `tests/`. Any match = REJECT.
 - **Zero Oracle Weakening**: Check `git diff tests/`. Were any assertions deleted, changed to `.toBeDefined()` / `.toBeTruthy()`, or skipped? Any weakening = REJECT.
 - **Zero Escape Hatches**: Search `git diff` for `any`, `unknown as`, `@ts-`, `oxlint-disable`, `eslint-disable`, or empty `catch`. Any occurrence = REJECT.
-- **True End-to-End Flow**: Verify data travels from UI/API input -> Zod schema validation -> pure `src/domain` -> real `src/adapters` DB query. Hardcoded JSON returns = REJECT.
+- **True End-to-End Flow**: Verify data travels from UI / API input → Zod schema validation → pure `src/domain` → real `src/adapters` DB query. Hardcoded JSON returns = REJECT.
 - **No Speculative Bloat**: Confirm `knip` passed and no unused helper files or unrequested dependencies were added.
 
----
+**Leading word: `isolated`.** Reviewer is a separate session with fresh context; self-review does not count.
 
-## 4. GITHUB ISSUE CONTRACT TEMPLATE (STAGE 4)
+## 4. GitHub Issue Contract Template (Stage 4)
 
 Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 
@@ -191,9 +200,7 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 
 ```
 
----
-
-## 6. COMPLETION CRITERIA (ALL AUTOMATICALLY CHECKABLE)
+## 5. Completion Criteria (All Automatically Checkable)
 
 1. `git status --short` is empty.
 2. `git worktree list` shows only the main worktree (or the current task's `../wt-<issue-id>`).
@@ -208,4 +215,5 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 ---
 
 _Leading word summary: **zero-friction**. Every step above names the exact command, file, and exit code. Do not paraphrase; do not substitute. Run, observe, proceed._
+
 ```
