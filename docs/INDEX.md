@@ -1,6 +1,6 @@
 # Rill Knowledge Base Index
 
-> Single routing entry. Indexes only documents with lifecycle `active` (`00-constitution`, `01-specs`, `02-requests/active`, `03-research`). Completed/deprecated documents in `docs/02-requests/archive/` are masked by default and excluded from the normal reading route.
+> Single routing entry. Indexes only documents with lifecycle `active` (`00-constitution`, `01-specs`, `02-requests/active`, `03-research`). Obsolete documents are deleted, not archived.
 
 ## 00-constitution — Core architecture & invariants (read-only)
 
@@ -31,5 +31,3 @@
 | Document | id  | One-line summary                 |
 | -------- | --- | -------------------------------- |
 | —        | —   | No active research documents yet |
-
-> Archived documents (`docs/02-requests/archive/`, `status: completed | deprecated`): `FIRST-CONSUMER-REHEARSAL.md` (REQ-002, completed), `RILL-ADLC-WORKFLOW-CORRECTION.md` (REQ-003, deprecated, superseded by SPEC-002). This index does not include them in the normal reading route.

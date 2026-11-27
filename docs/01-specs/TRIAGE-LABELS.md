@@ -7,9 +7,9 @@ last_updated: 2026-11-27
 related_code: []
 ---
 
-# Triage labels
+# Triage Label Mapping
 
-Use the corresponding GitHub label when an engineering skill names a triage role.
+Default mapping from engineering skill roles to GitHub labels.
 
 | Skill role        | GitHub label      | Meaning                                          |
 | ----------------- | ----------------- | ------------------------------------------------ |
@@ -18,3 +18,5 @@ Use the corresponding GitHub label when an engineering skill names a triage role
 | `ready-for-agent` | `ready-for-agent` | An agent can implement the fully specified issue |
 | `ready-for-human` | `ready-for-human` | Implementation requires a human                  |
 | `wontfix`         | `wontfix`         | The issue will be closed without implementation  |
+
+Apply the corresponding GitHub label when an engineering skill names a triage role.

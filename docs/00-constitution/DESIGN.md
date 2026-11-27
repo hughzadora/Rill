@@ -9,32 +9,48 @@ related_code:
   - tests/tooling/run-suite.ts
 ---
 
-# Rill Design
+# Rill Design & Anti-Cheat Contracts
 
-本文件定义 Rill 仓库自身的接口设计原则与防补丁式作弊契约，供 Agent 在对本仓库进行修改时遵循。
+Single source of truth for Rill's interface design principles and anti-patch-cheating rules. Read before changing interfaces or tests.
 
-## 深度模块原则
+## Depth module principle
 
-- 模块 = 接口 + 实现。接口是调用者（包括测试）必须知道的全部：类型签名、不变式、顺序约束、错误模式、所需配置、性能特征。
-- 深度 = 小接口背后的大量行为。浅模块（接口几乎与实现同样复杂）应避免。
-- 删除测试：设想删除该模块，复杂度是消失还是扩散到 N 个调用者？扩散则说明该模块该存在。
-- 接口即测试面：调用者和测试跨同一接口。若想“越过接口测试”，模块形状大概率有问题。
-- 一个 adapter 意味着假定的接缝；两个 adapter 才意味着真实的接缝。不引入没有实际变化的接缝。
+One concept, one module:
 
-## 测试设计
+- Module = interface + implementation. Interface is everything callers (including tests) must know: type signatures, invariants, sequencing constraints, error modes, required configuration, performance characteristics.
+- Depth = large behavior behind a small interface. Avoid shallow modules whose interface is as complex as their implementation.
+- Deletion test: delete the module — if complexity spreads to N callers, the module should exist.
+- Interface is the test surface: callers and tests cross the same interface. Wanting to "test beyond the interface" signals a wrong module shape.
+- One adapter = assumed seam; two adapters = real seam. No seams without actual change.
 
-- 接受依赖，不在内部创建依赖（可注入，易测试）。
-- 返回结果，不产生副作用（纯函数优先，副作用在 adapter 层集中）。
-- 小表面：方法更少 = 需要的测试更少；参数更少 = 测试设置更简单。
+**Leading word: `deep`.** Small interface, large behavior; no shallow wrappers.
 
-## 防补丁式作弊（源头）
+## Test design
 
-- 任何测试失败或类型报错时，禁止直接输出代码补丁。必须先输出三句因果分析：
-  `[报错根因] -> [受影响的上下游模块] -> [为什么不能用局部硬编码/特判解决]`。
-- 用户自然语言意图不得直接写入源码作为硬编码字符串（如“买菜清单”“没信号”）。代码生成前必须先将意图转换为标准机器语言规范（输入/输出、边界、不变式、失败模式），再写代码。
-- 直接把用户意图硬编码进项目（补丁式作弊）将被静态检查规则拦截。
+One rule per concern:
 
-## 测试断言隔离
+- Accept dependencies; do not create them internally — inject, don't instantiate.
+- Return results; do not produce side effects — pure functions first, side effects concentrated at the adapter layer.
+- Small surface: fewer methods = fewer tests; fewer parameters = simpler setup.
 
-- 修复 Bug 时，默认无权修改既有 `*.test.ts` 中的断言条件，除非能证明业务需求本身已变更。
-- PR 审查通过 `difftastic` 结构 diff 一眼识别违规篡改测试的行为。
+**Leading word: `pure`.** Pure domain, impure adapters at the edge.
+
+## Anti-patch-cheating (source)
+
+Positive target behaviour first; prohibitions only as guardrails paired with the positive:
+
+- On any test failure or type error, do not output a patch directly. Output three causal sentences first:
+  `[root cause] -> [affected upstream/downstream modules] -> [why local hardcoding/special-casing cannot fix it]`.
+- User natural-language intent is converted to a machine-language spec (input/output, boundary, invariant, failure mode) before any code is written. Intent is never hardcoded as a string in `src/` (e.g. "shopping list", "no signal").
+- Patch cheating — hardcoding user intent into the project — is intercepted by static checking.
+
+**Leading word: `root-cause`.** Every failure gets three causal sentences; no patch without cause.
+
+## Test assertion isolation
+
+Positive rule, hard guardrail:
+
+- Bug fixes do not alter assertion conditions in existing `*.test.ts` unless business requirements themselves changed.
+- PR review uses `difftastic` structural diff to spot illicit test tampering at a glance.
+
+**Leading word: `isolated`.** Existing assertions are frozen unless requirements change.
