@@ -22,6 +22,7 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
     "scan-history": "gitleaks git --redact=100 .",
     "scan-dependencies": "osv-scanner scan source --recursive .",
     spelling: "typos",
+    knip: "bun run knip",
     "workflow-lint":
       "bun run oxlint --deny-warnings .github/scripts/require-results.js && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml",
     links:
@@ -31,6 +32,7 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
     "check-fast": ["format-check", "lint", "typecheck"],
     verify: [
       "check-fast",
+      "knip",
       "test",
       "scan-secrets",
       "scan-dependencies",

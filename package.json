@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "bun src/template.ts",
+    "knip": "knip",
     "format": "oxfmt --write --disable-nested-config .",
     "format:check": "oxfmt --check --disable-nested-config .",
     "lint": "oxlint --type-aware --deny-warnings src tests",

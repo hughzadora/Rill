@@ -11,9 +11,11 @@ permissions:
 
 jobs:
   verify:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
+      - name: Assert Apple Silicon arm64
+        run: test "$(uname -m)" = "arm64"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -25,9 +27,11 @@ jobs:
           mise run scan-history
           test -z "$(git status --porcelain)"
   qualification:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
+      - name: Assert Apple Silicon arm64
+        run: test "$(uname -m)" = "arm64"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -37,9 +41,11 @@ jobs:
           mise run qualify
           test -z "$(git status --porcelain)"
   artifact:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
+      - name: Assert Apple Silicon arm64
+        run: test "$(uname -m)" = "arm64"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

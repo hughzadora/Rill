@@ -1,6 +1,5 @@
 {
   "$schema": "https://knip.dev/schema.json",
   "entry": ["src/template.ts", "src/**/*.ts", "tests/**/*.ts"],
-  "project": ["src/**/*.ts", "tests/**/*.ts"],
-  "ignore": ["template/**", "dist/**", "rill-test-project/**"]
+  "project": ["src/**/*.ts", "tests/**/*.ts"]
 }

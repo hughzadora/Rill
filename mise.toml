@@ -34,6 +34,9 @@ run = "bun run typecheck"
 [tasks."check-fast"]
 depends = ["format-check", "lint", "typecheck"]
 
+[tasks.knip]
+run = "bun run knip"
+
 [tasks.test]
 run = "bun run test"
 
@@ -62,6 +65,7 @@ run = "bun run oxlint --deny-warnings .github/scripts/require-results.js && acti
 [tasks.verify]
 depends = [
   "check-fast",
+  "knip",
   "test",
   "scan-secrets",
   "scan-dependencies",
