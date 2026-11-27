@@ -1,46 +1,60 @@
-# Rill
+# Rill — Workspace AGENTS.md
 
-> Owner taste: read [OWNER_TASTE.md](OWNER_TASTE.md) before writing any document, issue, PR, plan, or goal; every artifact must be produced explicitly with writing-for-agents.
-> SOLE OPERATIONAL AUTHORITY: read [docs/ADLC_MASTER.md](docs/ADLC_MASTER.md) before any code change. It is the zero-friction execution contract; AGENTS.md only points to it and to domain docs below.
+Inherits all iron rules from the global `AGENTS.md` (security, testing, commit gates — none weakened). This file only supplements this repository's real canonical commands, directory boundaries, and project-specific invariants. All changes run locally and are committed atomically; no `git push`, no remote branch modification.
 
-Read the [Rill product brief](docs/PROJECT.md) for scope and acceptance, and the relevant sections of the [engineering blueprint](modern-ai-dlc-engineering-master-blueprint.md) for execution. Use the [Rill workflow](workflow/DELIVERY.md) when exercising the repository skill or checking the adopted template. Architecture and design constraints are in [ARCHITECTURE.md](ARCHITECTURE.md) and [DESIGN.md](DESIGN.md).
+## 0. Inherited iron rules (global AGENTS.md, not weakened)
 
-## Agent skills
+- **Single verification entrypoint**: verify only via the repo's established build/test tools (`mise run check-fast`, `mise run test`, `mise run verify`, `mise run qualify`). Do not create throwaway verification scripts (`tmp_*`, `verify_*`, `debug_*`).
+- **Zero bypass tolerance**: no `.skip`, `xit`, `.only`, `xfail`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, `@ts-ignore`, commented-out tests, or relaxed assertions.
+- **Test-value proof**: any deletion, relaxation, or behavioral change to existing `*.test.ts` assertions must be justified in both the commit body and delivery report with (1) Protected Boundary and (2) Legitimacy Proof.
+- **Hermetic isolation**: tests must not mutate host user config (`~/`) or leave untracked artifacts; use isolated temp dirs and clean up after runs.
+- **Dependency & lockfile discipline**: never install, upgrade, or remove third-party deps, nor modify `bun.lock`/`mise.lock`, unless explicitly required by the task.
 
-### Root cause first (blueprint 6.1)
+## 1. Canonical commands (from `package.json` and `mise.toml`)
 
-遇到测试失败或类型报错时，禁止直接输出代码补丁。必须先输出三句因果分析：
-`[报错根因] -> [受影响的上下游模块] -> [为什么不能用局部硬编码/特判解决]`，强制激活逻辑推理而非统计学盲猜。
+| Gate                              | Canonical command                                                      | Meaning                                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Build                             | `mise run build` (`bun run build`)                                     | Package the versioned Codex template into `dist/`                                              |
+| Typecheck                         | `mise run typecheck` (`tsrs --noEmit -p tsconfig.json`, `TSRS_FAST=0`) | Sole type authority; do not install `tsc` as a second checker                                  |
+| Lint                              | `mise run lint` (`oxlint --type-aware --deny-warnings src tests`)      | Explicit safety rules, `deny-warnings`                                                         |
+| Format check                      | `mise run format-check` (`oxfmt --check --disable-nested-config .`)    | Oxfmt sole owner; no Biome/Prettier                                                            |
+| Fast unit tests (Commit Gate)     | `mise run test` (`bun tests/tooling/run-suite.ts ordinary`)            | behavior + contracts suites, no skip/focus                                                     |
+| Heavy integration tests (Nightly) | `mise run qualify` (`bun tests/tooling/run-suite.ts qualification`)    | fault-injection + negative gates, 31 cases                                                     |
+| Commit gate aggregate             | `mise run verify`                                                      | check-fast + knip + test + scan-secrets + scan-dependencies + spelling + links + workflow-lint |
+| Dead-code check                   | `mise run knip` (`bun run knip`)                                       | must exit 0 before every iteration ends                                                        |
+| Secret scan                       | `mise run scan-secrets` (`gitleaks dir --redact=100 .`)                | no leaks                                                                                       |
+| Workflow lint                     | `mise run workflow-lint`                                               | actionlint + shellcheck + zizmor + oxlint on CI scripts                                        |
 
-### Intent → 机器语言转换网关（防补丁式作弊）
+## 2. Directory boundary map
 
-代码生成前，必须先将用户自然语言意图转换为标准机器语言规范（输入/输出、边界、不变式、失败模式），再写代码。用户意图不得直接作为硬编码字符串写入源码（如“买菜清单”“没信号”）。违规将被静态检查拦截。
+| Path                   | Role                   | Boundary rule                                                                                                                      |
+| ---------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `src/template.ts`      | Build & pack entry     | Depends on no internal business module; never imports `template/`, `tests/`, `docs/`, `workflow/`                                  |
+| `tests/tooling/`       | Tooling contract tests | Depends only on `src/template.ts` public exports and `bun:test`                                                                    |
+| `tests/behavior/`      | Behavior tests         | Depends only on the built release kit and `bun:test`                                                                               |
+| `template/`            | Consumer-side template | Not imported by Rill source; only shipped with the kit                                                                             |
+| `docs/`                | Knowledge base         | `00-constitution`/`01-specs`/`02-requests/active`/`03-research` active; `02-requests/archive` archived, masked from normal routing |
+| `workflow/`            | Delivery workflow      | `DELIVERY.md`, `ACCEPTANCE.md`, `ADOPT.md`, `PROFILES.md`, `RELEASE.md`                                                            |
+| `.agents/skills/rill/` | Rill skill             | For adopted-workspace plain-language requests                                                                                      |
+| `dist/`                | Build output           | gitignored, not committed                                                                                                          |
+| `node_modules/`        | Dependencies           | gitignored, not committed                                                                                                          |
 
-### 测试断言隔离（blueprint 6.2）
+## 3. Project-specific invariants
 
-修复 Bug 时，默认无权修改既有 `*.test.ts` 中的断言条件，除非能证明业务需求本身已变更。PR 审查通过 `difftastic` 结构 diff 一眼识别违规篡改测试的行为。
+- `tsrs` is the sole type authority; `TSRS_FAST=0`; no speed mode that changes diagnostics.
+- `oxlint` enables `typescript`/`import`/`unicorn`/`jest` plugins, `correctness` is `error`; bans `any`, unsafe assignment/argument/call/member-access/type-assertion, floating promises, TS comment suppression, global assignment, implicit globals, empty blocks, focused/disabled tests.
+- `.oxfmtrc.json` is the sole format config, ignoring `bun.lock`, `mise.lock`, `node_modules/**`, `dist/**`, `reports/**`, blueprint files; no second formatter on the same file.
+- `knip.json` entry: `src/template.ts`, `src/**/*.ts`, `tests/**/*.ts`; project scope identical; ignores `template/**`, `dist/**`, `rill-test-project/**`; run `bunx knip` before every iteration ends; orphan files/unused exports must be cleaned; no `funcV2` coexisting with the old function.
+- Git worktrees live in `.worktrees/`, non-primary worktree; before deletion `git status --porcelain` must be empty; branch tip must be an ancestor of base; after merge use `git branch -d` (never `-D`); never `git worktree remove --force`.
+- Bug fixes: by default no authority to alter assertion conditions in existing `*.test.ts` unless business requirements themselves changed.
 
-### 死码零容忍（blueprint 6.3，knip）
+## 4. Secret writing gate (layer 2: pre-write sanitization)
 
-每次迭代结束前运行 `bunx knip`。孤立文件/未用导出必须清理，不得保留 `funcV2` 与旧函数并存。
+Before writing any document, issue, PR, plan, or goal, run a local `gitleaks` stream scan on the text and block the write if a secret is found; never read plaintext `.env` into agent context. `.gitleaks.toml` is the single rule source. Completion criterion: a known-fake secret string fails locally on `gitleaks dir --stdin` before any `gh` write.
 
-### Git 工作树生命周期
+## 5. Entry points
 
-工作树位于 `.worktrees/`，非主工作树。删除前 `git status --porcelain` 必须为空；分支 tip 必须是 base 的祖先。合并后用 `git branch -d`（禁止 `-D`）；锁定后 `git worktree lock`，完成后显式 `unlock`；禁止 `git worktree remove --force`。
-
-### Secret writing gate (layer 2: pre-write sanitization)
-
-Before writing any document, issue, PR, plan, or goal, run local `gitleaks` stream scan on the text and block the write if a secret is found; never read plaintext `.env` into agent context. `.gitleaks.toml` is the single rule source.
-Completion criterion: a known-fake secret string fails `gitleaks dir --stdin` locally before any `gh` write.
-
-### Issue tracker
-
-For specs, tickets, dependencies, or closure, see [GitHub issue tracker](docs/agents/issue-tracker.md).
-
-### Triage labels
-
-When triaging issues, use the [default label mapping](docs/agents/triage-labels.md).
-
-### Domain docs
-
-When exploring the codebase or making a domain decision, follow the [single-context layout](docs/agents/domain.md).
+- Product facts & acceptance: `docs/01-specs/PROJECT.md`
+- Sole execution contract: `docs/01-specs/ADLC_MASTER.md`
+- Owner taste: `docs/00-constitution/OWNER_TASTE.md`
+- Routing index: `docs/INDEX.md`
