@@ -58,7 +58,7 @@ jobs:
   acceptance:
     name: acceptance
     if: ${{ always() }}
-    needs: [verify, qualification, artifact]
+    needs: [verify, qualification, artifact, scan-secrets]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -73,3 +73,19 @@ jobs:
           REQUIRED_RESULTS: ${{ toJSON(needs) }}
         run: |
           node .github/scripts/require-results.js
+
+  scan-secrets:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - name: Assert Apple Silicon arm64
+        run: test "$(uname -m)" = "arm64"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: $/.github/actions/locked-setup
+      - name: Scan for secrets
+        run: |
+          mise run scan-secrets
+          mise run scan-history

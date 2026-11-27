@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const cli = `${root}/.github/scripts/require-results.js`;
+const cli = `${root}/.github/scripts/require-results.ts`;
 
 const successful = {
   artifact: { result: "success" },

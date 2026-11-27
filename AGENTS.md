@@ -28,6 +28,11 @@ Read the [Rill product brief](docs/PROJECT.md) for scope and acceptance, and the
 
 工作树位于 `.worktrees/`，非主工作树。删除前 `git status --porcelain` 必须为空；分支 tip 必须是 base 的祖先。合并后用 `git branch -d`（禁止 `-D`）；锁定后 `git worktree lock`，完成后显式 `unlock`；禁止 `git worktree remove --force`。
 
+### Secret writing gate (layer 2: pre-write sanitization)
+
+Before writing any document, issue, PR, plan, or goal, run local `gitleaks` stream scan on the text and block the write if a secret is found; never read plaintext `.env` into agent context. `.gitleaks.toml` is the single rule source.
+Completion criterion: a known-fake secret string fails `gitleaks dir --stdin` locally before any `gh` write.
+
 ### Issue tracker
 
 For specs, tickets, dependencies, or closure, see [GitHub issue tracker](docs/agents/issue-tracker.md).
