@@ -57,6 +57,17 @@ checksum_source = "mise-versions"
 url = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/lycheeverse/lychee/releases/assets/409957951"
 
+[[tools."aqua:oxc-project/oxc/oxfmt"]]
+version = "0.80.0"
+backend = "aqua:oxc-project/oxc/oxfmt"
+specifiers = ["0.80.0"]
+
+[tools."aqua:oxc-project/oxc/oxfmt"."platforms.macos-arm64"]
+checksum = "sha256:32a03838f50d2417b55eae71226c940da9d7964b77e49648a51957795527b479"
+checksum_source = "mise-versions"
+url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.80.0/oxfmt-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612273"
+
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"

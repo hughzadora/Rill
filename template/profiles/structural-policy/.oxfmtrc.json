@@ -1,0 +1,13 @@
+{
+  "tabWidth": 2,
+  "useTabs": false,
+  "endOfLine": "lf",
+  "ignorePatterns": [
+    "**/bun.lock",
+    "**/mise.lock",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/reports/**",
+    "/modern-ai-dlc-engineering-master-blueprint.md"
+  ]
+}

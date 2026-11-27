@@ -1,0 +1,29 @@
+# lefthook.yml - Pre-commit hooks for Rill
+# Run: lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,js,json,md,yaml,yml,toml}"
+      run: mise run format-check {staged_files}
+    lint:
+      glob: "*.{ts,js}"
+      run: mise run lint {staged_files}
+    typecheck:
+      glob: "*.ts"
+      run: mise run typecheck
+    spelling:
+      glob: "*.{md,txt,json,yaml,yml}"
+      run: mise run spelling {staged_files}
+    scan-secrets:
+      run: mise run scan-secrets
+    knip:
+      run: bunx knip
+
+pre-push:
+  commands:
+    verify:
+      run: mise run verify
+    build:
+      run: mise run build

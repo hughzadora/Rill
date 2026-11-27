@@ -1,0 +1,5 @@
+{
+  "entry": ["tests/tooling/run-tests.ts", "tooling/scan-structure.ts", "tests/**/*.test.ts"],
+  "project": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx", "tooling/**/*.ts"],
+  "ignoreBinaries": ["mise"]
+}

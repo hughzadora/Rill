@@ -1,0 +1,27 @@
+{
+  "name": "rill-structural-policy-starter",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mise exec -- bun src/preview.tsx",
+    "format": "oxfmt --write --disable-nested-config .",
+    "format:check": "oxfmt --check --disable-nested-config .",
+    "lint": "oxlint --type-aware --deny-warnings --disable-nested-config src tests tooling",
+    "lint:fix": "oxlint --type-aware --disable-nested-config --fix src tests tooling",
+    "scan:structure": "bun tooling/scan-structure.ts",
+    "typecheck": "tsrs --noEmit -p tsconfig.json",
+    "test": "mise exec -- bun tests/tooling/run-tests.ts ordinary",
+    "test:behavior": "mise exec -- bun tests/tooling/run-tests.ts behavior",
+    "test:qualification": "mise exec -- bun tests/tooling/run-tests.ts qualification",
+    "unused": "mise exec -- node node_modules/knip/bin/knip.js"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.5",
+    "knip": "6.48.0",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "tsrs": "7.1.0-beta.tsrs5"
+  },
+  "packageManager": "bun@1.4.5"
+}

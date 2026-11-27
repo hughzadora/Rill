@@ -1,0 +1,20 @@
+id: no-preview-write-ts
+valid:
+  - |
+    import { write as saveFile } from "bun";
+    export function previewExport(path: string) { return Bun.file(path); }
+    export function saveExport(path: string, data: string) { return saveFile(path, data); }
+  - |
+    function write(data: string) { return data.trim(); }
+    function previewExport(data: string) { return write(data); }
+invalid:
+  - |
+    function previewExport(path: string, data: string) { return Bun.write(path, data); }
+  - |
+    function previewExport(path: string, data: string) { return Bun['write'](path, data); }
+  - |
+    import { write } from "bun";
+    function previewExport(path: string, data: string) { return write(path, data); }
+  - |
+    import { version, write as saveFile } from 'bun';
+    function previewExport(path: string) { return saveFile(path, version); }
