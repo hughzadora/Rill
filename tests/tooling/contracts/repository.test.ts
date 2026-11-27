@@ -24,7 +24,7 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
     spelling: "typos",
     knip: "bun run knip",
     "workflow-lint":
-      "bun run oxlint --deny-warnings .github/scripts/require-results.ts && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml",
+      "bun run oxlint --deny-warnings .github/scripts/require-results.mjs && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml",
     links:
       "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md",
   };
