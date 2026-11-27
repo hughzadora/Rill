@@ -29,4 +29,10 @@
 
 ## Tooling taste
 
+### Layer 1 secret provider (manual install, not in mise.toml)
+
+- Infisical CLI or Doppler CLI: single-binary secret provider replacing plaintext `.env`; runtime stdout/stderr auto-redacted. NOT added to `mise.toml`/`aqua` because no aqua registry exists — user-managed manual install only. Documented here as layer 1 (runtime secret isolation), not an automated CI gate.
+  - Completion criterion: owner installs `infisical` or `doppler` CLI manually; `mise.toml` remains unchanged for layer 1.
+- All other tooling per sections above: `mise`, `Bun`, `Turborepo`, `tsrs`, `oxfmt`, `oxlint`, `Biome`, `Oxlint`/`Semgrep`, `knip`, `Gitleaks`, `OSV-Scanner`, `Trivy`, `ripgrep`/`fd`/`ast-grep`, `RTK`, `Difftastic`, `Lefthook`, `Bun Test`, `Playwright`, `Commitlint`, `Changesets`, GitHub Actions, `act`.
+
 - Type: `tsrs` only, `TSRS_FAST=0`. Format: `oxfmt` single owner. Lint: `oxlint --type-aware --deny-warnings`. Dead code: `knip`. CI: GitHub Actions `macos-26` + `if: ${{ always() }}` acceptance aggregate covering `merge_group`.
