@@ -1,3 +1,14 @@
+---
+id: REQ-001
+title: Rill ADLC Zero-Friction Workflow Goal
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - docs/01-specs/ADLC_MASTER.md
+  - docs/00-constitution/OWNER_TASTE.md
+---
+
 # Goal: Rill ADLC zero-friction workflow & anti-patch-cheating enforcement
 
 ## Purpose (leading word: zero-friction)
@@ -30,9 +41,9 @@ Rill 完整体作为版本化固定版资产已交付，但实际工作模式存
 ## Reference (consulted on demand)
 
 - writing-for-agents (skill): steps + completion criteria, information hierarchy, leading words, pruning rules.
-- [`OWNER_TASTE.md`](../../OWNER_TASTE.md): owner taste — platform macos-26/arm64, anti-patch-cheating, writing-for-agents, Git/workflow, tooling.
-- [`docs/ADLC_MASTER.md`](../../docs/ADLC_MASTER.md): sole operational authority for the 13-stage ADLC pipeline.
-- [`AGENTS.md`](../../AGENTS.md): sole entry pointer to owner taste + ADLC_MASTER.md + domain docs.
+- [`../../00-constitution/OWNER_TASTE.md`](../../00-constitution/OWNER_TASTE.md): owner taste — platform macos-26/arm64, anti-patch-cheating, writing-for-agents, Git/workflow, tooling.
+- [`../../01-specs/ADLC_MASTER.md`](../../01-specs/ADLC_MASTER.md): sole operational authority for the 13-stage ADLC pipeline.
+- [`../../../AGENTS.md`](../../../AGENTS.md): sole entry pointer to owner taste + ADLC_MASTER.md + domain docs.
 
 ## Completion criterion (checkable and exhaustive)
 

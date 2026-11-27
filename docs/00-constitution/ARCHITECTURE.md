@@ -1,3 +1,17 @@
+---
+id: ADR-001
+title: Rill Architecture & Invariants
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - tsconfig.json
+  - .oxfmtrc.json
+  - .oxlintrc.json
+  - knip.json
+  - src/template.ts
+---
+
 # Rill Architecture
 
 本文件定义 Rill 仓库自身的架构边界与类型检查契约，供 Agent 在对本仓库进行修改时遵循。

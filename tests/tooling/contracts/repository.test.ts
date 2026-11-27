@@ -88,7 +88,7 @@ test("the required inputs are nonempty and standalone tsrs discovers the authore
     "AGENTS.md",
     "README.md",
     "bun.lock",
-    "docs/PROJECT.md",
+    "docs/01-specs/PROJECT.md",
     "mise.lock",
     "modern-ai-dlc-engineering-master-blueprint.md",
     "src/template.ts",
@@ -149,9 +149,14 @@ test("Oxfmt leaves lockfiles, generated outputs, and the supplied blueprint to t
     ],
   });
   expect(readFileSync(join(root, ".gitignore"), "utf8").trim().split("\n").sort()).toEqual([
+    "# 临时验证产物（禁止提交，Commit Gate 与 knip 均不应扫描）",
+    "*.tmp.*",
     ".DS_Store",
+    "debug_*",
     "dist/",
     "node_modules/",
     "reports/",
+    "tmp_*",
+    "verify_*",
   ]);
 });

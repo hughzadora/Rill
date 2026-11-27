@@ -1,3 +1,14 @@
+---
+id: ADR-002
+title: Rill Design Principles & Anti-Cheat Contracts
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - src/template.ts
+  - tests/tooling/run-suite.ts
+---
+
 # Rill Design
 
 本文件定义 Rill 仓库自身的接口设计原则与防补丁式作弊契约，供 Agent 在对本仓库进行修改时遵循。

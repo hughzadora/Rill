@@ -1,3 +1,14 @@
+---
+id: REQ-002
+title: First TypeScript & Bun Consumer Rehearsal
+status: completed
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - workflow/ADOPT.md
+  - workflow/ACCEPTANCE.md
+---
+
 # First TypeScript and Bun consumer rehearsal
 
 The Codex session created a Chinese shopping list. It chose a responsive page with browser-local storage, quantities and bought state, and offline access after the first online visit. The session recorded the scenarios in the consumer's `docs/PROJECT.md` and wrote the initial increment. Its transcript ends before the Codex turn finished. Follow-up verification repaired and checked the generated consumer.
@@ -20,6 +31,6 @@ Follow-up separated the service worker's TypeScript runtime configuration from t
 - `mise exec -- bun run build` produced `index.html`, `app.js`, `style.css`, and `offline.js`. The worker included its build-specific cache version and its file digest was `42b6ea0729a0e0e41bdd80e1b8e4d7f7ee37c1a5f23805501fdeb6a3bd62ad30`.
 - Chromium `159.0.8154.6` at a 360-pixel viewport exercised adding items, keyboard toggling, rejected blank input, offline reload, and persistence after offline writes. An injected storage quota failure preserved prior data and the unsaved entry. A retry saved the entry once. Axe `4.14.1` reported zero violations in the checked WCAG 2.0 and 2.1 A/AA tags for that page state.
 
-Final acceptance remains pending for a published, fixed-version asset in a clean environment where the Rill source checkout is inaccessible. It requires the completed natural-request and consequential-ambiguity sessions, a committed product candidate with reproducible browser evidence, and independent review. See [the product request journey](../workflow/ACCEPTANCE.md#qualify-the-product-request-journey).
+Final acceptance remains pending for a published, fixed-version asset in a clean environment where the Rill source checkout is inaccessible. It requires the completed natural-request and consequential-ambiguity sessions, a committed product candidate with reproducible browser evidence, and independent review. See [the product request journey](../../../workflow/ACCEPTANCE.md#qualify-the-product-request-journey).
 
 The published kit is `v0.1.1` at `https://github.com/hughzadora/rill/releases/tag/v0.1.1`. The release is not immutable and no auditable workflow log proves the published asset was generated from the claimed source commit (see release-integrity gap in the Rill complete-body goal).

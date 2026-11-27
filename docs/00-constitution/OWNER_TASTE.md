@@ -1,3 +1,15 @@
+---
+id: ADR-003
+title: Owner Taste — Non-Negotiable Rules
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - AGENTS.md
+  - .oxlintrc.json
+  - mise.toml
+---
+
 # Owner Taste — Rill
 
 > **Single source of truth for the owner's personal taste.** Every document, GitHub issue/PR, Codex plan/goal, and agent instruction in this repository must be written explicitly with [`writing-for-agents`](https://github.com/mattpocock-skills/writing-for-agents) and must not contradict this file.

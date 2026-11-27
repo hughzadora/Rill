@@ -1,3 +1,12 @@
+---
+id: SPEC-005
+title: Triage Label Mapping
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code: []
+---
+
 # Triage labels
 
 Use the corresponding GitHub label when an engineering skill names a triage role.

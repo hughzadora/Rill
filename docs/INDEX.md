@@ -1,0 +1,35 @@
+# Rill Knowledge Base Index
+
+> Single routing entry. Indexes only documents with lifecycle `active` (`00-constitution`, `01-specs`, `02-requests/active`, `03-research`). Completed/deprecated documents in `docs/02-requests/archive/` are masked by default and excluded from the normal reading route.
+
+## 00-constitution — Core architecture & invariants (read-only)
+
+| Document                                                             | id      | One-line summary                                                                                                                               |
+| -------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`00-constitution/ARCHITECTURE.md`](00-constitution/ARCHITECTURE.md) | ADR-001 | Rill repo architecture boundary, dependency direction, tsrs type-check, oxfmt/oxlint single ownership, knip dead code, Git worktree invariants |
+| [`00-constitution/DESIGN.md`](00-constitution/DESIGN.md)             | ADR-002 | Interface design principles, anti-patch-cheating contract, test-assertion isolation                                                            |
+| [`00-constitution/OWNER_TASTE.md`](00-constitution/OWNER_TASTE.md)   | ADR-003 | Platform (macos-26/arm64), anti-patch-cheating, writing taste, Git workflow, tooling taste (non-negotiable)                                    |
+
+## 01-specs — Active feature/interface specs
+
+| Document                                                 | id       | One-line summary                                                                                                                                                 |
+| -------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`01-specs/PROJECT.md`](01-specs/PROJECT.md)             | SPEC-001 | Rill product brief: adoption, first acceptance, complete delivery                                                                                                |
+| [`01-specs/ADLC_MASTER.md`](01-specs/ADLC_MASTER.md)     | SPEC-002 | ADLC zero-friction execution protocol: 13-stage pipeline, anti-cheating rules, independent-review checklist, issue contract template, canonical toolchain config |
+| [`01-specs/DOMAIN.md`](01-specs/DOMAIN.md)               | SPEC-003 | Single-context doc layout: glossary, ADR decisions, domain modeling entry                                                                                        |
+| [`01-specs/ISSUE-TRACKER.md`](01-specs/ISSUE-TRACKER.md) | SPEC-004 | GitHub issue/tracker operations: create, read, sub-issues, dependencies, labels, comments, close                                                                 |
+| [`01-specs/TRIAGE-LABELS.md`](01-specs/TRIAGE-LABELS.md) | SPEC-005 | Default mapping from engineering skill roles to GitHub labels                                                                                                    |
+
+## 02-requests/active — In-flight tasks & plans
+
+| Document                                                                                         | id      | One-line summary                                                                                                          |
+| ------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`02-requests/active/GOAL-ADLC-ZERO-FRICTION.md`](02-requests/active/GOAL-ADLC-ZERO-FRICTION.md) | REQ-001 | Rill ADLC zero-friction workflow & anti-patch-cheating enforcement: 7-step completion criteria, referenced docs, CI gates |
+
+## 03-research — Tech-selection investigations & lessons learned
+
+| Document | id  | One-line summary                 |
+| -------- | --- | -------------------------------- |
+| —        | —   | No active research documents yet |
+
+> Archived documents (`docs/02-requests/archive/`, `status: completed | deprecated`): `FIRST-CONSUMER-REHEARSAL.md` (REQ-002, completed), `RILL-ADLC-WORKFLOW-CORRECTION.md` (REQ-003, deprecated, superseded by SPEC-002). This index does not include them in the normal reading route.

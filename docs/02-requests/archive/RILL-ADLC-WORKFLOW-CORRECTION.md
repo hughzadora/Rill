@@ -1,3 +1,13 @@
+---
+id: REQ-003
+title: ADLC Engineering & Execution Manual (Legacy Correction)
+status: deprecated
+superseded_by: SPEC-002
+last_updated: 2026-11-27
+related_code:
+  - docs/01-specs/ADLC_MASTER.md
+---
+
 # ADLC Engineering & Execution Manual
 
 ## Native GitHub + Isolated Worktree + Heavy Local Compute Verification

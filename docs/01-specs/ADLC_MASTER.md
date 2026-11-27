@@ -1,8 +1,22 @@
+---
+id: SPEC-002
+title: ADLC Execution & Realignment Protocol
+status: active
+superseded_by:
+last_updated: 2026-11-27
+related_code:
+  - mise.toml
+  - .oxlintrc.json
+  - .dependency-cruiser.cjs
+  - stryker.config.json
+  - src/template.ts
+---
+
 # ADLC Execution & Realignment Protocol (Zero-Friction Edition)
 
 > **SOLE OPERATIONAL AUTHORITY**. Read this file as your only execution contract. Do NOT invent custom task schedulers, state files, workarounds, or parallel state machines. Every state transition is owned by **GitHub Issues / PRs**, every workspace is isolated via **Git Worktree**, and every quality gate is executed deterministically via **`mise` + local compute** (`tsrs` / `oxlint` / `oxfmt` / `knip` / `tsconfig`).
 
-> Owner taste: read [OWNER_TASTE.md](../OWNER_TASTE.md) before writing any document, issue, PR, plan, or goal; every artifact must be produced explicitly with writing-for-agents and must not contradict this file.
+> Owner taste: read [../../docs/00-constitution/OWNER_TASTE.md](../../docs/00-constitution/OWNER_TASTE.md) before writing any document, issue, PR, plan, or goal; every artifact must be produced explicitly with writing-for-agents and must not contradict this file.
 > Leading word: **zero-friction** — every instruction below collapses a decision you would otherwise guess at. If a step says "run `mise run check-fast`", run exactly that; do not substitute another command, do not skip it, do not ask which package to install.
 
 ---
