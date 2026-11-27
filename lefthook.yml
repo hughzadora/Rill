@@ -1,6 +1,11 @@
 # lefthook.yml - Pre-commit hooks for Rill
 # Run: lefthook install
 
+commit-msg:
+  commands:
+    commitlint:
+      run: npx commitlint --edit $1
+
 pre-commit:
   parallel: true
   commands:
@@ -20,6 +25,13 @@ pre-commit:
       run: mise run scan-secrets
     knip:
       run: bunx knip
+    changeset-check:
+      run: |
+        if git diff --cached --name-only | grep -qE '^src/|^tests/|^mise.toml|^package.json'; then
+          if [ -z "$(find .changeset -name '*.md' ! -name 'config.json' -print -quit)" ]; then
+            echo "changeset required for source changes"; exit 1
+          fi
+        fi
 
 pre-push:
   commands:
