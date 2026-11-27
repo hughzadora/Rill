@@ -1,6 +1,6 @@
 /// <reference types="node" />
 
-const expectedJobs = ["artifact", "qualification", "verify", "scan-secrets"];
+const expectedJobs = ["artifact", "qualification", "scan-secrets", "verify"];
 
 function isString(value: unknown): value is string {
   return typeof value === "string";

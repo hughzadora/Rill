@@ -8,6 +8,7 @@ const successful = {
   artifact: { result: "success" },
   qualification: { result: "success" },
   verify: { result: "success" },
+  "scan-secrets": { result: "success" },
 };
 
 function runAggregate(input: string) {
