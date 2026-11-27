@@ -6,8 +6,8 @@ Rill is a versioned AI-DLC workflow for Codex. Describe your product in plain la
 
 1. Download `rill-kit-<version>.tar.gz` and its checksum from a specific tag on the [Rill releases](https://github.com/hughzadora/rill/releases). Choose a version and keep it with your project.
 2. Ask Codex to verify the kit, choose the matching template and extract it into your new project. The [adoption guide](workflow/ADOPT.md) lists the steps.
-3. Open the project directory in Codex and describe what you want to accomplish in your own words. For example, “我想做一张买菜清单，进了超市没信号也能打开和勾选。” Codex turns the request into observable behavior, chooses the tools, and carries the work through implementation and verification. You can also ask by name or select the `rill` skill.
-4. Review the first working journey and its acceptance evidence. Ask `用 Rill 继续` or `用 Rill 验证当前版本` to resume or review a change.
+3. Open the project directory in Codex and describe what you want to accomplish in your own words. For example, "I want a grocery list I can open and check items off in a supermarket without signal." Codex turns the request into observable behavior, chooses the tools, and carries the work through implementation and verification. You can also ask by name or select the `rill` skill.
+4. Review the first working journey and its acceptance evidence. Ask "Resume with Rill" or "Verify the current version with Rill" to resume or review a change.
 
 The [delivery workflow](workflow/DELIVERY.md) identifies the stages. The [blueprint](modern-ai-dlc-engineering-master-blueprint.md) defines the checks activated by your project's actual scope.
 

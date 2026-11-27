@@ -11,17 +11,17 @@ description: In an adopted Rill workspace, use for a user's plain-language reque
 
 ## Root cause first (blueprint 6.1)
 
-遇到测试失败或类型报错时，禁止直接输出代码补丁。必须先输出三句因果分析：
-`[报错根因] -> [受影响的上下游模块] -> [为什么不能用局部硬编码/特判解决]`。
+On test failure or type error, do not output a patch directly. Output three causal sentences first:
+[root cause] -> [affected upstream/downstream modules] -> [why local hardcoding/special-casing cannot fix it].
 
-## Intent → 机器语言转换网关（防补丁式作弊）
+## Intent → machine-language gateway (anti patch-cheating)
 
-代码生成前，必须先将用户自然语言意图转换为标准机器语言规范（输入/输出、边界、不变式、失败模式），再写代码。用户意图不得直接作为硬编码字符串写入源码（如“买菜清单”“没信号”）。
+Before code generation, convert user natural-language intent into a standard machine-language spec (input/output, boundary, invariant, failure mode), then write code. User intent must not be written into source as a hardcoded string (e.g. "grocery list", "no signal").
 
-## 测试断言隔离（blueprint 6.2）
+## Test assertion isolation (blueprint 6.2)
 
-修复 Bug 时，默认无权修改既有 `*.test.ts` 中的断言条件，除非能证明业务需求本身已变更。PR 审查通过 `difftastic` 结构 diff 一眼识别违规篡改测试的行为。
+Fixing bugs does not alter assertion conditions in existing `*.test.ts` unless business requirements themselves changed. PR review uses difftastic structural diff to spot illicit test tampering at a glance.
 
-## 死码零容忍（blueprint 6.3，knip）
+## Zero dead code tolerance (blueprint 6.3, knip)
 
-每次迭代结束前运行 `bunx knip`。孤立文件/未用导出必须清理，不得保留 `funcV2` 与旧函数并存。
+Run `bunx knip` before every iteration ends. Orphan files and unused exports must be cleaned up; no `funcV2` alongside the old function.

@@ -149,7 +149,7 @@ test("Oxfmt leaves lockfiles, generated outputs, and the supplied blueprint to t
     ],
   });
   expect(readFileSync(join(root, ".gitignore"), "utf8").trim().split("\n").sort()).toEqual([
-    "# 临时验证产物（禁止提交，Commit Gate 与 knip 均不应扫描）",
+    "# Temporary verification artifacts (excluded from Commit Gate and knip scans)",
     "*.tmp.*",
     ".DS_Store",
     "debug_*",

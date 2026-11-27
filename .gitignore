@@ -2,7 +2,7 @@
 node_modules/
 dist/
 reports/
-# 临时验证产物（禁止提交，Commit Gate 与 knip 均不应扫描）
+# Temporary verification artifacts (excluded from Commit Gate and knip scans)
 tmp_*
 verify_*
 debug_*

@@ -85,7 +85,7 @@ Scan your current diff (`git diff`) and immediately eliminate:
 
 ### Step 0.5: Wire Local Compute Gates
 
-Verify `mise.toml`, `.oxlintrc.json`, `.dependency-cruiser.cjs`, and `stryker.config.json` match the technical contract in `docs/00-constitution/ARCHITECTURE.md`. Run `mise run check-fast` to confirm baseline health, then resume at Stage 6 (Vertical Slice).
+Verify `mise.toml` and `.oxlintrc.json` match the technical contract in `docs/00-constitution/ARCHITECTURE.md`. Run `mise run check-fast` to confirm baseline health, then resume at Stage 6 (Vertical Slice).
 
 **Completion criterion:** `mise run check-fast` exits 0 with 0 warnings and 0 errors.
 
@@ -194,7 +194,7 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 4. Activated Local Gates
 
 • `mise run check-fast` (oxfmt + oxlint + tsrs)
-• `mise run verify` (depcruise + knip + test:behavior + test:contracts)
+• `mise run verify` (check-fast + knip + test + scan-secrets + scan-dependencies + spelling + links + workflow-lint)
 • `mise run qualify` (Negative rule fixtures)
 • Heavy Compute (check required): [ ] fast-check [ ] StrykerJS [ ] Testcontainers [ ] Playwright
 

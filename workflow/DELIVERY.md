@@ -1,6 +1,6 @@
 # Rill delivery workflow
 
-Open your adopted workspace in Codex and describe the result you want. For example, “进了超市没信号，我也想打开买菜清单并勾掉已经买的东西。” You can ask to continue or verify in your own words or invoke the Rill skill explicitly.
+Open your adopted workspace in Codex and describe the result you want. For example, "With no signal at the supermarket, I want to open my grocery list and check off what I bought." You can ask to continue or verify in your own words or invoke the Rill skill explicitly.
 
 ## Start or resume
 

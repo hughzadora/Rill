@@ -13,12 +13,12 @@ mise trust
 mise lock --check
 mise install --locked
 mise exec -- bun install --frozen-lockfile
-mise run dev "blue sky" "雪"
+mise run dev "blue sky" "winter"
 mise run verify
 mise run qualify
 ```
 
-The dev command prints `["blue sky","雪"]`. Use `mise run scan-history` once you have committed history. Review a lock change separately when updating a tool or supporting a new platform.
+The dev command prints `["blue sky","winter"]`. Use `mise run scan-history` once you have committed history. Review a lock change separately when updating a tool or supporting a new platform.
 
 ## Build your product
 

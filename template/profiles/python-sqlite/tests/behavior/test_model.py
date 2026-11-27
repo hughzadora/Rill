@@ -15,7 +15,7 @@ from rill_sqlite_tasks.store import Conflict, Task, TaskStore
         st.tuples(
             st.sampled_from(["add", "complete", "snapshot"]),
             st.sampled_from(["first", "second", "third"]),
-            st.sampled_from(["inspect", "réparer", "清理"]),
+            st.sampled_from(["inspect", "repair", "clean"]),
         ),
         min_size=1,
         max_size=20,

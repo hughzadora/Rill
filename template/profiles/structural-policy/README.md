@@ -13,16 +13,16 @@ mise trust
 mise lock --check
 mise install --locked
 mise exec -- bun install --frozen-lockfile
-mise run dev "blue sky" "雪"
+mise run dev "blue sky" "winter"
 mise run verify
 mise run qualify
 ```
 
-The dev command prints `["blue sky","雪"]`. Use `mise run scan-history` once you have committed history. Review a lock change separately when updating a tool or supporting a new platform.
+The dev command prints `["blue sky","winter"]`. Use `mise run scan-history` once you have committed history. Review a lock change separately when updating a tool or supporting a new platform.
 
 ## Build your product
 
-Open the workspace in Codex and say `用 Rill 开始：〈一句话描述想做的产品〉`. Record the intended behavior in `docs/PROJECT.md`. Replace the validation fixture and its tests with the approved increment. Point the `dev` script at the real entry and keep the Knip configuration aligned with entry points and source roots. Add a build task when the product has a real artifact to build.
+Open the workspace in Codex and say `Start with Rill: <one-sentence product description>`. Record the intended behavior in `docs/PROJECT.md`. Replace the validation fixture and its tests with the approved increment. Point the `dev` script at the real entry and keep the Knip configuration aligned with entry points and source roots. Add a build task when the product has a real artifact to build.
 
 Keep TypeScript sources in `src/` and behavior cases in `tests/behavior/**/*.test.ts`. Update tooling configuration and contract tests together if you extend the source roots or runtimes. `mise run test` runs behavior and read-only tooling contracts. The runner selects exact files, checks Bun's fresh JUnit report, and fails on an empty, focused, skipped, or misplaced suite. Run `mise exec -- bun run test:behavior` for the behavior suite alone.
 
