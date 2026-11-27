@@ -1,6 +1,6 @@
 # Rill Knowledge Base Index
 
-> Single routing entry. Indexes only documents with lifecycle `active` (`00-constitution`, `01-specs`, `02-requests/active`, `03-research`). Obsolete documents are deleted, not archived.
+> Single routing entry. Indexes only documents with lifecycle `active` (`00-constitution`, `01-specs`). Obsolete documents are deleted, not archived.
 
 ## 00-constitution — Core architecture & invariants (read-only)
 
@@ -12,19 +12,13 @@
 
 ## 01-specs — Active feature/interface specs
 
-| Document                                                 | id       | One-line summary                                                                                                                                                 |
-| -------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`01-specs/PROJECT.md`](01-specs/PROJECT.md)             | SPEC-001 | Rill product brief: adoption, first acceptance, complete delivery                                                                                                |
-| [`01-specs/ADLC_MASTER.md`](01-specs/ADLC_MASTER.md)     | SPEC-002 | ADLC zero-friction execution protocol: 13-stage pipeline, anti-cheating rules, independent-review checklist, issue contract template, canonical toolchain config |
-| [`01-specs/DOMAIN.md`](01-specs/DOMAIN.md)               | SPEC-003 | Single-context doc layout: glossary, ADR decisions, domain modeling entry                                                                                        |
-| [`01-specs/ISSUE-TRACKER.md`](01-specs/ISSUE-TRACKER.md) | SPEC-004 | GitHub issue/tracker operations: create, read, sub-issues, dependencies, labels, comments, close                                                                 |
-| [`01-specs/TRIAGE-LABELS.md`](01-specs/TRIAGE-LABELS.md) | SPEC-005 | Default mapping from engineering skill roles to GitHub labels                                                                                                    |
-
-## 02-requests/active — In-flight tasks & plans
-
-| Document                                                                                         | id      | One-line summary                                                                                                          |
-| ------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [`02-requests/active/GOAL-ADLC-ZERO-FRICTION.md`](02-requests/active/GOAL-ADLC-ZERO-FRICTION.md) | REQ-001 | Rill ADLC zero-friction workflow & anti-patch-cheating enforcement: 7-step completion criteria, referenced docs, CI gates |
+| Document                                                 | id       | One-line summary                                                                                                                     |
+| -------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [`01-specs/PROJECT.md`](01-specs/PROJECT.md)             | SPEC-001 | Rill product brief: adoption, first acceptance, complete delivery                                                                    |
+| [`01-specs/ADLC_MASTER.md`](01-specs/ADLC_MASTER.md)     | SPEC-002 | ADLC zero-friction execution protocol: 13-stage pipeline, anti-cheating rules, independent-review checklist, issue contract template |
+| [`01-specs/DOMAIN.md`](01-specs/DOMAIN.md)               | SPEC-003 | Single-context doc layout: glossary, ADR decisions, domain modeling entry                                                            |
+| [`01-specs/ISSUE-TRACKER.md`](01-specs/ISSUE-TRACKER.md) | SPEC-004 | GitHub issue/tracker operations: create, read, sub-issues, dependencies, labels, comments, close                                     |
+| [`01-specs/TRIAGE-LABELS.md`](01-specs/TRIAGE-LABELS.md) | SPEC-005 | Default mapping from engineering skill roles to GitHub labels                                                                        |
 
 ## 03-research — Tech-selection investigations & lessons learned
 
