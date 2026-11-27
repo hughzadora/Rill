@@ -53,7 +53,7 @@ jobs:
       - name: Build and validate the Rill kit
         run: |
           mise run build
-          (cd dist && shasum -a 256 -c rill-kit-*.tar.gz.sha256)
+          (cd dist && shasum -a 256 -c rill-kit-*.sha256)
           test -z "$(git status --porcelain)"
   acceptance:
     name: acceptance
@@ -71,8 +71,7 @@ jobs:
       - name: Require each review gate to succeed
         env:
           REQUIRED_RESULTS: ${{ toJSON(needs) }}
-        run: |
-          node .github/scripts/require-results.js
+        run: bun .github/scripts/require-results.ts
 
   scan-secrets:
     runs-on: macos-26
