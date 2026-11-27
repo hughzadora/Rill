@@ -8,6 +8,7 @@ node = "24.22.3"
 "aqua:rhysd/actionlint" = "1.7.12"
 "aqua:zizmorcore/zizmor" = "1.33.1"
 "aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:oxc-project/oxc/oxfmt" = "0.80.0"
 
 [env]
 TSRS_FAST = "0"
