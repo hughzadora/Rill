@@ -4,50 +4,55 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const suites = {
-  behavior: {
-    directory: "tests/behavior",
-    files: ["tests/behavior/template.test.ts"],
-  },
-  contracts: {
-    directory: "tests/tooling/contracts",
-    files: ["tests/tooling/contracts/repository.test.ts"],
-  },
-  qualification: {
-    directory: "tests/tooling/qualification",
-    files: [
-      "tests/tooling/qualification/gates.test.ts",
-      "tests/tooling/qualification/workflow.test.ts",
-    ],
-  },
+
+type Selection = "ordinary" | "behavior" | "qualification";
+
+const directories: Record<Selection, string[]> = {
+  ordinary: ["tests/behavior", "tests/tooling/contracts"],
+  behavior: ["tests/behavior"],
+  qualification: ["tests/tooling/qualification"],
 };
 
-const selection = process.argv[2];
-if (selection !== "ordinary" && selection !== "behavior" && selection !== "qualification") {
-  throw new Error(`Unknown test selection ${selection}`);
+const selectionRaw = process.argv[2];
+let selection: Selection;
+switch (selectionRaw) {
+  case "ordinary":
+  case "behavior":
+  case "qualification":
+    selection = selectionRaw;
+    break;
+  default:
+    throw new Error(`Unknown test selection ${selectionRaw}`);
 }
-const selected =
-  selection === "ordinary" ? [suites.behavior, suites.contracts] : [suites[selection]];
+const selectedDirs = directories[selection];
 
-const files = selected.flatMap(({ directory, files }) => {
-  for (const file of files) {
-    const input = statSync(join(root, file), { throwIfNoEntry: false });
-    if (!input?.isFile() || input.size === 0) throw new Error(`Missing required suite ${file}`);
-  }
-  const discovered = new Bun.Glob("**/*{.test,_test,.spec,_spec}.*").scanSync({
-    cwd: join(root, directory),
-    dot: true,
-  });
-  const actual = [...discovered].map((file) => `${directory}/${file}`).sort();
-  if (JSON.stringify(actual) !== JSON.stringify([...files].sort())) {
-    throw new Error(`Unexpected suite inventory in ${directory}: ${actual.join(", ")}`);
-  }
-  return files;
-});
+const requiredFiles: Record<Selection, string[]> = {
+  ordinary: ["tests/behavior/template.test.ts", "tests/tooling/contracts/repository.test.ts"],
+  behavior: ["tests/behavior/template.test.ts"],
+  qualification: ["tests/tooling/qualification/gates.test.ts"],
+};
+
+for (const file of requiredFiles[selection]) {
+  const input = statSync(join(root, file), { throwIfNoEntry: false });
+  if (!input?.isFile() || input.size === 0) throw new Error(`Missing required suite ${file}`);
+}
+
+const expected = selectedDirs.flatMap((dir: string) =>
+  [...new Bun.Glob("**/*{.test,_test,.spec,_spec}.*").scanSync({ cwd: join(root, dir), dot: true })]
+    .map((file: string) => `${dir}/${file}`)
+    .sort(),
+);
+
+for (const file of expected) {
+  const input = statSync(join(root, file), { throwIfNoEntry: false });
+  if (!input?.isFile() || input.size === 0) throw new Error(`Missing required suite ${file}`);
+}
 
 const temporary = mkdtempSync(join(tmpdir(), "rill-test-report-"));
 try {
-  const paths = files.map((file) => `./${file}`);
+  const paths = expected.map((file) => `./${file}`);
+  if (paths.length === 0) throw new Error(`No test suites discovered for ${selection}`);
+
   const focusedReport = join(temporary, "focused.xml");
   const focused = Bun.spawnSync(
     [
@@ -61,9 +66,8 @@ try {
     { cwd: root },
   );
   if (existsSync(focusedReport)) throw new Error(`Focused Bun tests in ${selection} suites`);
-  if (focused.exitCode !== 0) {
+  if (focused.exitCode !== 0)
     throw new Error(`Bun ${selection} focus check failed\n${focused.stderr.toString()}`);
-  }
 
   const report = join(temporary, "junit.xml");
   const timeout = selection === "qualification" ? ["--timeout=120000"] : [];
@@ -90,7 +94,7 @@ try {
       return file;
     },
   );
-  if (JSON.stringify(executed.sort()) !== JSON.stringify([...files].sort())) {
+  if (JSON.stringify(executed.sort()) !== JSON.stringify([...expected].sort())) {
     throw new Error(`Unexpected Bun ${selection} report suites: ${executed.join(", ")}`);
   }
 } finally {

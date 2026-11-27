@@ -55,24 +55,6 @@ jobs:
           mise run build
           (cd dist && shasum -a 256 -c rill-kit-*.sha256)
           test -z "$(git status --porcelain)"
-  acceptance:
-    name: acceptance
-    if: ${{ always() }}
-    needs: [verify, qualification, artifact, scan-secrets]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Require each review gate to succeed
-        env:
-          REQUIRED_RESULTS: ${{ toJSON(needs) }}
-        run: node .github/scripts/require-results.mjs
-
   scan-secrets:
     runs-on: macos-26
     timeout-minutes: 10

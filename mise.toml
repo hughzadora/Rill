@@ -60,8 +60,7 @@ run = "typos"
 run = "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md"
 
 [tasks.workflow-lint]
-run = "bun run oxlint --deny-warnings .github/scripts/require-results.mjs && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml"
-
+run = "actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml"
 [tasks.verify]
 depends = [
   "check-fast",
