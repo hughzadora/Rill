@@ -71,7 +71,7 @@ jobs:
       - name: Require each review gate to succeed
         env:
           REQUIRED_RESULTS: ${{ toJSON(needs) }}
-        run: bun .github/scripts/require-results.ts
+        run: node .github/scripts/require-results.mjs
 
   scan-secrets:
     runs-on: macos-26
