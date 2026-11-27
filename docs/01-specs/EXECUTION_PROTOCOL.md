@@ -134,36 +134,7 @@ Follow this exact flow. Never skip a stage. Never combine Discovery (Phase A) an
 
 **Leading word: `clean`.** Tree and branches are clean before and after every operation.
 
----
-
-## 2. Anti-Cheating & Local Compute Enforcement Rules
-
-To maximize local hardware and make "patch-style cheating" impossible, these rules are non-negotiable. Specific check configurations live in `docs/00-constitution/ARCHITECTURE.md`; this section states the principles only.
-
-1. **Single Type Authority (`tsrs`)**: Always run with `TSRS_FAST=0`. Never install or run `tsc` as a second checker.
-2. **Zero-Tolerance Linting (`Oxlint`)**: Ban `any`, unsafe type assertions, floating promises, empty `catch`, focused / disabled tests (`jest/no-focused-tests`, `jest/no-disabled-tests`), cap cyclomatic complexity at 10.
-3. **Strict Architectural Boundaries**: `src/domain/**` must have zero imports from adapters, UI, `node:*`, `bun:*`, `process.env`, or external SDKs. `src/ui/**` must not import `src/adapters/**` or backend DB models directly.
-4. **Property-Based & Mutation Testing (Local CPU)**: Domain parsers, calculators, validators, and state machines must have property tests generating randomized edge inputs. Before Stage 9, run mutation testing on modified `src/domain/**` files; surviving mutants prove weak tests.
-5. **Real Full-Stack Execution**: Database / adapter tests run against real local Docker containers via Testcontainers, never mocked repository classes. Browser E2E via Playwright must assert real HTTP network requests and persisted state across reloads.
-6. **2-Strike Repair Limit (Anti-Loop Rule)**: If a repair attempt fails twice with the same error signature, STOP patching. Run a discriminating diagnostic (`git diff`, trace logs, isolated reproduction) to identify the root cause before editing again.
-
-**Leading word: `root-cause`.** Every failure gets three causal sentences; no patch without cause.
-
----
-
-## 3. Independent Reviewer Checklist (Stage 9 Mandate)
-
-When acting as the Independent Reviewer Agent in Stage 9, read ONLY `gh issue view <id>` and `git diff main...HEAD`. Reject (`REQUEST_CHANGES`) immediately if ANY check fails:
-
-- **Zero Sample Fitting**: Search `git diff` for string / number literals in `src/` that match test fixtures in `tests/`. Any match = REJECT.
-- **Zero Oracle Weakening**: Check `git diff tests/`. Were any assertions deleted, changed to `.toBeDefined()` / `.toBeTruthy()`, or skipped? Any weakening = REJECT.
-- **Zero Escape Hatches**: Search `git diff` for `any`, `unknown as`, `@ts-`, `oxlint-disable`, `eslint-disable`, or empty `catch`. Any occurrence = REJECT.
-- **True End-to-End Flow**: Verify data travels from UI / API input → Zod schema validation → pure `src/domain` → real `src/adapters` DB query. Hardcoded JSON returns = REJECT.
-- **No Speculative Bloat**: Confirm `knip` passed and no unused helper files or unrequested dependencies were added.
-
-**Leading word: `isolated`.** Reviewer is a separate session with fresh context; self-review does not count.
-
-## 4. GitHub Issue Contract Template (Stage 4)
+## 2. GitHub Issue Contract Template (Stage 4)
 
 Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 
@@ -203,7 +174,7 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 ## 5. Completion Criteria (All Automatically Checkable)
 
 1. `git status --short` is empty.
-2. `git worktree list` shows only the main worktree (or the current task's `../wt-<issue-id>`).
+2. `git worktree list` shows only the main worktree (or the current task's worktree in `.worktrees/`).
 3. Exactly one open GitHub Issue with label `ready`, matching current work.
 4. `mise run check-fast` = exit `0`, 0 warnings, 0 errors.
 5. `mise run verify` = exit `0`.

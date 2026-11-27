@@ -12,13 +12,12 @@
 
 ## 01-specs — Active feature/interface specs
 
-| Document                                                 | id       | One-line summary                                                                                                                     |
-| -------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| [`01-specs/PROJECT.md`](01-specs/PROJECT.md)             | SPEC-001 | Rill product brief: adoption, first acceptance, complete delivery                                                                    |
-| [`01-specs/ADLC_MASTER.md`](01-specs/ADLC_MASTER.md)     | SPEC-002 | ADLC zero-friction execution protocol: 13-stage pipeline, anti-cheating rules, independent-review checklist, issue contract template |
-| [`01-specs/DOMAIN.md`](01-specs/DOMAIN.md)               | SPEC-003 | Single-context doc layout: glossary, ADR decisions, domain modeling entry                                                            |
-| [`01-specs/ISSUE-TRACKER.md`](01-specs/ISSUE-TRACKER.md) | SPEC-004 | GitHub issue/tracker operations: create, read, sub-issues, dependencies, labels, comments, close                                     |
-| [`01-specs/TRIAGE-LABELS.md`](01-specs/TRIAGE-LABELS.md) | SPEC-005 | Default mapping from engineering skill roles to GitHub labels                                                                        |
+| Document                                                           | id       | One-line summary                                                                                  |
+| ------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------- |
+| [`01-specs/PROJECT.md`](01-specs/PROJECT.md)                       | SPEC-001 | Rill product brief: adoption, first acceptance, complete delivery                                 |
+| [`01-specs/EXECUTION_PROTOCOL.md`](01-specs/EXECUTION_PROTOCOL.md) | SPEC-002 | ADLC execution protocol: 13-stage pipeline, independent-review checklist, issue contract template |
+| [`01-specs/ISSUE-TRACKER.md`](01-specs/ISSUE-TRACKER.md)           | SPEC-004 | GitHub issue/tracker operations: create, read, sub-issues, dependencies, labels, comments, close  |
+| [`01-specs/TRIAGE-LABELS.md`](01-specs/TRIAGE-LABELS.md)           | SPEC-005 | Default mapping from engineering skill roles to GitHub labels                                     |
 
 ## 03-research — Tech-selection investigations & lessons learned
 

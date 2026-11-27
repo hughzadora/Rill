@@ -4,7 +4,7 @@ Inherits all iron rules from the global `AGENTS.md` (security, testing, commit g
 
 ## Entry points
 
-- Sole execution contract (13-stage ADLC pipeline, anti-cheating rules, independent-review checklist): `docs/01-specs/ADLC_MASTER.md`
+- Sole execution contract (13-stage ADLC pipeline): `docs/01-specs/EXECUTION_PROTOCOL.md`
 - Product facts & acceptance: `docs/01-specs/PROJECT.md`
 - Owner taste (non-negotiable platform, anti-cheat, writing, Git, tooling): `docs/00-constitution/OWNER_TASTE.md`
 - Architecture boundary & invariants (tsrs, oxfmt, oxlint, knip, Git worktree): `docs/00-constitution/ARCHITECTURE.md`
