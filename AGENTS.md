@@ -1,5 +1,6 @@
 # Rill
 
+> Owner taste: read [OWNER_TASTE.md](OWNER_TASTE.md) before writing any document, issue, PR, plan, or goal; every artifact must be produced explicitly with writing-for-agents.
 > SOLE OPERATIONAL AUTHORITY: read [docs/ADLC_MASTER.md](docs/ADLC_MASTER.md) before any code change. It is the zero-friction execution contract; AGENTS.md only points to it and to domain docs below.
 
 Read the [Rill product brief](docs/PROJECT.md) for scope and acceptance, and the relevant sections of the [engineering blueprint](modern-ai-dlc-engineering-master-blueprint.md) for execution. Use the [Rill workflow](workflow/DELIVERY.md) when exercising the repository skill or checking the adopted template. Architecture and design constraints are in [ARCHITECTURE.md](ARCHITECTURE.md) and [DESIGN.md](DESIGN.md).

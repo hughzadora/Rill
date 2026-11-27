@@ -53,6 +53,7 @@ function withCheckout(
     symlinkSync(realpathSync(join(root, "node_modules")), join(checkout, "node_modules"), "dir");
     for (const input of [
       ".agents",
+      "OWNER_TASTE.md",
       "ARCHITECTURE.md",
       "DESIGN.md",
       ".github",
