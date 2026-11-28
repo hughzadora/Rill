@@ -1,6 +1,26 @@
 {
+  "plugins": ["eslint", "unicorn", "typescript", "oxc", "jest"],
   "rules": {
+    "jest/no-disabled-tests": "error",
+    "jest/no-focused-tests": "error",
+    "jest/no-commented-out-tests": "error",
     "typescript/no-explicit-any": "error",
     "typescript/ban-ts-comment": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{test,spec}.{js,jsx,ts,tsx}", "**/*_{test,spec}.{js,jsx,ts,tsx}"],
+      "rules": {
+        "eslint/no-restricted-properties": [
+          "error",
+          { "object": "test", "property": "only" },
+          { "object": "test", "property": "skip" },
+          { "object": "it", "property": "only" },
+          { "object": "it", "property": "skip" },
+          { "object": "describe", "property": "only" },
+          { "object": "describe", "property": "skip" }
+        ]
+      }
+    }
+  ]
 }

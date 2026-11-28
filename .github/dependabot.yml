@@ -17,8 +17,8 @@ updates:
     open-pull-requests-limit: 10
     versioning-strategy: increase
     commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
+      prefix: "chore"
+      prefix-development: "chore"
       include: scope
     labels:
       - dependencies
@@ -37,7 +37,7 @@ updates:
       timezone: Etc/UTC
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(actions)"
+      prefix: "chore"
       include: scope
     labels:
       - dependencies

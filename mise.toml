@@ -5,7 +5,7 @@ uv = "0.13.10"
 "pypi:specify-cli" = "1.4.5"
 "aqua:gitleaks/gitleaks" = "8.30.1"
 "aqua:rhysd/actionlint" = "1.7.12"
-"aqua:koalaman/shellcheck" = "0.11.0" 
+"aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:zizmorcore/zizmor" = "1.33.1"
 "aqua:google/osv-scanner" = "2.7.1"
 
@@ -15,8 +15,18 @@ TSRS_FAST = "0"
 [tasks.setup]
 run = "bun install --frozen-lockfile"
 
-[tasks.verify]
+[tasks.prepare]
 depends = ["setup"]
+run = "bun run dprint output-file-paths"
+
+[tasks.fmt]
+run = "bun run fmt"
+
+[tasks."docs:check"]
+run = "bun run turbo run //#docs:check"
+
+[tasks."verify:fast"]
+depends = ["docs:check"]
 run = [
   "specify workflow info speckit",
   "specify workflow info assess",
@@ -24,9 +34,30 @@ run = [
   "bun run format:check",
   "bun run lint",
   "bun run typecheck",
-  "bun run test",
   "gitleaks dir --redact=100 .",
-  "osv-scanner scan source --recursive .",
   "actionlint",
   "zizmor --offline --min-severity medium .github/workflows",
 ]
+
+[tasks.verify]
+depends = ["verify:fast"]
+run = ["bun run arch:check", "bun run test", "bun run api:check", "bun run deadcode:check", "bun run rules:check"]
+
+[tasks.qualify]
+depends = ["verify"]
+run = "bun run mutation"
+
+[tasks.deps]
+run = ["osv-scanner scan source --recursive .", "bun outdated"]
+
+[tasks.hooks]
+depends = ["setup"]
+run = "bun run lefthook install"
+
+[tasks.changeset]
+depends = ["setup"]
+run = "bun run changeset"
+
+[tasks.version]
+depends = ["setup"]
+run = ["bun run changeset version", "bun install --lockfile-only"]

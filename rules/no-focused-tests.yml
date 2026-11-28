@@ -1,0 +1,11 @@
+id: no-focused-tests
+language: TypeScript
+severity: error
+message: Remove the test focus modifier before committing.
+files:
+  - packages/**/*.test.ts
+rule:
+  any:
+    - pattern: test.only($$$ARGS)
+    - pattern: it.only($$$ARGS)
+    - pattern: describe.only($$$ARGS)

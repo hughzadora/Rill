@@ -1,0 +1,57 @@
+name: Prepare versions
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-versions
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: github.ref == 'refs/heads/main' && vars.VERSION_APP_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          cache: false
+          install_args: --locked
+      - run: mise run prepare
+      - run: mise run verify
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        id: token
+        with:
+          client-id: ${{ vars.VERSION_APP_ID }}
+          private-key: ${{ secrets.VERSION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        id: changesets
+        with:
+          github-token: ${{ steps.token.outputs.token }}
+          version-script: mise run version
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+          create-github-releases: false
+          push-git-tags: false
+      - name: Declare automated version maintenance
+        if: steps.changesets.outputs.pr-number != ''
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PR_NUMBER: ${{ steps.changesets.outputs.pr-number }}
+        run: |
+          body=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          declaration='Maintenance: Apply approved Changesets and update package versions.'
+          if ! printf '%s\n' "$body" | grep -Fxq "$declaration"; then
+            printf '%s\n\n%s\n' "$declaration" "$body" |
+              gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+          fi

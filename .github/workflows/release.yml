@@ -1,0 +1,45 @@
+name: Release template
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Template version tag (vX.Y.Z)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main' && vars.TEMPLATE_RELEASE_ENABLED == 'true'
+    environment: github-release
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          cache: false
+          install_args: --locked
+      - run: mise run prepare
+      - name: Validate release input
+        run: bun tooling/workflow-inputs.mts release
+      - run: mise run qualify
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_VERSION"; then
+            printf "Tag already exists: %s\n" "$RELEASE_VERSION" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_VERSION" --target "$GITHUB_SHA" --generate-notes
