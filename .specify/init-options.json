@@ -1,0 +1,6 @@
+{
+  "ai": "omp",
+  "integration": "omp",
+  "script": "sh",
+  "speckit_version": "1.4.5"
+}
