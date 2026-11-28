@@ -1,6 +1,0 @@
-{
-  "entry": ["scripts/*.ts", "tests/**/*.test.ts"],
-  "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-  "ignoreDependencies": ["@stryker-mutator/command-runner"],
-  "ignoreBinaries": ["oasdiff"]
-}

@@ -1,5 +1,0 @@
-[extend]
-useDefault = true
-
-[[allowlists]]
-paths = ['^(\./)?(target|reports|\.git)(/|$)']

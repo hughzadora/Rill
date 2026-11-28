@@ -1,6 +1,0 @@
-[extend]
-useDefault = true
-
-[[allowlists]]
-description = "Reproducible dependencies, reports, and local Git metadata"
-paths = ['''(^|/)(\.git|node_modules|dist|reports|\.stryker-tmp)(/|$)''']

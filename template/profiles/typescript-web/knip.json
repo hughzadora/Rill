@@ -1,4 +1,0 @@
-{
-  "entry": ["src/reminders.ts"],
-  "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]
-}

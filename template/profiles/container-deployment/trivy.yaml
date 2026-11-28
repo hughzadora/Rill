@@ -1,5 +1,0 @@
-exit-code: 42
-ignorefile: /dev/null
-severity:
-  - HIGH
-  - CRITICAL
