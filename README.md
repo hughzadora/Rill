@@ -1,16 +1,18 @@
 # Rill
 
-Rill is a versioned AI-DLC workflow for Codex. Describe your product in plain language and use the resulting prototype, native check results, and review evidence to decide whether it is ready.
+Rill is a GitHub repository template for agents building new TypeScript projects with [GitHub Spec Kit](https://github.com/github/spec-kit) and Oh My Pi (OMP). It starts with an empty `packages/` workspace.
 
-## Use Rill
+## Start a project
 
-1. Download `rill-kit-<version>.tar.gz` and its checksum from a specific tag on the [Rill releases](https://github.com/hughzadora/rill/releases). Choose a version and keep it with your project.
-2. Ask Codex to verify the kit, choose the matching template and extract it into your new project. The [adoption guide](workflow/ADOPT.md) lists the steps.
-3. Open the project directory in Codex and describe what you want to accomplish in your own words. For example, “我想做一张买菜清单，进了超市没信号也能打开和勾选。” Codex turns the request into observable behavior, chooses the tools, and carries the work through implementation and verification. You can also ask by name or select the `rill` skill.
-4. Review the first working journey and its acceptance evidence. Ask `用 Rill 继续` or `用 Rill 验证当前版本` to resume or review a change.
+1. Create a repository from this template and clone it.
+2. Install [mise](https://mise.jdx.dev/) and [OMP](https://github.com/can1357/oh-my-pi). Review and trust the mise configuration, then run `mise install --locked`.
+3. Run `mise run verify`. GitHub Actions uses the same command on pull requests and pushes to `main`.
+4. Give OMP a product request. Use `/speckit.specify`, `/speckit.plan`, `/speckit.tasks` and `/speckit.implement`, or run `mise exec -- specify workflow run speckit --input 'spec=Describe the requested behavior'`. Review each artifact before resuming its workflow gate. Use `specify workflow info assess` for the idea assessment workflow.
 
-The [delivery workflow](workflow/DELIVERY.md) identifies the stages. The [blueprint](modern-ai-dlc-engineering-master-blueprint.md) defines the checks activated by your project's actual scope.
+## Add a package
 
-## Build the template
+Scaffold a package under `packages/` with maintained tools. Give it `build`, `typecheck` and `test` scripts. Use `tsrs --noEmit -p tsconfig.json` for type checking with a package-local configuration extending the root `tsconfig.json`. Refresh the Bun lockfile with `bun install` when workspace manifests change. Run `mise run verify` before committing.
 
-Install mise, run `mise install --locked`, then `mise exec -- bun install --frozen-lockfile`. From a temporary checkout of the Rill source repository, `mise run build` produces the versioned kit and its checksum in `dist/`. The kit includes the base template, available profile templates, and their checksums. The builder selects tracked template files.
+For packages tested with `bun:test`, keep `@types/bun` in the package's `devDependencies` and set `"types": ["bun"]` in its `tsconfig.json` under `compilerOptions`. This loads Bun's type declarations during the package's type check.
+
+The repository-wide rules live in [the constitution](.specify/memory/constitution.md).

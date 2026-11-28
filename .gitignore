@@ -2,3 +2,16 @@
 node_modules/
 dist/
 reports/
+.turbo/
+.worktrees/
+temp/
+tsdoc-metadata.json
+# Temporary verification artifacts (excluded from Commit Gate and knip scans)
+tmp_*
+verify_*
+debug_*
+*.tmp.*
+
+/.specify/.workflow-install.lock
+/.specify/workflows/.cache/
+/.specify/extensions/.cache/

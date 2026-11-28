@@ -1,6 +1,31 @@
 [extend]
 useDefault = true
 
+[[rules]]
+id = "llm-provider-api-key"
+description = "LLM provider API keys embedded in source"
+regex = '''(?i)(sk-[A-Za-z0-9]{20,}|sk-or-[A-Za-z0-9]{20,}|sk-proj-[A-Za-z0-9]{20,})'''
+secretGroup = 1
+keywords = ["sk-", "sk-or-", "sk-proj-"]
+
+[[rules]]
+id = "llm-access-token"
+description = "LLM access tokens embedded in source"
+regex = '''(?i)(github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,})'''
+keywords = ["github_pat_", "glpat-"]
+
+[[rules]]
+id = "llm-config-key"
+description = "LLM configuration keys and embedding keys"
+regex = '''(?i)(RILL_LLM_KEY|LLM_API_KEY|EMBEDDING_API_KEY|VECTOR_API_KEY)\s*[:=]\s*["']?[A-Za-z0-9_-]{16,}["']?'''
+secretGroup = 0
+keywords = ["RILL_LLM_KEY", "LLM_API_KEY", "EMBEDDING_API_KEY", "VECTOR_API_KEY"]
+
 [[allowlists]]
-description = "Reproducible dependencies, outputs, and local Git metadata"
-paths = ['''(^|/)(\.git|node_modules|dist|reports)(/|$)''']
+description = "Reproducible dependencies, outputs, local Git metadata, gitleaks config, and non-secret env mocks"
+paths = [
+  '''(^|/)(\.git|node_modules|dist|reports|__pycache__)(/|$)''',
+  '''(^|/)(.env|.env\.test|.devcontainer/\.env\.test)(/|$)''',
+  '''(^|/)\.rill-deployment(/|$)''',
+  '''(^|/)\.gitleaks\.toml(/|$)''',
+]

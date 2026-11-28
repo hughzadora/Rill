@@ -1,17 +1,7 @@
 # Rill
 
-Read the [Rill product brief](docs/PROJECT.md) for scope and acceptance, and the relevant sections of the [engineering blueprint](modern-ai-dlc-engineering-master-blueprint.md) for execution. Use the [Rill workflow](workflow/DELIVERY.md) when exercising the repository skill or checking the adopted template.
+Read the engineering constitution in `.specify/memory/constitution.md`. Feature specs, plans and tasks live in `specs/`. The official OMP integration supplies `/speckit.*`, and `specify workflow info speckit` lists its delivery steps.
 
-## Agent skills
+Use assessment for major product or investment decisions. Run the SDD workflow for routine delivery. Review the spec and plan against the request and constitution before submitting each verdict. Ask the owner about consequential ambiguity, missing credentials, irreversible operations or external publication. Obtain explicit authorization before pushing, publishing or merging into a protected branch.
 
-### Issue tracker
-
-For specs, tickets, dependencies, or closure, see [GitHub issue tracker](docs/agents/issue-tracker.md).
-
-### Triage labels
-
-When triaging issues, use the [default label mapping](docs/agents/triage-labels.md).
-
-### Domain docs
-
-When exploring the codebase or making a domain decision, follow the [single-context layout](docs/agents/domain.md).
+Use maintained scaffolds and native configuration. Run `mise run verify` before a local commit. Keep engineering artifacts in English and owner-facing replies in Simplified Chinese.

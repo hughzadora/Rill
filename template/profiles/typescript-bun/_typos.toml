@@ -1,9 +1,0 @@
-[files]
-extend-exclude = [
-  "node_modules/",
-  "dist/",
-  "reports/",
-  "bun.lock",
-  "mise.lock",
-  "modern-ai-dlc-engineering-master-blueprint.md",
-]

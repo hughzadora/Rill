@@ -1,70 +1,32 @@
 [tools]
 bun = "1.4.5"
 node = "24.22.3"
+uv = "0.13.10"
+"pypi:specify-cli" = "1.4.5"
 "aqua:gitleaks/gitleaks" = "8.30.1"
-"aqua:google/osv-scanner" = "2.7.1"
-"aqua:crate-ci/typos" = "1.52.2"
-"aqua:lycheeverse/lychee" = "0.24.2"
 "aqua:rhysd/actionlint" = "1.7.12"
+"aqua:koalaman/shellcheck" = "0.11.0" 
 "aqua:zizmorcore/zizmor" = "1.33.1"
-"aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:google/osv-scanner" = "2.7.1"
 
 [env]
 TSRS_FAST = "0"
 
-[tasks.build]
-run = "bun run build"
-
-[tasks.format]
-run = "bun run format"
-
-[tasks."format-check"]
-run = "bun run format:check"
-
-[tasks.lint]
-run = "bun run lint"
-
-[tasks."lint-fix"]
-run = "bun run lint:fix"
-
-[tasks.typecheck]
-run = "bun run typecheck"
-
-[tasks."check-fast"]
-depends = ["format-check", "lint", "typecheck"]
-
-[tasks.test]
-run = "bun run test"
-
-[tasks.qualify]
-depends = ["test"]
-run = "bun run test:qualification"
-
-[tasks."scan-secrets"]
-run = "gitleaks dir --redact=100 ."
-
-[tasks."scan-history"]
-run = "gitleaks git --redact=100 ."
-
-[tasks."scan-dependencies"]
-run = "osv-scanner scan source --recursive ."
-
-[tasks.spelling]
-run = "typos"
-
-[tasks.links]
-run = "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md"
-
-[tasks.workflow-lint]
-run = "bun run oxlint --deny-warnings .github/scripts/require-results.js && actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml"
+[tasks.setup]
+run = "bun install --frozen-lockfile"
 
 [tasks.verify]
-depends = [
-  "check-fast",
-  "test",
-  "scan-secrets",
-  "scan-dependencies",
-  "spelling",
-  "links",
-  "workflow-lint",
+depends = ["setup"]
+run = [
+  "specify workflow info speckit",
+  "specify workflow info assess",
+  "specify extension info assess",
+  "bun run format:check",
+  "bun run lint",
+  "bun run typecheck",
+  "bun run test",
+  "gitleaks dir --redact=100 .",
+  "osv-scanner scan source --recursive .",
+  "actionlint",
+  "zizmor --offline --min-severity medium .github/workflows",
 ]

@@ -1,24 +1,24 @@
 {
-  "name": "rill-workflow",
-  "version": "0.1.0",
+  "name": "rill",
   "private": true,
-  "type": "module",
+  "packageManager": "bun@1.4.5",
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "bun src/template.ts",
-    "format": "oxfmt --write --disable-nested-config .",
-    "format:check": "oxfmt --check --disable-nested-config .",
-    "lint": "oxlint --type-aware --deny-warnings src tests",
-    "lint:fix": "oxlint --type-aware --fix src tests",
-    "test": "bun tests/tooling/run-suite.ts ordinary",
-    "test:behavior": "bun tests/tooling/run-suite.ts behavior",
-    "test:qualification": "bun tests/tooling/run-suite.ts qualification",
-    "typecheck": "tsrs --noEmit -p tsconfig.json"
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "oxlint --deny-warnings --no-error-on-unmatched-pattern packages",
+    "format:check": "oxfmt --check --no-error-on-unmatched-pattern packages",
+    "commitlint": "commitlint"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@types/bun": "1.4.5",
+    "lefthook": "^2.2.4",
     "oxfmt": "0.80.0",
     "oxlint": "1.95.0",
-    "tsrs": "7.1.0-beta.tsrs5"
-  },
-  "packageManager": "bun@1.4.5"
+    "tsrs": "7.1.0-beta.tsrs5",
+    "turbo": "^2.11.13"
+  }
 }

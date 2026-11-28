@@ -1,19 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "Preserve",
-    "moduleResolution": "Bundler",
-    "types": ["bun"],
+    "module": "NodeNext",
+    "target": "ES2024",
     "strict": true,
-    "noEmit": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": false,
-    "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true
-  },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true
+  }
 }

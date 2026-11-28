@@ -1,0 +1,9 @@
+pre-commit:
+  commands:
+    verify:
+      run: mise run verify
+
+commit-msg:
+  commands:
+    commitlint:
+      run: bun run commitlint --edit {1}
