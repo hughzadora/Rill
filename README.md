@@ -13,4 +13,6 @@ Rill is a GitHub repository template for agents building new TypeScript projects
 
 Scaffold a package under `packages/` with maintained tools. Give it `build`, `typecheck` and `test` scripts. Use `tsrs --noEmit -p tsconfig.json` for type checking with a package-local configuration extending the root `tsconfig.json`. Refresh the Bun lockfile with `bun install` when workspace manifests change. Run `mise run verify` before committing.
 
+For packages tested with `bun:test`, keep `@types/bun` in the package's `devDependencies` and set `"types": ["bun"]` in its `tsconfig.json` under `compilerOptions`. This loads Bun's type declarations during the package's type check.
+
 The repository-wide rules live in [the constitution](.specify/memory/constitution.md).
