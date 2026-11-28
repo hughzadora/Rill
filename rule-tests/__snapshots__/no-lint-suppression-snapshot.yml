@@ -1,0 +1,32 @@
+id: no-lint-suppression
+snapshots:
+  "// @ts-expect-error\n":
+    labels:
+      - source: // @ts-expect-error
+        style: primary
+        start: 0
+        end: 19
+  "// @ts-ignore\n":
+    labels:
+      - source: // @ts-ignore
+        style: primary
+        start: 0
+        end: 13
+  "// @ts-nocheck\n":
+    labels:
+      - source: // @ts-nocheck
+        style: primary
+        start: 0
+        end: 14
+  "// eslint-disable-next-line no-alert\n":
+    labels:
+      - source: // eslint-disable-next-line no-alert
+        style: primary
+        start: 0
+        end: 36
+  "// oxlint-disable no-alert\n":
+    labels:
+      - source: // oxlint-disable no-alert
+        style: primary
+        start: 0
+        end: 26

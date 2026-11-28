@@ -164,13 +164,12 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 
 4. Activated Local Gates
 
-• `mise run check-fast` (oxfmt + oxlint + tsrs)
+• `mise run check-fast` (oxfmt + oxlint + tsrs + ast-grep rules)
 • `mise run verify` (check-fast + knip + test + scan-secrets + scan-dependencies + spelling + links + workflow-lint)
 • `mise run qualify` (Negative rule fixtures)
 • Heavy Compute (check required): [ ] fast-check [ ] StrykerJS [ ] Testcontainers [ ] Playwright
 
 ```
-
 ## 5. Completion Criteria (All Automatically Checkable)
 
 1. `git status --short` is empty.
@@ -186,5 +185,4 @@ Copy this exact markdown structure when creating any GitHub Issue in Stage 4:
 ---
 
 _Leading word summary: **zero-friction**. Every step above names the exact command, file, and exit code. Do not paraphrase; do not substitute. Run, observe, proceed._
-
 ```

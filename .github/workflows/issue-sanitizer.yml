@@ -1,0 +1,206 @@
+name: Issue sanitizer
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  # zizmor: ignore[dangerous-triggers] this workflow only redacts and labels untrusted content
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  # zizmor: ignore[dangerous-triggers] this workflow only redacts and labels untrusted content
+  pull_request_review_comment:
+    types: [created, edited]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  sanitize:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    environment: sanitizer
+    steps:
+      - name: Redact sensitive content
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const sender = context.payload.sender;
+            if (sender && sender.type === "Bot") {
+              core.notice("Skipping bot-authored content.");
+              return;
+            }
+
+            const marker = "[REDACTED]";
+            const privateIpPattern =
+              /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2}|127(?:\.\d{1,3}){3})\b/g;
+            const tokenPattern =
+              /\b(?:sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{8,})\b/g;
+
+            function sanitize(text) {
+              return text
+                .replace(/(?:\/Users\/|\/home\/)[^\s"'<>]+/g, marker)
+                .replace(/C:\\Users\\[^\s"'<>]+/g, marker)
+                .replace(privateIpPattern, marker)
+                .replace(tokenPattern, marker);
+            }
+
+            let body;
+            let issueNumber;
+            let commentId;
+            switch (context.eventName) {
+              case "issues":
+                body = context.payload.issue.body || "";
+                issueNumber = context.payload.issue.number;
+                break;
+              case "issue_comment":
+                body = context.payload.comment.body || "";
+                commentId = context.payload.comment.id;
+                issueNumber = context.payload.issue.number;
+                break;
+              case "pull_request":
+                body = context.payload.pull_request.body || "";
+                issueNumber = context.payload.pull_request.number;
+                break;
+              case "pull_request_review_comment":
+                body = context.payload.comment.body || "";
+                commentId = context.payload.comment.id;
+                issueNumber = context.payload.pull_request.number;
+                break;
+              default:
+                core.notice(`Event ${context.eventName} carries no content to sanitize.`);
+                return;
+            }
+
+            const cleaned = sanitize(body);
+            if (cleaned === body) {
+              core.info("No sensitive content found; nothing to update.");
+              return;
+            }
+
+            if (context.eventName === "issue_comment") {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: commentId,
+                body: cleaned,
+              });
+            } else if (context.eventName === "pull_request_review_comment") {
+              await github.rest.pulls.updateReviewComment({
+                owner,
+                repo,
+                comment_id: commentId,
+                body: cleaned,
+              });
+            } else if (context.eventName === "pull_request") {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: issueNumber,
+                body: cleaned,
+              });
+            } else {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: cleaned,
+              });
+            }
+
+            try {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: ["sanitized-content"],
+              });
+            } catch {
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: "sanitized-content",
+                color: "fbca04",
+              });
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: ["sanitized-content"],
+              });
+            }
+            core.notice(
+              `Sanitized ${context.eventName} content and applied the sanitized-content label.`,
+            );
+
+  scan-secrets:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+    environment: sanitizer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Run gitleaks secret scan
+        uses: gitleaks/gitleaks-action@bcfb9cce635345aac9996cedc19b2de8e01b894f # v2.1.1
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+        with:
+          config: .gitleaks.toml
+          args: "--report-format json --report-path gitleaks-report.json"
+      - name: Report gitleaks findings
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require("fs");
+            const reportPath = "gitleaks-report.json";
+            if (!fs.existsSync(reportPath)) {
+              core.notice("Gitleaks produced no report; nothing to report.");
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const findings = Array.isArray(report) ? report : (report.Findings || []);
+            if (findings.length === 0) {
+              core.notice("Gitleaks scan found no secrets.");
+              return;
+            }
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = "Gitleaks scan findings";
+            const body = [
+              "The scheduled repository secret scan reported potential secrets.",
+              "",
+              "```json",
+              JSON.stringify(findings, null, 2),
+              "```",
+              "",
+              "Review and rotate any exposed credentials before they are used.",
+            ].join("\n");
+            const { data: existing } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} type:issue state:open in:title "${title}"`,
+            });
+            const issueNumber = existing.items.length > 0 ? existing.items[0].number : null;
+            if (issueNumber !== null) {
+              await github.rest.issues.update({ owner, repo, issue_number: issueNumber, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body });
+            }
+            core.notice(`Reported ${findings.length} gitleaks finding(s) without failing the scan.`);

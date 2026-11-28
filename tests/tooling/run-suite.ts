@@ -37,11 +37,18 @@ for (const file of requiredFiles[selection]) {
   if (!input?.isFile() || input.size === 0) throw new Error(`Missing required suite ${file}`);
 }
 
-const expected = selectedDirs.flatMap((dir: string) =>
-  [...new Bun.Glob("**/*{.test,_test,.spec,_spec}.*").scanSync({ cwd: join(root, dir), dot: true })]
-    .map((file: string) => `${dir}/${file}`)
-    .sort(),
-);
+const expected = [
+  ...new Set(
+    selectedDirs.flatMap((dir: string) =>
+      [
+        ...new Bun.Glob("**/*{.test,_test,.spec,_spec}.*").scanSync({
+          cwd: join(root, dir),
+          dot: true,
+        }),
+      ].map((file: string) => `${dir}/${file}`),
+    ),
+  ),
+].sort();
 
 for (const file of expected) {
   const input = statSync(join(root, file), { throwIfNoEntry: false });
@@ -94,7 +101,7 @@ try {
       return file;
     },
   );
-  if (JSON.stringify(executed.sort()) !== JSON.stringify([...expected].sort())) {
+  if (JSON.stringify([...new Set(executed)].sort()) !== JSON.stringify([...expected].sort())) {
     throw new Error(`Unexpected Bun ${selection} report suites: ${executed.join(", ")}`);
   }
 } finally {

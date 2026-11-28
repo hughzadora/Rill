@@ -1,0 +1,13 @@
+id: no-patch-marker
+valid:
+  - |
+    function foo() { return 1; }
+invalid:
+  - |
+    // TODO: fix this
+  - |
+    // FIXME: this is broken
+  - |
+    /* XXX: temporary hack */
+  - |
+    // HACK: workaround

@@ -3,11 +3,23 @@
   "useTabs": false,
   "endOfLine": "lf",
   "ignorePatterns": [
+    "**/*.md",
+    "**/*.json",
+    "**/*.jsonc",
+    "**/*.yaml",
+    "**/*.yml",
+    "**/*.toml",
     "**/bun.lock",
     "**/mise.lock",
     "**/node_modules/**",
     "**/dist/**",
     "**/reports/**",
-    "/modern-ai-dlc-engineering-master-blueprint.md"
+    "/modern-ai-dlc-engineering-master-blueprint.md",
+    "/.worktrees/**",
+    "/evals/cases/**",
+    "/.devcontainer/**",
+    "/.turbo/**",
+    "/temp/**",
+    "/tsdoc-metadata.json"
   ]
 }

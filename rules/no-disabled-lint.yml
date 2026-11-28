@@ -1,0 +1,11 @@
+id: no-disabled-lint
+language: TypeScript
+severity: error
+message: Disabled lint comments suppress safety checks — remove or fix the underlying issue
+rule:
+  any:
+    - pattern: // eslint-disable $*
+    - pattern: // eslint-disable-next-line $*
+    - pattern: // eslint-disable-line $*
+    - pattern: // @ts-ignore
+    - pattern: // @ts-expect-error

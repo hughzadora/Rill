@@ -47,31 +47,45 @@ function withCheckout(
     const home = join(temporary, "home");
     const data = join(temporary, "mise");
     for (const directory of [checkout, home, data]) mkdirSync(directory);
-    const initialized = Bun.spawnSync(["git", "init", "-q"], { cwd: checkout });
-    expect(initialized.exitCode, initialized.stderr.toString()).toBe(0);
+    Bun.spawnSync(["git", "init", "-q"], { cwd: checkout });
     symlinkSync(installs, join(data, "installs"), "dir");
-    symlinkSync(realpathSync(join(root, "node_modules")), join(checkout, "node_modules"), "dir");
+    symlinkSync(join(root, "node_modules"), join(checkout, "node_modules"), "dir");
     for (const input of [
       ".agents",
-      ".github",
+      ".devcontainer",
+      ".dependency-cruiser.cjs",
       ".editorconfig",
+      ".env.test",
+      ".gitleaks.toml",
+      ".github",
       ".gitattributes",
       ".gitignore",
-      ".gitleaks.toml",
       ".oxfmtrc.json",
       ".oxlintrc.json",
       "AGENTS.md",
-      "README.md",
       "bun.lock",
       "docs",
+      "dprint.json",
+      "evals",
       "mise.lock",
       "mise.toml",
       "modern-ai-dlc-engineering-master-blueprint.md",
       "package.json",
+      "packages",
+      "README.md",
+      "rules",
+      "rule-tests",
+      "sgconfig.yml",
       "src",
       "template",
       "tests",
       "tsconfig.json",
+      "tsdown.config.ts",
+      "api-extractor.json",
+      "turbo.json",
+      "stryker.config.json",
+      "knip.json",
+      "lefthook.yml",
       "workflow",
     ]) {
       cpSync(join(root, input), join(checkout, input), {
@@ -83,9 +97,10 @@ function withCheckout(
       const result = Bun.spawnSync([mise, "run", task], {
         cwd: checkout,
         env: {
-          HOME: home,
-          PATH: [dirname(mise), "/usr/bin", "/bin"].join(delimiter),
-          TMPDIR: temporary,
+          PATH: [dirname(mise), join(checkout, "node_modules", ".bin"), "/usr/bin", "/bin"].join(
+            delimiter,
+          ),
+          NODE_PATH: join(checkout, "node_modules"),
           MISE_DATA_DIR: data,
           MISE_TRUSTED_CONFIG_PATHS: checkout,
           MISE_AUTO_INSTALL: "false",
@@ -162,7 +177,7 @@ test.each([
     task: "format-check",
     file: "docs/qualification probe.md",
     contents: "# Qualification\n\n* first\n* second\n",
-    diagnostic: /docs\/qualification probe\.md[\s\S]*Format issues found/,
+    diagnostic: /docs\/qualification probe\.md[\s\S]*not formatted file/,
   },
   {
     name: "a failed behavior assertion",

@@ -1,0 +1,10 @@
+id: no-magic-string
+valid:
+  - |
+    const mode = "production mode";
+    if (mode === productionMode) { return true; }
+  - |
+    if (mode === "production") { return true; }
+invalid:
+  - |
+    if (mode === "production mode") { return true; }

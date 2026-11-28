@@ -1,0 +1,47 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"],
+      "cache": true
+    },
+    "build:lib": {
+      "outputs": ["dist/lib/**"],
+      "cache": true
+    },
+    "lint": {
+      "cache": false
+    },
+    "typecheck": {
+      "cache": true
+    },
+    "test": {
+      "dependsOn": ["typecheck"],
+      "cache": false
+    },
+    "test:mutation": {
+      "cache": false
+    },
+    "arch:check": {
+      "cache": false
+    },
+    "check:pub": {
+      "dependsOn": ["build:lib"],
+      "cache": true
+    },
+    "eval": {
+      "dependsOn": ["typecheck"],
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  },
+  "globalEnv": [
+    "RILL_MAX_STEPS",
+    "RILL_TIMEOUT_MS",
+    "RILL_MAX_TOKEN_BUDGET"
+  ],
+  "globalDependencies": ["package.json", "mise.toml", "bun.lock"]
+}

@@ -22,6 +22,10 @@
     "test:mutation": "stryker run && bun scripts/check-mutation.ts",
     "unused": "node node_modules/knip/bin/knip.js"
   },
+  "overrides": {
+    "@stryker-mutator/core>minimatch": "11.0.1",
+    "typed-rest-client>qs": "6.16.1"
+  },
   "dependencies": {
     "@t3-oss/env-core": "0.13.11",
     "zod": "4.6.7"
@@ -37,10 +41,6 @@
     "oxlint": "1.95.0",
     "tsrs": "7.1.0-beta.tsrs5",
     "typescript": "6.0.3"
-  },
-  "overrides": {
-    "@stryker-mutator/core>minimatch": "11.0.1",
-    "typed-rest-client>qs": "6.16.1"
   },
   "packageManager": "bun@1.4.5"
 }

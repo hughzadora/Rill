@@ -1,0 +1,8 @@
+id: no-any-assertion
+language: TypeScript
+severity: error
+message: "as any bypasses type safety — use a concrete type instead"
+rule:
+  any:
+    - pattern: ($EXPR as any)
+    - pattern: <any>$EXPR

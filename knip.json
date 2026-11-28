@@ -1,5 +1,14 @@
 {
   "$schema": "https://knip.dev/schema.json",
-  "entry": ["src/template.ts", "src/**/*.ts", "tests/**/*.ts"],
-  "project": ["src/**/*.ts", "tests/**/*.ts", ".changeset/**"]
+  "entry": ["src/**/*.ts", "tests/**/*.ts", "evals/**/*.ts", "packages/**/*.ts"],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "evals/**/*.ts",
+    "packages/**/*.ts",
+    ".changeset/**"
+  ],
+  "ignore": ["stryker.config.json"],
+  "ignoreBinaries": ["ast-grep", "gitleaks"],
+  "ignoreDependencies": ["@arethetypeswrong/cli", "minimatch", "qs"]
 }

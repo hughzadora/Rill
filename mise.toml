@@ -9,12 +9,16 @@ node = "24.22.3"
 "aqua:zizmorcore/zizmor" = "1.33.1"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:oxc-project/oxc/oxfmt" = "0.80.0"
+"aqua:ast-grep/ast-grep" = "0.51.3"
 
 [env]
 TSRS_FAST = "0"
 
 [tasks.build]
 run = "bun run build"
+
+[tasks."build:lib"]
+run = "bun run build:lib"
 
 [tasks.format]
 run = "bun run format"
@@ -23,16 +27,23 @@ run = "bun run format"
 run = "bun run format:check"
 
 [tasks.lint]
-run = "bun run lint"
+run = "bunx oxlint --type-aware --deny-warnings src tests evals packages"
 
 [tasks."lint-fix"]
-run = "bun run lint:fix"
+run = "bunx oxlint --fix --type-aware --deny-warnings src tests evals packages"
 
 [tasks.typecheck]
-run = "bun run typecheck"
+run = "bunx tsrs --noEmit -p tsconfig.json"
 
 [tasks."check-fast"]
-depends = ["format-check", "lint", "typecheck"]
+depends = ["format-check", "lint", "typecheck", "ast-grep", "arch:check", "build:lib", "api-extractor"]
+
+[tasks.ast-grep]
+run = "ast-grep test --config sgconfig.yml && ast-grep scan --config sgconfig.yml"
+
+[tasks."api-extractor"]
+depends = ["build:lib"]
+run = "mkdir -p etc && bun run api-extractor"
 
 [tasks.knip]
 run = "bun run knip"
@@ -60,7 +71,8 @@ run = "typos"
 run = "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md"
 
 [tasks.workflow-lint]
-run = "actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml"
+run = "actionlint .github/workflows/*.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline --min-severity medium .github/workflows/*.yml .github/actions/locked-setup/action.yml"
+
 [tasks.verify]
 depends = [
   "check-fast",
@@ -71,4 +83,22 @@ depends = [
   "spelling",
   "links",
   "workflow-lint",
+  "arch:check",
+  "check:pub",
+  "api-extractor",
 ]
+
+[tasks."arch:check"]
+run = "bunx depcruise --config .dependency-cruiser.cjs src/"
+
+[tasks."check:pub"]
+run = "bunx publint --pack bun"
+
+[tasks."test:mutation"]
+run = "bunx stryker run"
+
+[tasks.eval]
+run = "bun run eval"
+
+[tasks.dev]
+run = "bun src/template.ts"

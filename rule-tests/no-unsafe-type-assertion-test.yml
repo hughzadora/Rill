@@ -1,0 +1,9 @@
+id: no-unsafe-type-assertion
+valid:
+  - |
+    const value = input as Result;
+invalid:
+  - |
+    const value = input as any;
+  - |
+    const value = input as unknown as Result;

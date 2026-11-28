@@ -1,0 +1,12 @@
+id: no-lint-suppression
+language: TypeScript
+severity: error
+message: Remove the lint suppression comment and fix the underlying finding.
+note: Suppressing a checker hides real defects, so the suppression is intercepted at the syntax tree.
+files:
+  - src/**/*.ts
+  - tests/**/*.ts
+rule:
+  all:
+    - kind: comment
+    - regex: (?i)(eslint-disable|oxlint-disable|prettier-ignore|ts-ignore|ts-expect-error|ts-nocheck|biome-ignore)

@@ -1,0 +1,15 @@
+id: no-lint-suppression
+valid:
+  - |
+    const valid = 1;
+invalid:
+  - |
+    // eslint-disable-next-line no-alert
+  - |
+    // oxlint-disable no-alert
+  - |
+    // @ts-ignore
+  - |
+    // @ts-expect-error
+  - |
+    // @ts-nocheck

@@ -1,41 +1,28 @@
-# lefthook.yml - Pre-commit hooks for Rill
-# Run: lefthook install
+pre-commit:
+  parallel: false
+  commands:
+    format:
+      run: bun run format:check && bun run dprint check
+    typecheck:
+      run: bun run typecheck
+    lint:
+      run: bun run lint
+    arch:
+      run: bun run arch:check
+    ast-grep:
+      run: bun run ast-grep
+    secrets:
+      run: gitleaks protect --staged --config .gitleaks.toml --redact --no-banner
 
 commit-msg:
   commands:
     commitlint:
-      run: npx commitlint --edit $1
-
-pre-commit:
-  parallel: true
-  commands:
-    format:
-      glob: "*.{ts,js,json,md,yaml,yml,toml}"
-      run: mise run format-check {staged_files}
-    lint:
-      glob: "*.{ts,js}"
-      run: mise run lint {staged_files}
-    typecheck:
-      glob: "*.ts"
-      run: mise run typecheck
-    spelling:
-      glob: "*.{md,txt,json,yaml,yml}"
-      run: mise run spelling {staged_files}
-    scan-secrets:
-      run: mise run scan-secrets
-    knip:
-      run: bunx knip
-    changeset-check:
-      run: |
-        if git diff --cached --name-only | grep -qE '^src/|^tests/|^mise.toml|^package.json'; then
-          if [ -z "$(find .changeset -name '*.md' ! -name 'config.json' -print -quit)" ]; then
-            echo "changeset required for source changes"; exit 1
-          fi
-        fi
+      run: bunx commitlint --edit
 
 pre-push:
+  parallel: false
   commands:
-    verify:
-      run: mise run verify
-    build:
-      run: mise run build
+    tests:
+      run: bun run test
+    knip:
+      run: bun run knip

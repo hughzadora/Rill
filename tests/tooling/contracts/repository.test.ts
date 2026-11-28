@@ -11,11 +11,15 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
   if (!Array.isArray(tasks)) throw new Error("Expected mise task inventory");
   const commands = {
     build: "bun run build",
+    "build:lib": "bun run build:lib",
     format: "bun run format",
     "format-check": "bun run format:check",
-    lint: "bun run lint",
-    "lint-fix": "bun run lint:fix",
-    typecheck: "bun run typecheck",
+    lint: "bunx oxlint --type-aware --deny-warnings src tests evals packages",
+    "lint-fix": "bunx oxlint --fix --type-aware --deny-warnings src tests evals packages",
+    typecheck: "bunx tsrs --noEmit -p tsconfig.json",
+    "api-extractor": "mkdir -p etc && bun run api-extractor",
+    "arch:check": "bunx depcruise --config .dependency-cruiser.cjs src/",
+    "check:pub": "bunx publint --pack bun",
     test: "bun run test",
     qualify: "bun run test:qualification",
     "scan-secrets": "gitleaks dir --redact=100 .",
@@ -24,12 +28,20 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
     spelling: "typos",
     knip: "bun run knip",
     "workflow-lint":
-      "actionlint -shellcheck shellcheck -ignore 'specifying action.*locked-setup.*ref is missing' .github/workflows/acceptance.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline .github/workflows/acceptance.yml .github/actions/locked-setup/action.yml",
+      "actionlint .github/workflows/*.yml && shellcheck -s bash .github/actions/locked-setup/install.sh && zizmor --offline --min-severity medium .github/workflows/*.yml .github/actions/locked-setup/action.yml",
     links:
       "lychee --offline --no-progress AGENTS.md README.md 'docs/**/*.md' 'workflow/**/*.md' '.agents/**/*.md' modern-ai-dlc-engineering-master-blueprint.md",
   };
   const compositions = {
-    "check-fast": ["format-check", "lint", "typecheck"],
+    "check-fast": [
+      "format-check",
+      "lint",
+      "typecheck",
+      "ast-grep",
+      "arch:check",
+      "build:lib",
+      "api-extractor",
+    ],
     verify: [
       "check-fast",
       "knip",
@@ -39,8 +51,12 @@ test("mise resolves the required tasks for the repository's Bun profile", () => 
       "spelling",
       "links",
       "workflow-lint",
+      "arch:check",
+      "check:pub",
+      "api-extractor",
     ],
     qualify: ["test"],
+    "api-extractor": ["build:lib"],
   };
   for (const name of new Set([...Object.keys(commands), ...Object.keys(compositions)])) {
     const run = Object.entries(commands).find(([task]) => task === name)?.[1];
@@ -66,14 +82,17 @@ test("the package declares the reviewed checker and explicit suite entry points"
   expect(manifest).toMatchObject({
     scripts: {
       build: "bun src/template.ts",
-      format: "oxfmt --write --disable-nested-config .",
-      "format:check": "oxfmt --check --disable-nested-config .",
-      lint: "oxlint --type-aware --deny-warnings src tests",
-      "lint:fix": "oxlint --type-aware --fix src tests",
+      "build:lib": "tsdown",
+      format: "oxfmt --write --disable-nested-config . && dprint fmt",
+      "format:check": "oxfmt --check --disable-nested-config . && dprint check",
+      lint: "oxlint --type-aware --deny-warnings src tests evals packages",
+      "lint:fix": "oxlint --type-aware --fix src tests evals packages",
       test: "bun tests/tooling/run-suite.ts ordinary",
       "test:behavior": "bun tests/tooling/run-suite.ts behavior",
       "test:qualification": "bun tests/tooling/run-suite.ts qualification",
       typecheck: "tsrs --noEmit -p tsconfig.json",
+      eval: "bun evals/run.ts",
+      "api-extractor": "api-extractor run --local --config api-extractor.json",
     },
   });
   const config: unknown = Bun.TOML.parse(readFileSync(join(root, "mise.toml"), "utf8"));
@@ -91,6 +110,7 @@ test("the required inputs are nonempty and standalone tsrs discovers the authore
     "docs/01-specs/PROJECT.md",
     "mise.lock",
     "modern-ai-dlc-engineering-master-blueprint.md",
+    "sgconfig.yml",
     "src/template.ts",
     "tests/tooling/run-suite.ts",
     "tsconfig.json",
@@ -100,9 +120,9 @@ test("the required inputs are nonempty and standalone tsrs discovers the authore
     const input = statSync(join(root, file), { throwIfNoEntry: false });
     expect(input?.isFile() && input.size > 0, `required input ${file}`).toBe(true);
   }
-  for (const directory of ["docs", "workflow", ".agents"]) {
-    const files = [...new Bun.Glob("**/*.md").scanSync({ cwd: join(root, directory) })];
-    expect(files.length, `required link inputs in ${directory}`).toBeGreaterThan(0);
+  for (const directory of ["docs", "workflow", ".agents", "rules", "rule-tests"]) {
+    const files = [...new Bun.Glob("**/*").scanSync({ cwd: join(root, directory) })];
+    expect(files.length, `required inputs in ${directory}`).toBeGreaterThan(0);
   }
 
   const config: unknown = JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"));
@@ -136,27 +156,43 @@ test("the required inputs are nonempty and standalone tsrs discovers the authore
   expect(discovered.sort()).toEqual(files.sort());
 });
 
-test("Oxfmt leaves lockfiles, generated outputs, and the supplied blueprint to their owners", () => {
+test("Oxfmt owns TS/JS only, leaving docs and data formats to dprint", () => {
   const config: unknown = JSON.parse(readFileSync(join(root, ".oxfmtrc.json"), "utf8"));
   expect(config).toMatchObject({
     ignorePatterns: [
+      "**/*.md",
+      "**/*.json",
+      "**/*.jsonc",
+      "**/*.yaml",
+      "**/*.yml",
+      "**/*.toml",
       "**/bun.lock",
       "**/mise.lock",
       "**/node_modules/**",
       "**/dist/**",
       "**/reports/**",
       "/modern-ai-dlc-engineering-master-blueprint.md",
+      "/.worktrees/**",
+      "/evals/cases/**",
+      "/.devcontainer/**",
+      "/.turbo/**",
+      "/temp/**",
+      "/tsdoc-metadata.json",
     ],
   });
   expect(readFileSync(join(root, ".gitignore"), "utf8").trim().split("\n").sort()).toEqual([
     "# Temporary verification artifacts (excluded from Commit Gate and knip scans)",
     "*.tmp.*",
     ".DS_Store",
+    ".turbo/",
+    ".worktrees/",
     "debug_*",
     "dist/",
     "node_modules/",
     "reports/",
+    "temp/",
     "tmp_*",
+    "tsdoc-metadata.json",
     "verify_*",
   ]);
 });

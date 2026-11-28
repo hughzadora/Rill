@@ -1,0 +1,25 @@
+{
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "includes": ["**/*.{md,markdown}", "**/*.{json,jsonc}", "**/*.{yaml,yml}", "**/*.toml"],
+  "excludes": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/reports/**",
+    "**/bun.lock",
+    "**/mise.lock",
+    "/temp/**",
+    "/tsdoc-metadata.json",
+    "/etc/**",
+    "/.changeset/**",
+    "/modern-ai-dlc-engineering-master-blueprint.md"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.29.0.wasm",
+    "https://plugins.dprint.dev/json-0.26.0.wasm",
+    "https://plugins.dprint.dev/toml-0.10.0.wasm",
+    "npm:dprint-plugin-yaml@0.6.0"
+  ],
+  "indentWidth": 2,
+  "lineWidth": 120,
+  "newLineKind": "lf"
+}

@@ -1,0 +1,25 @@
+{
+  "mainEntryPointFilePath": "dist/lib/env.d.mts",
+  "apiReport": {
+    "enabled": true,
+    "reportFileName": "rill-env"
+  },
+  "docModel": {
+    "enabled": false
+  },
+  "messages": {
+    "tsdocMessageReporting": {
+      "default": {
+        "logLevel": "none"
+      }
+    },
+    "compilerMessageReporting": {
+      "default": {
+        "logLevel": "error"
+      }
+    }
+  },
+  "dtsRollup": {
+    "enabled": false
+  }
+}

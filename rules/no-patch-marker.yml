@@ -1,0 +1,12 @@
+id: no-patch-marker
+language: TypeScript
+severity: error
+message: Finish the work instead of leaving a patch-style marker in the source.
+note: TODO, FIXME, XXX, and HACK markers record unfinished work, so they are intercepted before they ship.
+files:
+  - src/**/*.ts
+  - tests/**/*.ts
+rule:
+  all:
+    - kind: comment
+    - regex: (?i)\b(todo|fixme|xxx|hack)\b

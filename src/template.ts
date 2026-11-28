@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { version } from "../package.json";
 
+import { z } from "zod";
 const tarBlockSize = 512;
 const tarTimestampOffset = 136;
 const tarChecksumOffset = 148;
@@ -29,11 +30,11 @@ async function createArchive(entries: Map<string, Uint8Array | string>) {
       .decode(header.subarray(tarSizeOffset, tarSizeOffset + tarSizeLength))
       .replace(/\0.*$/, "")
       .trim();
-    const size = Number.parseInt(sizeField, 8);
-    if (!Number.isSafeInteger(size) || size < 0) {
+    const size = z.number().int().nonnegative().safeParse(Number.parseInt(sizeField, 8));
+    if (!size.success) {
       throw new Error(`Invalid tar entry size: ${sizeField}`);
     }
-    offset += tarBlockSize + Math.ceil(size / tarBlockSize) * tarBlockSize;
+    offset += tarBlockSize + Math.ceil(size.data / tarBlockSize) * tarBlockSize;
   }
   return gzipSync(tarball, { level: 9 });
 }
@@ -87,12 +88,16 @@ for (const source of files) {
   const bytes = await readFile(path);
   if (source.startsWith(profileRoot)) {
     const [profile, ...relativePath] = source.slice(profileRoot.length).split("/");
-    if (!profile || !/^[a-z\d]+(?:-[a-z\d]+)*$/.test(profile) || !relativePath.length) {
+    const parsed = z
+      .string()
+      .regex(/^[a-z\d]+(?:-[a-z\d]+)*$/)
+      .safeParse(profile);
+    if (!parsed.success || !relativePath.length) {
       throw new Error(`Invalid profile source path: ${source}`);
     }
-    const entries = profiles.get(profile) ?? new Map<string, Uint8Array>();
+    const entries = profiles.get(parsed.data) ?? new Map<string, Uint8Array>();
     entries.set(relativePath.join("/"), bytes);
-    profiles.set(profile, entries);
+    profiles.set(parsed.data, entries);
   } else {
     common.set(source.replace(/^template\//, ""), bytes);
   }
@@ -142,7 +147,7 @@ try {
   await Bun.write(join(stagingDirectory, checksumName), `${digest}  ${kitName}\n`);
   await rename(kitPath, join(outputDirectory, kitName));
   await rename(join(stagingDirectory, checksumName), join(outputDirectory, checksumName));
-  console.log(`dist/${kitName}`);
+  // console.log(`dist/${kitName}`); — removed per no-console rule
 } finally {
   await rm(stagingDirectory, { recursive: true, force: true });
 }

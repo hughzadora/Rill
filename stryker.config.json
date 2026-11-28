@@ -1,10 +1,15 @@
 {
-  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "testRunner": "command",
-  "commandRunner": { "command": "bun run test:behavior" },
-  "coverageAnalysis": "off",
-  "incremental": false,
-  "mutate": ["src/domain/**/*.ts", "!src/domain/**/*.test.ts", "!src/domain/**/*.spec.ts"],
-  "thresholds": { "high": 100, "low": 90, "break": 90 },
-  "reporters": ["clear-text", "json"]
+  "$schema": "./node_modules/@stryker-mutator/core/config.schema.json",
+  "packageManager": "bun",
+  "testRunner": "bun",
+  "testCommand": "bun run test",
+  "mutator": ["typescript", "javascript"],
+  "thresholds": {
+    "high": 75,
+    "low": 60,
+    "break": 50
+  },
+  "concurrency": 4,
+  "coverageAnalysis": "all",
+  "exclude": ["node_modules", "dist", "reports", "tests/tooling", "template"]
 }

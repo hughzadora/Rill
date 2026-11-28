@@ -1,0 +1,44 @@
+# Dependabot configuration for repository dependencies.
+#
+# GitHub reads this file; the duplicate mirror was removed so a single policy exists.
+#
+# The `bun` ecosystem resolves the npm-compatible packages declared in
+# package.json and pinned in bun.lock. A separate npm entry for the same
+# directory would open duplicate pull requests for the same dependencies.
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: scope
+    labels:
+      - dependencies
+    groups:
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(actions)"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions

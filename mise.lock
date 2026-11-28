@@ -2,6 +2,17 @@
 
 lockfile_version = 4
 
+[[tools."aqua:ast-grep/ast-grep"]]
+version = "0.51.3"
+backend = "aqua:ast-grep/ast-grep"
+specifiers = ["0.51.3"]
+
+[tools."aqua:ast-grep/ast-grep"."platforms.macos-arm64"]
+checksum = "sha256:7954eab1e2803d1485f263377be7f359db6d3915312b5d773cd575eb009330b1"
+checksum_source = "mise-versions"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/753396910"
+
 [[tools."aqua:crate-ci/typos"]]
 version = "1.52.2"
 backend = "aqua:crate-ci/typos"

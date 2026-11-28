@@ -20,7 +20,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: $/.github/actions/locked-setup
+      - uses: ./.github/actions/locked-setup
       - name: Verify the candidate
         run: |
           mise run verify
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: $/.github/actions/locked-setup
+      - uses: ./.github/actions/locked-setup
       - name: Qualify rejection of invalid changes
         run: |
           mise run qualify
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: $/.github/actions/locked-setup
+      - uses: ./.github/actions/locked-setup
       - name: Build and validate the Rill kit
         run: |
           mise run build
@@ -65,7 +65,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: $/.github/actions/locked-setup
+      - uses: ./.github/actions/locked-setup
       - name: Scan for secrets
         run: |
           mise run scan-secrets

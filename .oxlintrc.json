@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "import", "unicorn", "jest"],
+  "plugins": ["typescript", "import", "unicorn", "jest", "node"],
   "categories": {
     "correctness": "error"
   },
@@ -17,10 +17,26 @@
       "error",
       { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true, "ts-check": false }
     ],
+    "no-console": "error",
+    "node/no-process-env": "error",
     "no-global-assign": "error",
     "no-implicit-globals": "error",
     "no-empty": "error",
     "jest/no-focused-tests": "error",
     "jest/no-disabled-tests": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/env.ts"],
+      "rules": {
+        "node/no-process-env": "off"
+      }
+    },
+    {
+      "files": ["evals/**", "tests/**", "packages/tooling/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

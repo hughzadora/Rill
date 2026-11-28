@@ -1,0 +1,24 @@
+id: no-magic-string
+snapshots:
+  "if (mode === \"production mode\") { return true; }\n":
+    labels:
+      - source: mode === "production mode"
+        style: primary
+        start: 4
+        end: 30
+      - source: ===
+        style: secondary
+        start: 9
+        end: 12
+      - source: mode
+        style: secondary
+        start: 4
+        end: 8
+      - source: '"production mode"'
+        style: secondary
+        start: 13
+        end: 30
+      - source: '"production mode"'
+        style: secondary
+        start: 13
+        end: 30

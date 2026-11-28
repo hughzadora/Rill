@@ -1,0 +1,45 @@
+id: no-magic-string
+language: TypeScript
+severity: error
+message: Extract the phrase into a named constant instead of comparing it inline.
+note: A phrase compared inline is a magic string, so the comparison target belongs in a named constant.
+files:
+  - src/**/*.ts
+  - tests/**/*.ts
+rule:
+  all:
+    - kind: binary_expression
+    - has:
+        field: operator
+        regex: ^(===|!==)$
+    - any:
+        - all:
+            - has:
+                field: left
+                kind: string
+            - has:
+                field: right
+                kind: string
+        - all:
+            - has:
+                field: left
+                kind: string
+            - has:
+                field: right
+                kind: identifier
+        - all:
+            - has:
+                field: left
+                kind: identifier
+            - has:
+                field: right
+                kind: string
+    - any:
+        - has:
+            field: left
+            kind: string
+            regex: " "
+        - has:
+            field: right
+            kind: string
+            regex: " "
