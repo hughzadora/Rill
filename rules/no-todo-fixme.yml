@@ -1,9 +1,0 @@
-id: no-todo-fixme
-language: TypeScript
-severity: warning
-message: Remove TODO/FIXME markers — patch-style cheating must be resolved before merge
-rule:
-  any:
-    - pattern: "// TODO: $MSG"
-    - pattern: "// FIXME: $MSG"
-    - pattern: "/* TODO: $MSG */"

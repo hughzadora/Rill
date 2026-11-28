@@ -1,28 +1,9 @@
 pre-commit:
-  parallel: false
   commands:
-    format:
-      run: bun run format:check && bun run dprint check
-    typecheck:
-      run: bun run typecheck
-    lint:
-      run: bun run lint
-    arch:
-      run: bun run arch:check
-    ast-grep:
-      run: bun run ast-grep
-    secrets:
-      run: gitleaks protect --staged --config .gitleaks.toml --redact --no-banner
+    verify:
+      run: mise run verify
 
 commit-msg:
   commands:
     commitlint:
-      run: bunx commitlint --edit
-
-pre-push:
-  parallel: false
-  commands:
-    tests:
-      run: bun run test
-    knip:
-      run: bun run knip
+      run: bun run commitlint --edit {1}
