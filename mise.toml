@@ -10,6 +10,7 @@ node = "24.22.3"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:oxc-project/oxc/oxfmt" = "0.80.0"
 "aqua:ast-grep/ast-grep" = "0.51.3"
+"pypi:specify-cli" = "latest"
 
 [env]
 TSRS_FAST = "0"
